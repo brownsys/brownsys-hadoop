@@ -174,6 +174,11 @@ public class JspHelper {
       try {
         s = NetUtils.getDefaultSocketFactory(conf).createSocket();
         s.connect(targetAddr, HdfsServerConstants.READ_TIMEOUT);
+        String strace = "";
+        for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
+            strace += (" " + ste);
+        }
+        LOG.info("LoggingSocket making a quick connection to " + targetAddr + " with: " + s + " due to stack:" + strace);
         s.setSoTimeout(HdfsServerConstants.READ_TIMEOUT);
       } catch (IOException e) {
         deadNodes.add(chosenNode);
@@ -196,6 +201,7 @@ public class JspHelper {
     if (chunkSizeToView == 0) return;
     Socket s = NetUtils.getDefaultSocketFactory(conf).createSocket();
     s.connect(addr, HdfsServerConstants.READ_TIMEOUT);
+    LOG.info("LoggingSocket making a quick connection to " + addr + " with: " + s);
     s.setSoTimeout(HdfsServerConstants.READ_TIMEOUT);
       
     int amtToRead = (int)Math.min(chunkSizeToView, blockSize - offsetIntoBlock);

@@ -218,6 +218,11 @@ class Fetcher<K,V> extends Thread {
       connection.setReadTimeout(readTimeout);
       connect(connection, connectionTimeout);
       connectSucceeded = true;
+      String strace = "";
+      for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
+        strace += (" " + ste);
+      }      
+      LOG.info("LoggingSocket ... URLConnection opened: " + connection + " due to stack:" + strace);
       input = new DataInputStream(connection.getInputStream());
 
       // Validate response code

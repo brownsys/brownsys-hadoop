@@ -24,6 +24,8 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 
 import org.apache.commons.io.input.BoundedInputStream;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.fs.FSInputStream;
 import org.apache.hadoop.hdfs.server.namenode.StreamFile;
 
@@ -37,6 +39,8 @@ import com.google.common.annotations.VisibleForTesting;
  * connected to the currently active input stream. 
  */
 public abstract class ByteRangeInputStream extends FSInputStream {
+  
+  private static final Log LOG = LogFactory.getLog(ByteRangeInputStream.class);
   
   /**
    * This class wraps a URL and provides method to open connection.
@@ -119,6 +123,12 @@ public abstract class ByteRangeInputStream extends FSInputStream {
     final HttpURLConnection connection = opener.openConnection(startPos);
     connection.connect();
     checkResponseCode(connection);
+
+    String strace = "";
+    for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
+      strace += (" " + ste);
+    }
+    LOG.info("LoggingSocket making a quick input stream connection to " + connection + " due to stack:" + strace);
 
     final String cl = connection.getHeaderField(StreamFile.CONTENT_LENGTH);
     if (cl == null) {

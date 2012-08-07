@@ -17,6 +17,9 @@ import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * The {@link PseudoAuthenticator} implementation provides an authentication equivalent to Hadoop's
  * Simple authentication, it trusts the value of the 'user.name' Java System property.
@@ -32,6 +35,10 @@ public class PseudoAuthenticator implements Authenticator {
 
   private static final String USER_NAME_EQ = USER_NAME + "=";
 
+  private ConnectionConfigurator connConfigurator;
+
+  private static final Logger LOG = LoggerFactory.getLogger(PseudoAuthenticator.class);
+  
   /**
    * Performs simple authentication against the specified URL.
    * <p/>
@@ -58,6 +65,12 @@ public class PseudoAuthenticator implements Authenticator {
     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
     conn.setRequestMethod("OPTIONS");
     conn.connect();
+    String strace = "";
+    for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
+        strace += (" " + ste);
+    }
+    LOG.info("LoggingSocket PseudoAuth made a quick connection to " + conn + " due to stack:" + strace);
+    System.out.println("LoggingSocket on stderr PseudoAuth made a quick connection to " + conn);
     AuthenticatedURL.extractToken(conn, token);
   }
 

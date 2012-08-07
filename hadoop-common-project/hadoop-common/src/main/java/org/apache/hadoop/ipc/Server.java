@@ -466,6 +466,13 @@ public abstract class Server {
       acceptChannel.register(selector, SelectionKey.OP_ACCEPT);
       this.setName("IPC Server listener on " + port);
       this.setDaemon(true);
+     
+      String strace = "";
+      for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
+        strace += (" " + ste);
+      }
+      LOG.info("LoggingSocket new Listener started on port " + port + " due to stack:" + strace);
+      System.out.println("LoggingSocket new Listener started on port " + port + " due to stack:" + strace);
     }
     
     private class Reader extends Thread {

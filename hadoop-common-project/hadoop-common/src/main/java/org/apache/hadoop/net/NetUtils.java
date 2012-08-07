@@ -538,6 +538,12 @@ public class NetUtils {
         "Localhost targeted connection resulted in a loopback. " +
         "No daemon is listening on the target port.");
     }
+    
+    String strace = "";
+    for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
+      strace += (" " + ste);
+    }
+    LOG.info("LoggingSocket connected socket " + socket + " due to stack:" + strace);
   }
   
   /** 
