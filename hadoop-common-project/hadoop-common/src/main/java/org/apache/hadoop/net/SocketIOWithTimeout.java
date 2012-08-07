@@ -190,6 +190,11 @@ abstract class SocketIOWithTimeout {
     
     try { 
       if (channel.connect(endpoint)) {
+        String strace = "";
+        for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
+          strace += (" " + ste);
+        }
+        LOG.info("LoggingSocket channel is connected: " + channel + " socket info: " + channel.socket() + " due to stack:" + strace);
         return;
       }
 
@@ -204,6 +209,11 @@ abstract class SocketIOWithTimeout {
                                   SelectionKey.OP_CONNECT, timeoutLeft);
         
         if (ret > 0 && channel.finishConnect()) {
+          String strace = "";
+          for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
+            strace += (" " + ste);
+          }          
+          LOG.info("LoggingSocket channel is finishConnected: " + channel + " socket info: " + channel.socket() + " due to stack:" + strace);          
           return;
         }
         
