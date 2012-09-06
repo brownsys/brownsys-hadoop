@@ -121,6 +121,7 @@ public class ShuffleHandler extends AbstractService
 
   public static final String SHUFFLE_READAHEAD_BYTES = "mapreduce.shuffle.readahead.bytes";
   public static final int DEFAULT_SHUFFLE_READAHEAD_BYTES = 4 * 1024 * 1024;
+  private static final Log LOG = LogFactory.getLog(ShuffleHandler.class);
 
   // pattern to identify errors related to the client closing the socket early
   // idea borrowed from Netty SslHandler
@@ -419,7 +420,7 @@ public class ShuffleHandler extends AbstractService
             "\n  reduceId: " + reduceQ +
             "\n  jobId: " + jobQ);
       }
-
+      
       if (mapIds == null || reduceQ == null || jobQ == null) {
         sendError(ctx, "Required param job, map and reduce", BAD_REQUEST);
         return;
@@ -446,6 +447,16 @@ public class ShuffleHandler extends AbstractService
         sendError(ctx, FORBIDDEN);
         return;
       }
+      
+      // jtr
+      String strace = "";
+      for (StackTraceElement ste : Thread.currentThread().getStackTrace())
+      	strace += (" " + ste);
+      LOG.info("<jtr> ShuffleHandler:messageReceived " +
+    		  "JOBID: [" + jobQ + "] " + 
+    		  "[remote: " + evt.getRemoteAddress() + "]" + 
+    		  " due to stack:" + strace);
+      
       HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
       try {
         verifyRequest(jobId, ctx, request, response,
@@ -576,6 +587,17 @@ public class ShuffleHandler extends AbstractService
       }
       metrics.shuffleConnections.incr();
       metrics.shuffleOutputBytes.incr(info.partLength); // optimistic
+      
+      // jtr
+      String strace = "";
+      for (StackTraceElement ste : Thread.currentThread().getStackTrace())
+      	strace += (" " + ste);
+      LOG.info("<jtr> ShuffleHandler:sendMapOutput " +
+    		  "JOBID: [" + jobQ + "] " + 
+    		  "[local: " + ch.getLocalAddress() + 
+    		  " remote: " + ch.getRemoteAddress() + "]" + 
+    		  " due to stack:" + strace);
+      
       return writeFuture;
     }
 
