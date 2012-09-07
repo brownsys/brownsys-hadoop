@@ -83,8 +83,7 @@ public class PseudoAuthenticator implements Authenticator {
     for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
         strace += (" " + ste);
     }
-    LOG.info("LoggingSocket PseudoAuth made a quick connection to " + conn + " due to stack:" + strace);
-    System.out.println("LoggingSocket on stderr PseudoAuth made a quick connection to " + conn);
+    LOG.info("<trace-tag> LoggingSocket PseudoAuth made a quick connection to " + conn + " due to stack:" + strace);
     AuthenticatedURL.extractToken(conn, token);
   }
 

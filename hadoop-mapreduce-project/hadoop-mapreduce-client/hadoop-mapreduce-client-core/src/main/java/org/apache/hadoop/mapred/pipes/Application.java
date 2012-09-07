@@ -96,8 +96,8 @@ class Application<K1 extends WritableComparable, V1 extends Writable,
     env.put(Submitter.PORT, 
             Integer.toString(serverSocket.getLocalPort()));
     
-    LOG.info("LoggingSocket in Application with serverSocket: " + serverSocket + " local port: " + serverSocket.getLocalPort());
-    System.out.println("LoggingSocket in Application with serverSocket: " + serverSocket + " local port: " + serverSocket.getLocalPort());
+    LOG.info("<trace-tag> LoggingSocket in Application with serverSocket: " + serverSocket + " local port: " + serverSocket.getLocalPort());
+
     
     //Add token to the environment if security is enabled
     Token<JobTokenIdentifier> jobToken = TokenCache.getJobToken(conf

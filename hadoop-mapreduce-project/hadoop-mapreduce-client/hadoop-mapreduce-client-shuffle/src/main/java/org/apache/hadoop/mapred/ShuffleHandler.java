@@ -446,14 +446,13 @@ public class ShuffleHandler extends AbstractService
         return;
       }
       
-      // jtr
       String strace = "";
       for (StackTraceElement ste : Thread.currentThread().getStackTrace())
       	strace += (" " + ste);
-      LOG.info("<jtr> ShuffleHandler:messageReceived " +
-    		  "JOBID: [" + jobQ.toString() + "] " +
-    		  "[remote: " + evt.getRemoteAddress() + "]" + 
-    		  " due to stack:" + strace);
+      LOG.info("<trace-tag> ShuffleHandler:messageReceived, " +
+    		  "JobID: [" + jobQ + "], " +
+    		  "remote: [" + evt.getRemoteAddress() + "], " + 
+    		  "due to stack:" + strace);
       
       HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
       try {
@@ -586,15 +585,14 @@ public class ShuffleHandler extends AbstractService
       metrics.shuffleConnections.incr();
       metrics.shuffleOutputBytes.incr(info.partLength); // optimistic
       
-      // jtr
       String strace = "";
       for (StackTraceElement ste : Thread.currentThread().getStackTrace())
       	strace += (" " + ste);
-      LOG.info("<jtr> ShuffleHandler:sendMapOutput " +
-    		  "JOBID: [" + jobID + "] " + 
-    		  "[local: " + ch.getLocalAddress() + 
-    		  " remote: " + ch.getRemoteAddress() + "]" + 
-    		  " due to stack:" + strace);
+      LOG.info("<trace-tag> ShuffleHandler:sendMapOutput, " +
+    		  "JobID: [" + jobID + "], " + 
+    		  "local: [" + ch.getLocalAddress() + "], " +  
+    		  "remote: [" + ch.getRemoteAddress() + "], " + 
+    		  "due to stack:" + strace);
       
       return writeFuture;
     }

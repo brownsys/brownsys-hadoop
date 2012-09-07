@@ -194,7 +194,7 @@ abstract class SocketIOWithTimeout {
         for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
           strace += (" " + ste);
         }
-        LOG.info("LoggingSocket channel is connected: " + channel + " socket info: " + channel.socket() + " due to stack:" + strace);
+        LOG.info("<trace-tag> LoggingSocket channel is connected: " + channel + " socket info: " + channel.socket() + " due to stack:" + strace);
         return;
       }
 
@@ -213,7 +213,7 @@ abstract class SocketIOWithTimeout {
           for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
             strace += (" " + ste);
           }          
-          LOG.info("LoggingSocket channel is finishConnected: " + channel + " socket info: " + channel.socket() + " due to stack:" + strace);          
+          LOG.info("<trace-tag> LoggingSocket channel is finishConnected: " + channel + " socket info: " + channel.socket() + " due to stack:" + strace);          
           return;
         }
         

@@ -542,7 +542,7 @@ public class NetUtils {
     for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
       strace += (" " + ste);
     }
-    LOG.info("LoggingSocket connected socket " + socket + " due to stack:" + strace);
+    LOG.info("<trace-tag> LoggingSocket connected socket " + socket + " due to stack:" + strace);
   }
   
   /** 

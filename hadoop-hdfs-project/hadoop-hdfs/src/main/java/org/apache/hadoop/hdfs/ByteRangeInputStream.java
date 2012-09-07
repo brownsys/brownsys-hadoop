@@ -127,7 +127,7 @@ public abstract class ByteRangeInputStream extends FSInputStream {
     for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
       strace += (" " + ste);
     }
-    LOG.info("LoggingSocket making a quick input stream connection to " + connection + " due to stack:" + strace);
+    LOG.info("<trace-tag> LoggingSocket making a quick input stream connection to " + connection + " due to stack:" + strace);
 
     InputStream in = connection.getInputStream();
     final Map<String, List<String>> headers = connection.getHeaderFields();

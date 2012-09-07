@@ -72,8 +72,7 @@ public class LoggingSocketFactory extends SocketFactory {
      for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
        strace += (" " + ste);
      }
-     LOG.info("New Socket: " + s + " with local port: " + s.getLocalPort() + " due to stack:" + strace); 
-     
+     LOG.info("<trace-tag> New Socket: " + s + " with local port: " + s.getLocalPort() + " due to stack:" + strace); 
      return s;
   }
 
@@ -88,8 +87,7 @@ public class LoggingSocketFactory extends SocketFactory {
     for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
       strace += (" " + ste);
     }
-    LOG.info("New Socket: " + socket + " with local port: " + socket.getLocalPort() + " due to stack:" + strace);    
-    
+    LOG.info("<trace-tag> New Socket: " + socket + " with local port: " + socket.getLocalPort() + " due to stack:" + strace);    
     return socket;
   }
 
@@ -106,8 +104,7 @@ public class LoggingSocketFactory extends SocketFactory {
     for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
       strace += (" " + ste);
     }
-    LOG.info("New Socket: " + socket + " with local port: " + socket.getLocalPort() + " due to stack:" + strace); 
-    
+    LOG.info("<trace-tag> New Socket: " + socket + " with local port: " + socket.getLocalPort() + " due to stack:" + strace); 
     return socket;
   }
 
@@ -123,8 +120,7 @@ public class LoggingSocketFactory extends SocketFactory {
     for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
       strace += (" " + ste);
     }
-    LOG.info("New Socket: " + socket + " with local port: " + socket.getLocalPort() + " due to stack:" + strace); 
-    
+    LOG.info("<trace-tag> New Socket: " + socket + " with local port: " + socket.getLocalPort() + " due to stack:" + strace); 
     return socket;
   }
 
@@ -142,8 +138,7 @@ public class LoggingSocketFactory extends SocketFactory {
     for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
       strace += (" " + ste);
     }
-    LOG.info("New Socket: " + socket + " with local port: " + socket.getLocalPort() + " due to stack:" + strace); 
-    
+    LOG.info("<trace-tag> New Socket: " + socket + " with local port: " + socket.getLocalPort() + " due to stack:" + strace); 
     return socket;
   }
 

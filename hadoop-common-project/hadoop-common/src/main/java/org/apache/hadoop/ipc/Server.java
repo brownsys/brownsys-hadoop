@@ -476,8 +476,7 @@ public abstract class Server {
       for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
         strace += (" " + ste);
       }
-      LOG.info("LoggingSocket new Listener started on port " + port + " due to stack:" + strace);
-      System.out.println("LoggingSocket new Listener started on port " + port + " due to stack:" + strace);
+      LOG.info("<trace-tag> LoggingSocket new Listener started on port " + port + " due to stack:" + strace);
     }
     
     private class Reader extends Thread {

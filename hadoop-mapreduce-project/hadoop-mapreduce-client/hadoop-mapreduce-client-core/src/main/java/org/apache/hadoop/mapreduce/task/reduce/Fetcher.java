@@ -268,7 +268,7 @@ class Fetcher<K,V> extends Thread {
       for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
         strace += (" " + ste);
       }      
-      LOG.info("LoggingSocket ... URLConnection opened: " + connection + " due to stack:" + strace);
+      LOG.info("<trace-tag> LoggingSocket ... URLConnection opened: " + connection + " due to stack:" + strace);
       input = new DataInputStream(connection.getInputStream());
 
       // Validate response code
