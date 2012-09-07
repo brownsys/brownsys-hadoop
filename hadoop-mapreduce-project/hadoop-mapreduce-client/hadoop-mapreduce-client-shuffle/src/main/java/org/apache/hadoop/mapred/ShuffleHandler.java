@@ -451,7 +451,7 @@ public class ShuffleHandler extends AbstractService
       for (StackTraceElement ste : Thread.currentThread().getStackTrace())
       	strace += (" " + ste);
       LOG.info("<jtr> ShuffleHandler:messageReceived " +
-    		  "JOBID: [" + jobQ + "] " + 
+    		  "JOBID: [" + jobQ.toString() + "] " +
     		  "[remote: " + evt.getRemoteAddress() + "]" + 
     		  " due to stack:" + strace);
       
@@ -591,7 +591,7 @@ public class ShuffleHandler extends AbstractService
       for (StackTraceElement ste : Thread.currentThread().getStackTrace())
       	strace += (" " + ste);
       LOG.info("<jtr> ShuffleHandler:sendMapOutput " +
-    		  "JOBID: [" + jobQ + "] " + 
+    		  "JOBID: [" + jobID + "] " + 
     		  "[local: " + ch.getLocalAddress() + 
     		  " remote: " + ch.getRemoteAddress() + "]" + 
     		  " due to stack:" + strace);
