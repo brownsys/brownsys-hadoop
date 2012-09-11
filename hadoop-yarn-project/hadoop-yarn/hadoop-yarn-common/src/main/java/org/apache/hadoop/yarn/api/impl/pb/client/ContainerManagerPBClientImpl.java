@@ -24,6 +24,7 @@ import java.net.InetSocketAddress;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.JobContext;
 import org.apache.hadoop.JobThreadLocal;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.ipc.ProtobufRpcEngine;
@@ -108,10 +109,12 @@ public class ContainerManagerPBClientImpl implements ContainerManager,
     StartContainerRequestProto requestProto =
         ((StartContainerRequestPBImpl) request).getProto();
 
-	  String jobId = JobThreadLocal.get().getJobId();
-	  if (jobId == null)
-		  jobId = "UNKNOWN";
-	  LOG.info("<jobid-tag> jobid: " + jobId);
+	  //jtr
+	  JobContext ctx = JobThreadLocal.get();
+	  String jobId = "UNKNOWN";
+	  if (ctx != null && ctx.getJobId() != null)
+		  jobId = ctx.getJobId();
+	  LOG.info("<jobid-tag> " + ContainerManagerPBClientImpl.class.getName() + "jobid: " + jobId + ", ThreadName: " + Thread.currentThread().getName());
 
     try {
       return new StartContainerResponsePBImpl(proxy.startContainer(null,

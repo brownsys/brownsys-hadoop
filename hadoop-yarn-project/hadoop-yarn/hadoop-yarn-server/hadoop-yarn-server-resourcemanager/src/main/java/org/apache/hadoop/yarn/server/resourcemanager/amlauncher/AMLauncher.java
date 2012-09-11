@@ -111,6 +111,7 @@ public class AMLauncher implements Runnable {
     JobContext ctx = new JobContext();
     ctx.setJobId(application.getAppAttemptId().toString());
     JobThreadLocal.set(ctx);
+    LOG.info("<jobid-tag> " + AMLauncher.class.getName() + "jobid: " + application.getAppAttemptId() + ", ThreadName: " + Thread.currentThread().getName());
     
     ContainerLaunchContext launchContext =
         createAMContainerLaunchContext(applicationContext, masterContainerID);
