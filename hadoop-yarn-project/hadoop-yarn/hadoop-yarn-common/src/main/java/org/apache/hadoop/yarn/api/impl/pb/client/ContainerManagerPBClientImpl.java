@@ -115,7 +115,12 @@ public class ContainerManagerPBClientImpl implements ContainerManager,
 	  if (ctx != null && ctx.getJobId() != null)
 		  jobId = ctx.getJobId();
 	  LOG.info("<jobid-tag> " + ContainerManagerPBClientImpl.class.getName() + "jobid: " + jobId + ", ThreadName: " + Thread.currentThread().getName());
+<<<<<<< HEAD:hadoop-yarn-project/hadoop-yarn/hadoop-yarn-common/src/main/java/org/apache/hadoop/yarn/api/impl/pb/client/ContainerManagerPBClientImpl.java
 
+=======
+	  
+    StartContainerRequestProto requestProto = ((StartContainerRequestPBImpl)request).getProto();
+>>>>>>> 88df2e0... more logging for jobid, same path:hadoop-mapreduce-project/hadoop-yarn/hadoop-yarn-common/src/main/java/org/apache/hadoop/yarn/api/impl/pb/client/ContainerManagerPBClientImpl.java
     try {
       return new StartContainerResponsePBImpl(proxy.startContainer(null,
         requestProto));
