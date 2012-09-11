@@ -47,7 +47,6 @@ import org.apache.hadoop.security.token.SecretManager;
 import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.util.ProtoUtil;
 import org.apache.hadoop.util.Time;
-import org.apache.hadoop.yarn.api.impl.pb.client.ContainerManagerPBClientImpl;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.BlockingService;
