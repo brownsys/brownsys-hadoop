@@ -61,6 +61,8 @@ import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.RMAppAttemptE
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.RMAppAttemptEventType;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.event.RMAppAttemptLaunchFailedEvent;
 import org.apache.hadoop.yarn.util.ProtoUtils;
+import org.apache.hadoop.JobContext;
+import org.apache.hadoop.JobThreadLocal;
 
 /**
  * The launch of the AM itself.
@@ -80,6 +82,7 @@ public class AMLauncher implements Runnable {
   
   @SuppressWarnings("rawtypes")
   private final EventHandler handler;
+  
   
   public AMLauncher(RMContext rmContext, RMAppAttempt application,
       AMLauncherEventType eventType, Configuration conf) {
@@ -102,7 +105,13 @@ public class AMLauncher implements Runnable {
     ApplicationSubmissionContext applicationContext =
       application.getSubmissionContext();
     LOG.info("Setting up container " + application.getMasterContainer() 
-        + " for AM " + application.getAppAttemptId());  
+        + " for AM " + application.getAppAttemptId());
+
+    // <jtr> JobID: application.getAppAttemptID()
+    JobContext ctx = new JobContext();
+    ctx.setJobId(application.getAppAttemptId().toString());
+    JobThreadLocal.set(ctx);
+    
     ContainerLaunchContext launchContext =
         createAMContainerLaunchContext(applicationContext, masterContainerID);
     StartContainerRequest request = 
