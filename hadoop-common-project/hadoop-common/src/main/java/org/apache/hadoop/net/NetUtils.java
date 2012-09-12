@@ -45,9 +45,11 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.commons.net.util.SubnetUtils;
 import org.apache.commons.net.util.SubnetUtils.SubnetInfo;
+import org.apache.hadoop.JobThreadLocal;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.ipc.ProtobufRpcEngine;
 import org.apache.hadoop.ipc.Server;
 import org.apache.hadoop.ipc.VersionedProtocol;
 import org.apache.hadoop.security.SecurityUtil;
@@ -542,7 +544,13 @@ public class NetUtils {
     for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
       strace += (" " + ste);
     }
-    LOG.info("<trace-tag> LoggingSocket connected socket " + socket + " due to stack:" + strace);
+	LOG.info("<trace-tag> " + NetUtils.class.getName() + ", " +  
+			"jobid: " + JobThreadLocal.getJobId() + ", " +  
+			"ThreadName: " + Thread.currentThread().getName() + ", " + 
+			"LoggingSocket connected socket " + socket + ", " + 
+			"due to stack:" + strace);
+    //LOG.info("<trace-tag> LoggingSocket connected socket " + socket + " due to stack:" + strace);
+
   }
   
   /** 

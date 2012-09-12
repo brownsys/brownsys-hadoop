@@ -193,12 +193,9 @@ public class ProtobufRpcEngine implements RpcEngine {
       }
 
 	  //jtr
-	  JobContext ctx = JobThreadLocal.get();
-	  String jobId = "UNKNOWN";
-	  if (ctx != null && ctx.getJobId() != null)
-		  jobId = ctx.getJobId();
-	  LOG.info("<jobid-tag> " + ProtobufRpcEngine.class.getName() + "jobid: " + jobId + ", ThreadName: " + Thread.currentThread().getName());
-
+	  LOG.info("<jobid-tag> " + ProtobufRpcEngine.class.getName() + ", " +  
+			  "jobid: " + JobThreadLocal.getJobId() + ", " +  
+			  "ThreadName: " + Thread.currentThread().getName());
       
       HadoopRpcRequestProto rpcRequest = constructRpcRequest(method, args);
       RpcResponseWritable val = null;

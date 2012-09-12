@@ -15,4 +15,11 @@ public class JobThreadLocal {
 		return userThreadLocal.get();
     }
 
+    public static String getJobId() {
+  	  JobContext ctx = userThreadLocal.get();
+  	  String jobId = "UNKNOWN";
+  	  if (ctx != null && ctx.getJobId() != null)
+  		  jobId = ctx.getJobId();
+      return jobId;
+    }
 }
