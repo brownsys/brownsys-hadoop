@@ -1,5 +1,7 @@
 package org.apache.hadoop;
 
+import org.apache.commons.logging.Log;
+
 public class JobThreadLocal {
 	public static final ThreadLocal<JobContext> userThreadLocal = new ThreadLocal<JobContext>();
 
@@ -22,4 +24,17 @@ public class JobThreadLocal {
   		  jobId = ctx.getJobId();
       return jobId;
     }
+    
+    public static void logTrace(Log logger, String className, String socketInfo) {
+        String strace = "";
+        for (StackTraceElement ste : Thread.currentThread().getStackTrace())
+          strace += (" " + ste);
+        
+    	logger.info("<trace-tag> " + className + ", " + 
+    			"JobID: " + getJobId() + ", " + 
+    			"ThreadName: " + Thread.currentThread().getName() + ", " + 
+    			socketInfo + ", " + 
+    			"due to stack: " + strace);
+    }
+
 }

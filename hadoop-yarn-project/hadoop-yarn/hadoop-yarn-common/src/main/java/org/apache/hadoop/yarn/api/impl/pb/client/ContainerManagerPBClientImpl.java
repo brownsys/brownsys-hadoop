@@ -105,19 +105,8 @@ public class ContainerManagerPBClientImpl implements ContainerManager,
 
   @Override
   public StartContainerResponse startContainer(StartContainerRequest request)
-      throws YarnRemoteException {
-    StartContainerRequestProto requestProto =
-        ((StartContainerRequestPBImpl) request).getProto();
-
-	  //jtr
-	  JobContext ctx = JobThreadLocal.get();
-	  String jobId = "UNKNOWN";
-	  if (ctx != null && ctx.getJobId() != null)
-		  jobId = ctx.getJobId();
-	  LOG.info("<jobid-tag> " + ContainerManagerPBClientImpl.class.getName() + "jobid: " + jobId + ", ThreadName: " + Thread.currentThread().getName());
-
-      StartContainerRequestProto requestProto = ((StartContainerRequestPBImpl)request).getProto();
-
+      throws YarnRemoteException {	  
+    StartContainerRequestProto requestProto = ((StartContainerRequestPBImpl)request).getProto();
     try {
       return new StartContainerResponsePBImpl(proxy.startContainer(null,
         requestProto));

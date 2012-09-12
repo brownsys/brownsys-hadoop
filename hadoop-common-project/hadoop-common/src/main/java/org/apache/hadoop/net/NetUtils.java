@@ -540,17 +540,7 @@ public class NetUtils {
         "No daemon is listening on the target port.");
     }
     
-    String strace = "";
-    for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
-      strace += (" " + ste);
-    }
-	LOG.info("<trace-tag> " + NetUtils.class.getName() + ", " +  
-			"jobid: " + JobThreadLocal.getJobId() + ", " +  
-			"ThreadName: " + Thread.currentThread().getName() + ", " + 
-			"LoggingSocket connected socket " + socket + ", " + 
-			"due to stack:" + strace);
-    //LOG.info("<trace-tag> LoggingSocket connected socket " + socket + " due to stack:" + strace);
-
+    JobThreadLocal.logTrace(LOG, NetUtils.class.getName(), socket.toString());
   }
   
   /** 
