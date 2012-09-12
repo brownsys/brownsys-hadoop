@@ -45,7 +45,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.commons.net.util.SubnetUtils;
 import org.apache.commons.net.util.SubnetUtils.SubnetInfo;
-import org.apache.hadoop.JobThreadLocal;
+import org.apache.hadoop.TraceHadoop;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
@@ -539,8 +539,7 @@ public class NetUtils {
         "Localhost targeted connection resulted in a loopback. " +
         "No daemon is listening on the target port.");
     }
-    
-    JobThreadLocal.logTrace(LOG, NetUtils.class.getName(), socket.toString());
+    TraceHadoop.logTrace(LOG, socket.toString());
   }
   
   /** 

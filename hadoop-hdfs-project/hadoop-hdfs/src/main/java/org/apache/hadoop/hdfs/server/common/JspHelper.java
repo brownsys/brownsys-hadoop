@@ -39,6 +39,7 @@ import javax.servlet.jsp.JspWriter;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.TraceHadoop;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -179,7 +180,7 @@ public class JspHelper {
         for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
             strace += (" " + ste);
         }
-        LOG.info("<trace-tag> LoggingSocket making a quick connection to " + targetAddr + " with: " + s + " due to stack:" + strace);
+        TraceHadoop.logTrace(LOG, "LoggingSocket making a quick connection to " + targetAddr + " with: " + s);
         s.setSoTimeout(HdfsServerConstants.READ_TIMEOUT);
       } catch (IOException e) {
         deadNodes.add(chosenNode);
@@ -203,7 +204,7 @@ public class JspHelper {
     if (chunkSizeToView == 0) return;
     Socket s = NetUtils.getDefaultSocketFactory(conf).createSocket();
     s.connect(addr, HdfsServerConstants.READ_TIMEOUT);
-    LOG.info("<trace-tag> LoggingSocket making a quick connection to " + addr + " with: " + s);
+    TraceHadoop.logTrace(LOG, "LoggingSocket making a quick connection to " + addr + " with: " + s);
     s.setSoTimeout(HdfsServerConstants.READ_TIMEOUT);
       
     int amtToRead = (int)Math.min(chunkSizeToView, blockSize - offsetIntoBlock);

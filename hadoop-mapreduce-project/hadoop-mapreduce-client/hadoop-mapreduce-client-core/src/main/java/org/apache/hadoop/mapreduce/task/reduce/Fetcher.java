@@ -37,6 +37,7 @@ import javax.net.ssl.HttpsURLConnection;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.TraceHadoop;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.io.compress.CodecPool;
 import org.apache.hadoop.io.compress.CompressionCodec;
@@ -264,11 +265,8 @@ class Fetcher<K,V> extends Thread {
       connection.setReadTimeout(readTimeout);
       connect(connection, connectionTimeout);
       connectSucceeded = true;
-      String strace = "";
-      for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
-        strace += (" " + ste);
-      }      
-      LOG.info("<trace-tag> LoggingSocket ... URLConnection opened: " + connection + " due to stack:" + strace);
+
+      TraceHadoop.logTrace(LOG, "LoggingSocket ... URLConnection opened: " + connection);
       input = new DataInputStream(connection.getInputStream());
 
       // Validate response code

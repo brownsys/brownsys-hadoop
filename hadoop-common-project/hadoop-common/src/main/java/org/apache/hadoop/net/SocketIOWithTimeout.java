@@ -34,7 +34,7 @@ import java.util.LinkedList;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.util.Time;
-import org.apache.hadoop.JobThreadLocal;
+import org.apache.hadoop.TraceHadoop;
 
 /**
  * This supports input and output streams for a socket channels. 
@@ -191,7 +191,7 @@ abstract class SocketIOWithTimeout {
     
     try { 
       if (channel.connect(endpoint)) {
-    	JobThreadLocal.logTrace(LOG, SocketIOWithTimeout.class.getName(), channel.socket().toString());
+    	TraceHadoop.logTrace(LOG, channel.socket().toString());
         return;
       }
 
@@ -206,7 +206,7 @@ abstract class SocketIOWithTimeout {
                                   SelectionKey.OP_CONNECT, timeoutLeft);
         
         if (ret > 0 && channel.finishConnect()) {
-        	JobThreadLocal.logTrace(LOG, SocketIOWithTimeout.class.getName(), channel.socket().toString());
+        	TraceHadoop.logTrace(LOG, channel.socket().toString());
         	return;
         }
         

@@ -29,6 +29,7 @@ import java.util.StringTokenizer;
 import org.apache.commons.io.input.BoundedInputStream;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.TraceHadoop;
 import org.apache.hadoop.fs.FSInputStream;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -127,7 +128,7 @@ public abstract class ByteRangeInputStream extends FSInputStream {
     for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
       strace += (" " + ste);
     }
-    LOG.info("<trace-tag> LoggingSocket making a quick input stream connection to " + connection + " due to stack:" + strace);
+    TraceHadoop.logTrace(LOG, "LoggingSocket making a quick input stream connection to " + connection);
 
     InputStream in = connection.getInputStream();
     final Map<String, List<String>> headers = connection.getHeaderFields();

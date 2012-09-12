@@ -28,6 +28,7 @@ import javax.net.SocketFactory;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.TraceHadoop;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 
@@ -72,7 +73,7 @@ public class LoggingSocketFactory extends SocketFactory {
      for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
        strace += (" " + ste);
      }
-     LOG.info("<trace-tag> New Socket: " + s + " with local port: " + s.getLocalPort() + " due to stack:" + strace); 
+     TraceHadoop.logTrace(LOG, "New Socket: " + s + " with local port: " + s.getLocalPort()); 
      return s;
   }
 
@@ -87,7 +88,8 @@ public class LoggingSocketFactory extends SocketFactory {
     for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
       strace += (" " + ste);
     }
-    LOG.info("<trace-tag> New Socket: " + socket + " with local port: " + socket.getLocalPort() + " due to stack:" + strace);    
+    TraceHadoop.logTrace(LOG, "New Socket: " + socket + " with local port: " + socket.getLocalPort());    
+
     return socket;
   }
 
@@ -100,11 +102,7 @@ public class LoggingSocketFactory extends SocketFactory {
     socket.bind(new InetSocketAddress(localHostAddr, localPort));
     socket.connect(new InetSocketAddress(addr, port));
     
-    String strace = "";
-    for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
-      strace += (" " + ste);
-    }
-    LOG.info("<trace-tag> New Socket: " + socket + " with local port: " + socket.getLocalPort() + " due to stack:" + strace); 
+    TraceHadoop.logTrace(LOG, "New Socket: " + socket + " with local port: " + socket.getLocalPort());
     return socket;
   }
 
@@ -116,11 +114,8 @@ public class LoggingSocketFactory extends SocketFactory {
     Socket socket = createSocket();
     socket.connect(new InetSocketAddress(host, port));
     
-    String strace = "";
-    for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
-      strace += (" " + ste);
-    }
-    LOG.info("<trace-tag> New Socket: " + socket + " with local port: " + socket.getLocalPort() + " due to stack:" + strace); 
+    TraceHadoop.logTrace(LOG, "New Socket: " + socket + " with local port: " + socket.getLocalPort());
+
     return socket;
   }
 
@@ -134,11 +129,7 @@ public class LoggingSocketFactory extends SocketFactory {
     socket.bind(new InetSocketAddress(localHostAddr, localPort));
     socket.connect(new InetSocketAddress(host, port));
     
-    String strace = "";
-    for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
-      strace += (" " + ste);
-    }
-    LOG.info("<trace-tag> New Socket: " + socket + " with local port: " + socket.getLocalPort() + " due to stack:" + strace); 
+    TraceHadoop.logTrace(LOG, "New Socket: " + socket + " with local port: " + socket.getLocalPort());
     return socket;
   }
 

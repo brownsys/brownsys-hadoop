@@ -52,6 +52,7 @@ import javax.crypto.SecretKey;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.TraceHadoop;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.LocalDirAllocator;
 import org.apache.hadoop.fs.Path;
@@ -446,13 +447,7 @@ public class ShuffleHandler extends AbstractService
         return;
       }
       
-      String strace = "";
-      for (StackTraceElement ste : Thread.currentThread().getStackTrace())
-      	strace += (" " + ste);
-      LOG.info("<trace-tag> ShuffleHandler:messageReceived, " +
-    		  "JobID: [" + jobQ + "], " +
-    		  "remote: [" + evt.getRemoteAddress() + "], " + 
-    		  "due to stack:" + strace);
+      TraceHadoop.logTrace(LOG, jobQ.toString(), "remote: " + evt.getRemoteAddress());
       
       HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
       try {
@@ -585,14 +580,8 @@ public class ShuffleHandler extends AbstractService
       metrics.shuffleConnections.incr();
       metrics.shuffleOutputBytes.incr(info.partLength); // optimistic
       
-      String strace = "";
-      for (StackTraceElement ste : Thread.currentThread().getStackTrace())
-      	strace += (" " + ste);
-      LOG.info("<trace-tag> ShuffleHandler:sendMapOutput, " +
-    		  "JobID: [" + jobID + "], " + 
-    		  "local: [" + ch.getLocalAddress() + "], " +  
-    		  "remote: [" + ch.getRemoteAddress() + "], " + 
-    		  "due to stack:" + strace);
+      TraceHadoop.logTrace(LOG, jobID.toString(), "local: [" + ch.getLocalAddress() + "], " +  
+    		  "remote: [" + ch.getRemoteAddress() + "]");
       
       return writeFuture;
     }

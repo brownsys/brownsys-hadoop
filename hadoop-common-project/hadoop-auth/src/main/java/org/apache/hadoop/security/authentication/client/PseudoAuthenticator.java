@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
+import org.apache.hadoop.TraceHadoop;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -83,7 +84,7 @@ public class PseudoAuthenticator implements Authenticator {
     for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
         strace += (" " + ste);
     }
-    LOG.info("<trace-tag> LoggingSocket PseudoAuth made a quick connection to " + conn + " due to stack:" + strace);
+    TraceHadoop.logTrace(LOG, "LoggingSocket PseudoAuth made a quick connection to " + conn);
     AuthenticatedURL.extractToken(conn, token);
   }
 

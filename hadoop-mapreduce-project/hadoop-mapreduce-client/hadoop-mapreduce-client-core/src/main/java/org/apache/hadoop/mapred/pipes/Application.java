@@ -32,6 +32,7 @@ import javax.crypto.SecretKey;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.TraceHadoop;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.FileUtil;
@@ -96,8 +97,7 @@ class Application<K1 extends WritableComparable, V1 extends Writable,
     env.put(Submitter.PORT, 
             Integer.toString(serverSocket.getLocalPort()));
     
-    LOG.info("<trace-tag> LoggingSocket in Application with serverSocket: " + serverSocket + " local port: " + serverSocket.getLocalPort());
-
+    TraceHadoop.logTrace(LOG, "LoggingSocket in Application with serverSocket: " + serverSocket + " local port: " + serverSocket.getLocalPort());
     
     //Add token to the environment if security is enabled
     Token<JobTokenIdentifier> jobToken = TokenCache.getJobToken(conf
