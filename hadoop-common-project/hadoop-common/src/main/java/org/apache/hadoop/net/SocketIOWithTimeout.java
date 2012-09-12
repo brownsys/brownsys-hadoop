@@ -34,7 +34,6 @@ import java.util.LinkedList;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.util.Time;
-import org.apache.hadoop.security.authentication.util.TraceHadoop;
 
 /**
  * This supports input and output streams for a socket channels. 
@@ -191,7 +190,11 @@ abstract class SocketIOWithTimeout {
     
     try { 
       if (channel.connect(endpoint)) {
-    	TraceHadoop.logTrace(LOG, channel.socket().toString());
+        String strace = "";
+        for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
+          strace += (" " + ste);
+        }
+        LOG.info("LoggingSocket channel is connected: " + channel + " socket info: " + channel.socket() + " due to stack:" + strace);
         return;
       }
 
@@ -206,8 +209,12 @@ abstract class SocketIOWithTimeout {
                                   SelectionKey.OP_CONNECT, timeoutLeft);
         
         if (ret > 0 && channel.finishConnect()) {
-        	TraceHadoop.logTrace(LOG, channel.socket().toString());
-        	return;
+          String strace = "";
+          for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
+            strace += (" " + ste);
+          }          
+          LOG.info("LoggingSocket channel is finishConnected: " + channel + " socket info: " + channel.socket() + " due to stack:" + strace);          
+          return;
         }
         
         if (ret == 0 ||

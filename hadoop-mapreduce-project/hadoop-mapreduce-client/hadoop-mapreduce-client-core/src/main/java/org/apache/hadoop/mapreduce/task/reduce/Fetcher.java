@@ -52,7 +52,6 @@ import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.mapreduce.security.SecureShuffleUtils;
 import org.apache.hadoop.security.ssl.SSLFactory;
 import org.apache.hadoop.mapreduce.task.reduce.MapOutput.Type;
-import org.apache.hadoop.security.authentication.util.TraceHadoop;
 import org.apache.hadoop.util.Progressable;
 import org.apache.hadoop.util.ReflectionUtils;
 
@@ -265,8 +264,11 @@ class Fetcher<K,V> extends Thread {
       connection.setReadTimeout(readTimeout);
       connect(connection, connectionTimeout);
       connectSucceeded = true;
-
-      TraceHadoop.logTrace(LOG, "LoggingSocket ... URLConnection opened: " + connection);
+      String strace = "";
+      for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
+        strace += (" " + ste);
+      }      
+      LOG.info("LoggingSocket ... URLConnection opened: " + connection + " due to stack:" + strace);
       input = new DataInputStream(connection.getInputStream());
 
       // Validate response code

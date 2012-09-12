@@ -15,7 +15,6 @@ package org.apache.hadoop.security.authentication.client;
 
 import org.apache.commons.codec.binary.Base64;
 import org.apache.hadoop.security.authentication.util.KerberosUtil;
-import org.apache.hadoop.security.authentication.util.TraceHadoop;
 import org.ietf.jgss.GSSContext;
 import org.ietf.jgss.GSSManager;
 import org.ietf.jgss.GSSName;
@@ -160,9 +159,9 @@ public class KerberosAuthenticator implements Authenticator {
       }
       conn.setRequestMethod(AUTH_HTTP_METHOD);
       conn.connect();
-      
-      TraceHadoop.logTrace(LOG, "LoggingSocket KerberosAuth made a quick connection 1 to " + conn);      
-      System.out.println("LoggingSocket on stdout KerberosAuth made a quick connection 1 to " + conn); 
+
+      LOG.info("LoggingSocket KerberosAuth made a quick connection 1 to " + conn);
+      System.out.println("LoggingSocket on stdout KerberosAuth made a quick connection 1 to " + conn);    
 
       if (conn.getRequestProperty(AUTHORIZATION) != null && conn.getResponseCode() == HttpURLConnection.HTTP_OK) {
         LOG.debug("JDK performed authentication on our behalf.");
@@ -296,7 +295,8 @@ public class KerberosAuthenticator implements Authenticator {
     conn.setRequestMethod(AUTH_HTTP_METHOD);
     conn.setRequestProperty(AUTHORIZATION, NEGOTIATE + " " + token);
     conn.connect();
-    TraceHadoop.logTrace(LOG, "LoggingSocket KerberosAuth made a quick connection 2 to " + conn);
+    LOG.info("LoggingSocket KerberosAuth made a quick connection 2 to " + conn);
+    System.out.println("LoggingSocket on stdout KerberosAuth made a quick connection 2 to " + conn);     
   }
 
   /*

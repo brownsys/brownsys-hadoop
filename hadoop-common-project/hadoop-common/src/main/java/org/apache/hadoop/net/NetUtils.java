@@ -48,11 +48,9 @@ import org.apache.commons.net.util.SubnetUtils.SubnetInfo;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.ipc.ProtobufRpcEngine;
 import org.apache.hadoop.ipc.Server;
 import org.apache.hadoop.ipc.VersionedProtocol;
 import org.apache.hadoop.security.SecurityUtil;
-import org.apache.hadoop.security.authentication.util.TraceHadoop;
 import org.apache.hadoop.util.ReflectionUtils;
 
 import com.google.common.base.Preconditions;
@@ -539,7 +537,12 @@ public class NetUtils {
         "Localhost targeted connection resulted in a loopback. " +
         "No daemon is listening on the target port.");
     }
-    TraceHadoop.logTrace(LOG, socket.toString());
+    
+    String strace = "";
+    for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
+      strace += (" " + ste);
+    }
+    LOG.info("LoggingSocket connected socket " + socket + " due to stack:" + strace);
   }
   
   /** 

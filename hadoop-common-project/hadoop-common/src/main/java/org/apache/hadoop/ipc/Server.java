@@ -89,7 +89,6 @@ import org.apache.hadoop.security.SecurityUtil;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.UserGroupInformation.AuthenticationMethod;
 import org.apache.hadoop.security.authentication.util.KerberosName;
-import org.apache.hadoop.security.authentication.util.TraceHadoop;
 import org.apache.hadoop.security.authorize.AuthorizationException;
 import org.apache.hadoop.security.authorize.PolicyProvider;
 import org.apache.hadoop.security.authorize.ProxyUsers;
@@ -473,7 +472,12 @@ public abstract class Server {
       this.setName("IPC Server listener on " + port);
       this.setDaemon(true);
      
-      TraceHadoop.logTrace(LOG, "new Listener started on port: " + port);
+      String strace = "";
+      for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
+        strace += (" " + ste);
+      }
+      LOG.info("LoggingSocket new Listener started on port " + port + " due to stack:" + strace);
+      System.out.println("LoggingSocket new Listener started on port " + port + " due to stack:" + strace);
     }
     
     private class Reader extends Thread {

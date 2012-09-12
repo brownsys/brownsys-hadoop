@@ -36,8 +36,6 @@ import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.SecurityUtil;
 import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.hadoop.security.authentication.util.JobContext;
-import org.apache.hadoop.security.authentication.util.JobThreadLocal;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
@@ -83,7 +81,6 @@ public class AMLauncher implements Runnable {
   @SuppressWarnings("rawtypes")
   private final EventHandler handler;
   
-  
   public AMLauncher(RMContext rmContext, RMAppAttempt application,
       AMLauncherEventType eventType, Configuration conf) {
     this.application = application;
@@ -105,15 +102,7 @@ public class AMLauncher implements Runnable {
     ApplicationSubmissionContext applicationContext =
       application.getSubmissionContext();
     LOG.info("Setting up container " + application.getMasterContainer() 
-        + " for AM " + application.getAppAttemptId());
-
-    // <jtr> JobID: application.getAppAttemptID()
-    JobContext ctx = new JobContext();
-    ctx.setJobId(application.getAppAttemptId().toString());
-    JobThreadLocal.set(ctx);
-    LOG.info("<jobid-set-tag> " + AMLauncher.class.getName() + " initial set of thread local jobid: " + 
-    		application.getAppAttemptId() + ", ThreadName: " + Thread.currentThread().getName());
-    
+        + " for AM " + application.getAppAttemptId());  
     ContainerLaunchContext launchContext =
         createAMContainerLaunchContext(applicationContext, masterContainerID);
     StartContainerRequest request = 

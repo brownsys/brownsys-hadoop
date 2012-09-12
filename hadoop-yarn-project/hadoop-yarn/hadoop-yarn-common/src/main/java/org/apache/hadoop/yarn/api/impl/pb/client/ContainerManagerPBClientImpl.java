@@ -22,14 +22,11 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.ipc.ProtobufRpcEngine;
 import org.apache.hadoop.ipc.RPC;
 import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.hadoop.security.authentication.util.JobContext;
 import org.apache.hadoop.yarn.api.ContainerManager;
 import org.apache.hadoop.yarn.api.ContainerManagerPB;
 import org.apache.hadoop.yarn.api.protocolrecords.GetContainerStatusRequest;
@@ -56,8 +53,6 @@ import com.google.protobuf.ServiceException;
 public class ContainerManagerPBClientImpl implements ContainerManager,
     Closeable {
 
-	private static final Log LOG = LogFactory.getLog(ContainerManagerPBClientImpl.class);
-	
   // Not a documented config. Only used for tests
   static final String NM_COMMAND_TIMEOUT = YarnConfiguration.YARN_PREFIX
       + "rpc.nm-command-timeout";
@@ -104,8 +99,9 @@ public class ContainerManagerPBClientImpl implements ContainerManager,
 
   @Override
   public StartContainerResponse startContainer(StartContainerRequest request)
-      throws YarnRemoteException {	  
-    StartContainerRequestProto requestProto = ((StartContainerRequestPBImpl)request).getProto();
+      throws YarnRemoteException {
+    StartContainerRequestProto requestProto =
+        ((StartContainerRequestPBImpl) request).getProto();
     try {
       return new StartContainerResponsePBImpl(proxy.startContainer(null,
         requestProto));

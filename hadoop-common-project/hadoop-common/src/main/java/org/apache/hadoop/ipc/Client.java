@@ -1135,9 +1135,6 @@ public class Client {
   public Writable call(RPC.RpcKind rpcKind, Writable rpcRequest,
       ConnectionId remoteId) throws InterruptedException, IOException {
     Call call = new Call(rpcKind, rpcRequest);
-    
-    LOG.info("<rpc-tag> [rpcKind: " + rpcKind + ", rpcRequest: " + rpcRequest + ", remoteID" + remoteId + "]");
-    
     Connection connection = getConnection(remoteId, call);
     connection.sendParam(call);                 // send the parameter
     boolean interrupted = false;
@@ -1150,7 +1147,7 @@ public class Client {
           interrupted = true;
         }
       }
-      
+
       if (interrupted) {
         // set the interrupt flag now that we are done waiting
         Thread.currentThread().interrupt();
