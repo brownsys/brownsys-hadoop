@@ -40,7 +40,6 @@ import javax.servlet.jsp.JspWriter;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience;
-import org.apache.hadoop.classification.TraceHadoop;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.BlockReader;
@@ -66,6 +65,11 @@ import org.apache.hadoop.security.SecurityUtil;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.UserGroupInformation.AuthenticationMethod;
 import org.apache.hadoop.security.authentication.util.KerberosName;
+<<<<<<< HEAD
+=======
+import org.apache.hadoop.security.authentication.util.TraceHadoop;
+import org.apache.hadoop.security.authorize.AuthorizationException;
+>>>>>>> 2d17b5a... moving trace hadoop files into auth, testing to see if this will fix our dependency issue
 import org.apache.hadoop.security.authorize.ProxyUsers;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.util.VersionInfo;

@@ -30,7 +30,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
-import org.apache.hadoop.classification.TraceHadoop;
+import org.apache.hadoop.security.authentication.util.TraceHadoop;
 
 /**
  * Specialized SocketFactory to create sockets with a SOCKS proxy

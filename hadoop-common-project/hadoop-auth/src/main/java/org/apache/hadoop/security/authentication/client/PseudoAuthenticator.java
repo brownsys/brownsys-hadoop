@@ -17,7 +17,7 @@ import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
-import org.apache.hadoop.classification.TraceHadoop;
+import org.apache.hadoop.security.authentication.util.TraceHadoop;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
