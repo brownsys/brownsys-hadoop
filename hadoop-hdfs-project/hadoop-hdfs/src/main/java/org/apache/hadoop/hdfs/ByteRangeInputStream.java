@@ -29,7 +29,7 @@ import java.util.StringTokenizer;
 import org.apache.commons.io.input.BoundedInputStream;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.TraceHadoop;
+import org.apache.hadoop.classification.TraceHadoop;
 import org.apache.hadoop.fs.FSInputStream;
 
 import com.google.common.annotations.VisibleForTesting;

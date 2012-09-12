@@ -1,4 +1,4 @@
-package org.apache.hadoop;
+package org.apache.hadoop.classification;
 
 import org.apache.commons.logging.Log;
 import org.slf4j.Logger;

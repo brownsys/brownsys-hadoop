@@ -1,4 +1,4 @@
-package org.apache.hadoop;
+package org.apache.hadoop.classification;
 
 public class JobContext {
 
