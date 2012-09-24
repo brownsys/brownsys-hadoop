@@ -46,11 +46,8 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.SecretManager;
 import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.util.ProtoUtil;
-<<<<<<< HEAD
 import org.apache.hadoop.util.Time;
-=======
 import org.apache.hadoop.yarn.api.impl.pb.client.ContainerManagerPBClientImpl;
->>>>>>> 88df2e0... more logging for jobid, same path
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.BlockingService;
