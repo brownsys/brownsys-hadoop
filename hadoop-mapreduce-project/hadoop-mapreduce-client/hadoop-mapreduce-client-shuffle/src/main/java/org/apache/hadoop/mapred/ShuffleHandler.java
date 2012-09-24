@@ -305,8 +305,6 @@ public class ShuffleHandler extends AbstractService
     super.start();
     sslFileBufferSize = conf.getInt(SUFFLE_SSL_FILE_BUFFER_SIZE_KEY,
                                     DEFAULT_SUFFLE_SSL_FILE_BUFFER_SIZE);
-
-    LOG.info("**JEFF: ShuffleHandler has started!**");
   }
 
   @Override
