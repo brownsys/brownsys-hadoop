@@ -403,6 +403,11 @@ public class ShuffleHandler extends AbstractService
     public void messageReceived(ChannelHandlerContext ctx, MessageEvent evt)
         throws Exception {
       HttpRequest request = (HttpRequest) evt.getMessage();
+
+      ///////////////////////////////////////////
+      InetSocketAddress remoteAddress = (InetSocketAddress)evt.getRemoteAddress();
+      ///////////////////////////////////////////
+
       if (request.getMethod() != GET) {
           sendError(ctx, METHOD_NOT_ALLOWED);
           return;
@@ -462,7 +467,7 @@ public class ShuffleHandler extends AbstractService
       for (String mapId : mapIds) {
         try {
           lastMap =
-            sendMapOutput(ctx, ch, userRsrc.get(jobId), jobId, mapId, reduceId);
+            sendMapOutput(ctx, ch, userRsrc.get(jobId), jobId, mapId, reduceId, remoteAddress.getPort());
           if (null == lastMap) {
             sendError(ctx, NOT_FOUND);
             return;
@@ -514,7 +519,7 @@ public class ShuffleHandler extends AbstractService
     }
 
     protected ChannelFuture sendMapOutput(ChannelHandlerContext ctx, Channel ch,
-        String user, String jobId, String mapId, int reduce)
+        String user, String jobId, String mapId, int reduce, int remotePort)
         throws IOException {
       // TODO replace w/ rsrc alloc
       // $x/$user/appcache/$appId/output/$mapId
@@ -539,7 +544,7 @@ public class ShuffleHandler extends AbstractService
       final IndexRecord info = 
         indexCache.getIndexInformation(mapId, reduce, indexFileName, user);
       final ShuffleHeader header =
-        new ShuffleHeader(mapId, info.partLength, info.rawLength, reduce);
+        new ShuffleHeader(mapId, info.partLength, info.rawLength, reduce, remotePort);
       final DataOutputBuffer dob = new DataOutputBuffer();
       header.write(dob);
       ch.write(wrappedBuffer(dob.getData(), 0, dob.getLength()));

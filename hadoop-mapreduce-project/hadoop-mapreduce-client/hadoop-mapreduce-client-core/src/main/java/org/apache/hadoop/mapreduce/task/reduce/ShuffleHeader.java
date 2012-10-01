@@ -45,15 +45,19 @@ public class ShuffleHeader implements Writable {
   long uncompressedLength;
   long compressedLength;
   int forReduce;
+  ////////////////////
+  int remotePort;
+  ////////////////////
   
   public ShuffleHeader() { }
   
   public ShuffleHeader(String mapId, long compressedLength,
-      long uncompressedLength, int forReduce) {
+      long uncompressedLength, int forReduce, int remotePort) {
     this.mapId = mapId;
     this.compressedLength = compressedLength;
     this.uncompressedLength = uncompressedLength;
     this.forReduce = forReduce;
+    this.remotePort = remotePort;
   }
   
   public void readFields(DataInput in) throws IOException {
@@ -61,6 +65,7 @@ public class ShuffleHeader implements Writable {
     compressedLength = WritableUtils.readVLong(in);
     uncompressedLength = WritableUtils.readVLong(in);
     forReduce = WritableUtils.readVInt(in);
+    remotePort = WritableUtils.readVInt(in);
   }
 
   public void write(DataOutput out) throws IOException {
@@ -68,5 +73,6 @@ public class ShuffleHeader implements Writable {
     WritableUtils.writeVLong(out, compressedLength);
     WritableUtils.writeVLong(out, uncompressedLength);
     WritableUtils.writeVInt(out, forReduce);
+    WritableUtils.writeVInt(out, remotePort);
   }
 }

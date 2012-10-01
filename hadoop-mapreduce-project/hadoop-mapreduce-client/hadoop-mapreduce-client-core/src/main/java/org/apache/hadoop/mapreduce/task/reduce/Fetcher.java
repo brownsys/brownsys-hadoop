@@ -23,11 +23,14 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.ConnectException;
 import java.net.HttpURLConnection;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.security.GeneralSecurityException;
 import java.util.Arrays;
+import java.net.UnknownHostException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -47,6 +50,7 @@ import org.apache.hadoop.mapred.IFileInputStream;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.mapreduce.MRConfig;
+import org.apache.hadoop.mapreduce.JobID;
 import org.apache.hadoop.mapreduce.MRJobConfig;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.mapreduce.security.SecureShuffleUtils;
@@ -57,6 +61,11 @@ import org.apache.hadoop.util.ReflectionUtils;
 
 import com.google.common.annotations.VisibleForTesting;
 
+import edu.brown.cs.paneclient.*;
+import edu.brown.cs.paneclient.PaneException.InvalidAuthenticateException;
+import edu.brown.cs.paneclient.PaneException.InvalidNewShareException;
+
+@SuppressWarnings({"deprecation"})
 class Fetcher<K,V> extends Thread {
   
   private static final Log LOG = LogFactory.getLog(Fetcher.class);
@@ -104,6 +113,53 @@ class Fetcher<K,V> extends Thread {
   private static boolean sslShuffle;
   private static SSLFactory sslFactory;
 
+ 
+  ///////////////////////////////////////////////////
+  PaneSpeaker paneSpeaker;
+  InetSocketAddress paneAddress;
+  PaneClientImpl paneClient;
+  PaneShare shuffleShare;
+  String shareName;
+  int maxBandwidth = 100;//the total bandwidth for the share, how to set?
+  //////////////////////////////////////////////////
+  
+  private void initializePane() {
+
+	  try {
+		  paneAddress = new InetSocketAddress(InetAddress.getLocalHost(), 4242);			
+	  } catch (UnknownHostException e) {
+		  LOG.error("Unknown PANE host, " + e);
+		  return;
+	  }
+	  this.shuffleShare = new PaneShare("shuffle", maxBandwidth, null);
+	  this.paneSpeaker = new PaneSpeaker(paneAddress, this.shuffleShare);	  
+	  
+	  try {
+		  paneClient = new PaneClientImpl(paneAddress.getAddress(), paneAddress.getPort());			
+	  } catch (IOException e) {
+		  LOG.error("Failed to create PANE client, " + e);
+                  return;
+	  }
+	  try {
+		  paneClient.authenticate("shuffle");
+	  } catch (InvalidAuthenticateException e) {
+		  LOG.error("Invalid authentication of PANE client, " + e);
+	  } catch (IOException e) {
+		  LOG.error("Failed to create new share, " + e);
+		  return;
+	  }
+	  
+	  try {
+		  paneClient.getRootShare().newShare(shuffleShare);
+	  } catch (InvalidNewShareException e) {
+		  LOG.error("Invalid new share, " + e);
+		  return;
+	  } catch (IOException e) {
+		  LOG.error("Failed to create new share, " + e);
+		  return;
+	  }
+  }
+  
   public Fetcher(JobConf job, TaskAttemptID reduceId, 
                  ShuffleScheduler<K,V> scheduler, MergeManager<K,V> merger,
                  Reporter reporter, ShuffleClientMetrics metrics,
@@ -162,6 +218,9 @@ class Fetcher<K,V> extends Thread {
         }
       }
     }
+    ////////////////////////////////
+    initializePane();
+    ////////////////////////////////
   }
   
   public void run() {
@@ -351,6 +410,10 @@ class Fetcher<K,V> extends Thread {
     TaskAttemptID mapId = null;
     long decompressedLength = -1;
     long compressedLength = -1;
+
+    ///////////////////////////
+    int myPort = -1;
+    ///////////////////////////
     
     try {
       long startTime = System.currentTimeMillis();
@@ -363,6 +426,7 @@ class Fetcher<K,V> extends Thread {
         compressedLength = header.compressedLength;
         decompressedLength = header.uncompressedLength;
         forReduce = header.forReduce;
+        myPort = header.remotePort;
       } catch (IllegalArgumentException e) {
         badIdErrs.increment(1);
         LOG.warn("Invalid map id ", e);
@@ -393,6 +457,10 @@ class Fetcher<K,V> extends Thread {
       } 
       
       // Go!
+      
+      /////////////////////////////////////////////////////////////
+      paneSpeaker.makeReservation(host, compressedLength, myPort);
+      /////////////////////////////////////////////////////////////
       LOG.info("fetcher#" + id + " about to shuffle output of map " + 
                mapOutput.getMapId() + " decomp: " +
                decompressedLength + " len: " + compressedLength + " to " +
