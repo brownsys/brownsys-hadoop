@@ -162,7 +162,7 @@ public class TestFetcher {
     when(connection.getResponseCode()).thenReturn(200);
     when(connection.getHeaderField(SecureShuffleUtils.HTTP_HEADER_REPLY_URL_HASH))
       .thenReturn(replyHash);
-    ShuffleHeader header = new ShuffleHeader(map1ID.toString(), 10, 10, 1);
+    ShuffleHeader header = new ShuffleHeader(map1ID.toString(), 10, 10, 1, 9999);
     ByteArrayOutputStream bout = new ByteArrayOutputStream();
     header.write(new DataOutputStream(bout));
     ByteArrayInputStream in = new ByteArrayInputStream(bout.toByteArray());

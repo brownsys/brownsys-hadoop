@@ -17,14 +17,14 @@ public class PaneSpeaker {
 	InetSocketAddress paneAddress;
 	
 	int maxBandwidth;
-	PaneShare shuffleShare;
+	PaneShare share;
         int selfPort;
 	
-	private static final Log LOG = LogFactory.getLog(Fetcher.class);
+	private static final Log LOG = LogFactory.getLog(PaneSpeaker.class);
 	
-	public PaneSpeaker(InetSocketAddress paneAddress, PaneShare shuffleShare) {
+	public PaneSpeaker(InetSocketAddress paneAddress, PaneShare share) {
 		this.paneAddress = paneAddress;
-		this.shuffleShare = shuffleShare;
+		this.share = share;
 	}
 	
 	private int computePaneRate(int time, long size) {
@@ -35,8 +35,10 @@ public class PaneSpeaker {
 		return 30000;
 	}
 	
-	public void makeReservation(MapHost host, long size, int myPort) throws IOException {
+	public boolean makeReservation(MapHost host, long size, int myPort) throws IOException {
 		
+                LOG.info("Making PANE reservation");
+
 		PaneReservation resv;
 		PaneFlowGroup fg;
 		PaneRelativeTime start = new PaneRelativeTime();
@@ -47,6 +49,7 @@ public class PaneSpeaker {
 		end.setRelativeTime(time);
 		
 		fg = new PaneFlowGroup();
+                fg.setTransportProto(PaneFlowGroup.PROTO_TCP);
 		
 		//from EventFether, host name of MapHost is constructed by "u.getHost() + ":" + u.getPort()" 
 		
@@ -62,11 +65,13 @@ public class PaneSpeaker {
 		resv = new PaneReservation(computePaneRate(time, size), fg, start, end);
 		
 		try {
-			shuffleShare.reserve(resv);
+			share.reserve(resv);
 		} catch (InvalidResvException e) {
-			LOG.error("Failed to make reservation, " + e);
-			return;
+			LOG.error("Failed to make PANE reservation, " + e);
+			return false;
 		}
-		
+
+                LOG.info("Making PANE reservation succeeded");
+                return true;
 	}
 }

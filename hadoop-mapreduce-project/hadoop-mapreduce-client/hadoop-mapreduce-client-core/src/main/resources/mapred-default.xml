@@ -1182,6 +1182,19 @@
 
 <!--  end of node health script variables -->
 
+<property>
+  <name>pane.enabled</name>
+  <value>true</value>
+</property>
+<property>
+  <name>pane.address</name>
+  <value>127.0.0.1</value>
+</property>
+<property>
+  <name>pane.port</name>
+  <value>4444</value>
+</property>
+
 <!-- MR YARN Application properties -->
 
 <property>

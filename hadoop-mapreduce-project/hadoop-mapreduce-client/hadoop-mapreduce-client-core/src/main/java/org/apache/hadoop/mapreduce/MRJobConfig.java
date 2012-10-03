@@ -606,5 +606,12 @@ public interface MRJobConfig {
       "$HADOOP_MAPRED_HOME/share/hadoop/mapreduce/*",
       "$HADOOP_MAPRED_HOME/share/hadoop/mapreduce/lib/*",
   };
+
+  //for PANE
+  public static final String PANE_ENABLED = "pane.enabled";
+
+  public static final String PANE_ADDRESS = "pane.address";
+
+  public static final String PANE_PORT = "pane.port";
   
 }

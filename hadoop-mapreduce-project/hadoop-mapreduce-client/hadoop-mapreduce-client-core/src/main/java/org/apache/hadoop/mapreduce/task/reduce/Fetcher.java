@@ -65,7 +65,6 @@ import edu.brown.cs.paneclient.*;
 import edu.brown.cs.paneclient.PaneException.InvalidAuthenticateException;
 import edu.brown.cs.paneclient.PaneException.InvalidNewShareException;
 
-@SuppressWarnings({"deprecation"})
 class Fetcher<K,V> extends Thread {
   
   private static final Log LOG = LogFactory.getLog(Fetcher.class);
@@ -115,41 +114,62 @@ class Fetcher<K,V> extends Thread {
 
  
   ///////////////////////////////////////////////////
-  PaneSpeaker paneSpeaker;
-  InetSocketAddress paneAddress;
-  PaneClientImpl paneClient;
-  PaneShare shuffleShare;
-  String shareName;
-  int maxBandwidth = 100;//the total bandwidth for the share, how to set?
+  private final String DEFAULT_PANE_ADDRESS = "127.0.0.1";
+  private final int DEFAULT_PANE_PORT = 4242;
+  private final boolean DEFAULT_PANE_ENABLED = false;
+
+  private boolean paneEnabled;
+
+  private PaneSpeaker paneSpeaker;
+  private InetSocketAddress paneAddress;
+  private PaneClientImpl paneClient;
+  private PaneShare shuffleShare;
+  private int maxBandwidth = 100;//the total bandwidth for the share, how to set?
   //////////////////////////////////////////////////
   
-  private void initializePane() {
+  private void initializePane(String paneHost, int panePort) {
+
+          LOG.info("PANE initialization started");
 
 	  try {
-		  paneAddress = new InetSocketAddress(InetAddress.getLocalHost(), 4242);			
+		  paneAddress = new InetSocketAddress(InetAddress.getByName(paneHost), panePort);
 	  } catch (UnknownHostException e) {
 		  LOG.error("Unknown PANE host, " + e);
 		  return;
 	  }
-	  this.shuffleShare = new PaneShare("shuffle", maxBandwidth, null);
-	  this.paneSpeaker = new PaneSpeaker(paneAddress, this.shuffleShare);	  
-	  
+	  //this.shuffleShare = new PaneShare("shuffle", maxBandwidth, null);
+	  LOG.info("PANE Address created:" + paneAddress);
+
 	  try {
-		  paneClient = new PaneClientImpl(paneAddress.getAddress(), paneAddress.getPort());			
+		  paneClient = new PaneClientImpl(paneAddress.getAddress(), paneAddress.getPort());
 	  } catch (IOException e) {
-		  LOG.error("Failed to create PANE client, " + e);
+		  LOG.error("Failed to create PANE client, from " + paneAddress + " " + e);
                   return;
 	  }
+
+          LOG.info("PANE Client created");
+
+          try {
+		  shuffleShare = paneClient.getRootShare();
+          } catch (IOException e) {
+		  LOG.error("Failed to get PANE root share, " + e);
+                  return;
+          }
+
+          LOG.info("PANE root got");
+
 	  try {
-		  paneClient.authenticate("shuffle");
+		  paneClient.authenticate("root");
 	  } catch (InvalidAuthenticateException e) {
 		  LOG.error("Invalid authentication of PANE client, " + e);
+                  return;
 	  } catch (IOException e) {
 		  LOG.error("Failed to create new share, " + e);
 		  return;
 	  }
 	  
-	  try {
+          LOG.info("PANE authentication succeeded");
+	  /*try {
 		  paneClient.getRootShare().newShare(shuffleShare);
 	  } catch (InvalidNewShareException e) {
 		  LOG.error("Invalid new share, " + e);
@@ -157,7 +177,9 @@ class Fetcher<K,V> extends Thread {
 	  } catch (IOException e) {
 		  LOG.error("Failed to create new share, " + e);
 		  return;
-	  }
+	  }*/
+          paneSpeaker = new PaneSpeaker(paneAddress, shuffleShare);
+          LOG.info("PANE initialization completed");
   }
   
   public Fetcher(JobConf job, TaskAttemptID reduceId, 
@@ -219,7 +241,12 @@ class Fetcher<K,V> extends Thread {
       }
     }
     ////////////////////////////////
-    initializePane();
+    paneEnabled = job.getBoolean(MRJobConfig.PANE_ENABLED, DEFAULT_PANE_ENABLED);
+    if (paneEnabled) {
+      String paneHost = job.get(MRJobConfig.PANE_ADDRESS, DEFAULT_PANE_ADDRESS);
+      int panePort = job.getInt(MRJobConfig.PANE_PORT, DEFAULT_PANE_PORT);
+      initializePane(paneHost, panePort);
+    }
     ////////////////////////////////
   }
   
@@ -459,7 +486,8 @@ class Fetcher<K,V> extends Thread {
       // Go!
       
       /////////////////////////////////////////////////////////////
-      paneSpeaker.makeReservation(host, compressedLength, myPort);
+      if (paneEnabled && paneSpeaker != null)
+        paneSpeaker.makeReservation(host, compressedLength, myPort);
       /////////////////////////////////////////////////////////////
       LOG.info("fetcher#" + id + " about to shuffle output of map " + 
                mapOutput.getMapId() + " decomp: " +
