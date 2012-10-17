@@ -67,6 +67,7 @@ import org.apache.hadoop.security.UserGroupInformation.AuthenticationMethod;
 import org.apache.hadoop.security.authentication.util.KerberosName;
 import org.apache.hadoop.security.authorize.ProxyUsers;
 import org.apache.hadoop.security.token.Token;
+import org.apache.hadoop.trace.TraceHadoop;
 import org.apache.hadoop.util.VersionInfo;
 
 import static org.apache.hadoop.fs.CommonConfigurationKeys.HADOOP_HTTP_STATIC_USER;
@@ -175,11 +176,7 @@ public class JspHelper {
       try {
         s = NetUtils.getDefaultSocketFactory(conf).createSocket();
         s.connect(targetAddr, HdfsServerConstants.READ_TIMEOUT);
-        String strace = "";
-        for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
-            strace += (" " + ste);
-        }
-        LOG.info("LoggingSocket making a quick connection to " + targetAddr + " with: " + s + " due to stack:" + strace);
+        TraceHadoop.logTrace(LOG, "LoggingSocket making a quick connection to " + targetAddr + " with: " + s);
         s.setSoTimeout(HdfsServerConstants.READ_TIMEOUT);
       } catch (IOException e) {
         deadNodes.add(chosenNode);
@@ -203,7 +200,7 @@ public class JspHelper {
     if (chunkSizeToView == 0) return;
     Socket s = NetUtils.getDefaultSocketFactory(conf).createSocket();
     s.connect(addr, HdfsServerConstants.READ_TIMEOUT);
-    LOG.info("LoggingSocket making a quick connection to " + addr + " with: " + s);
+    TraceHadoop.logTrace(LOG, "LoggingSocket making a quick connection to " + addr + " with: " + s);
     s.setSoTimeout(HdfsServerConstants.READ_TIMEOUT);
       
     int amtToRead = (int)Math.min(chunkSizeToView, blockSize - offsetIntoBlock);

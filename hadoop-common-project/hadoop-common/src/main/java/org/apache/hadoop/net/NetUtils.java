@@ -51,6 +51,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.ipc.Server;
 import org.apache.hadoop.ipc.VersionedProtocol;
 import org.apache.hadoop.security.SecurityUtil;
+import org.apache.hadoop.trace.TraceHadoop;
 import org.apache.hadoop.util.ReflectionUtils;
 
 import com.google.common.base.Preconditions;
@@ -538,11 +539,7 @@ public class NetUtils {
         "No daemon is listening on the target port.");
     }
     
-    String strace = "";
-    for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
-      strace += (" " + ste);
-    }
-    LOG.info("LoggingSocket connected socket " + socket + " due to stack:" + strace);
+    TraceHadoop.logTrace(LOG, socket.toString());
   }
   
   /** 

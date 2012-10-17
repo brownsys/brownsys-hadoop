@@ -96,6 +96,7 @@ import org.apache.hadoop.security.authorize.ServiceAuthorizationManager;
 import org.apache.hadoop.security.token.SecretManager;
 import org.apache.hadoop.security.token.SecretManager.InvalidToken;
 import org.apache.hadoop.security.token.TokenIdentifier;
+import org.apache.hadoop.trace.TraceHadoop;
 import org.apache.hadoop.util.ProtoUtil;
 import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.hadoop.util.StringUtils;
@@ -472,12 +473,7 @@ public abstract class Server {
       this.setName("IPC Server listener on " + port);
       this.setDaemon(true);
      
-      String strace = "";
-      for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
-        strace += (" " + ste);
-      }
-      LOG.info("LoggingSocket new Listener started on port " + port + " due to stack:" + strace);
-      System.out.println("LoggingSocket new Listener started on port " + port + " due to stack:" + strace);
+      TraceHadoop.logTrace(LOG, "new Listener started on port: " + port);
     }
     
     private class Reader extends Thread {

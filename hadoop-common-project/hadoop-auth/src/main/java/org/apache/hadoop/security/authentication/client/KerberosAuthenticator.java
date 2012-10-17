@@ -160,8 +160,7 @@ public class KerberosAuthenticator implements Authenticator {
       conn.setRequestMethod(AUTH_HTTP_METHOD);
       conn.connect();
 
-      LOG.info("LoggingSocket KerberosAuth made a quick connection 1 to " + conn);
-      System.out.println("LoggingSocket on stdout KerberosAuth made a quick connection 1 to " + conn);    
+      LOG.info("<trace-mini-id> LoggingSocket KerberosAuth made a quick connection 1 to " + conn); 
 
       if (conn.getRequestProperty(AUTHORIZATION) != null && conn.getResponseCode() == HttpURLConnection.HTTP_OK) {
         LOG.debug("JDK performed authentication on our behalf.");
@@ -295,8 +294,7 @@ public class KerberosAuthenticator implements Authenticator {
     conn.setRequestMethod(AUTH_HTTP_METHOD);
     conn.setRequestProperty(AUTHORIZATION, NEGOTIATE + " " + token);
     conn.connect();
-    LOG.info("LoggingSocket KerberosAuth made a quick connection 2 to " + conn);
-    System.out.println("LoggingSocket on stdout KerberosAuth made a quick connection 2 to " + conn);     
+    LOG.info("<trace-mini-tag> LoggingSocket KerberosAuth made a quick connection 2 to " + conn);
   }
 
   /*

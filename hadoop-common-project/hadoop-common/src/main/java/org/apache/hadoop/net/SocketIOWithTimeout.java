@@ -33,6 +33,7 @@ import java.util.LinkedList;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.trace.TraceHadoop;
 import org.apache.hadoop.util.Time;
 
 /**
@@ -190,11 +191,7 @@ abstract class SocketIOWithTimeout {
     
     try { 
       if (channel.connect(endpoint)) {
-        String strace = "";
-        for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
-          strace += (" " + ste);
-        }
-        LOG.info("LoggingSocket channel is connected: " + channel + " socket info: " + channel.socket() + " due to stack:" + strace);
+        TraceHadoop.logTrace(LOG, channel.socket().toString());
         return;
       }
 
@@ -209,12 +206,8 @@ abstract class SocketIOWithTimeout {
                                   SelectionKey.OP_CONNECT, timeoutLeft);
         
         if (ret > 0 && channel.finishConnect()) {
-          String strace = "";
-          for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
-            strace += (" " + ste);
-          }          
-          LOG.info("LoggingSocket channel is finishConnected: " + channel + " socket info: " + channel.socket() + " due to stack:" + strace);          
-          return;
+        	TraceHadoop.logTrace(LOG, channel.socket().toString());
+        	return;	
         }
         
         if (ret == 0 ||
