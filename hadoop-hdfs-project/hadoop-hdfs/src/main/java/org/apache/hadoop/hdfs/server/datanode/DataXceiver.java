@@ -67,6 +67,8 @@ import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.net.SocketInputWrapper;
 import org.apache.hadoop.security.token.SecretManager.InvalidToken;
 import org.apache.hadoop.security.token.Token;
+import org.apache.hadoop.trace.JobContext;
+import org.apache.hadoop.trace.JobThreadLocal;
 import org.apache.hadoop.util.DataChecksum;
 
 import com.google.protobuf.ByteString;
@@ -342,6 +344,9 @@ class DataXceiver extends Receiver implements Runnable {
     final boolean isTransfer = stage == BlockConstructionStage.TRANSFER_RBW
         || stage == BlockConstructionStage.TRANSFER_FINALIZED;
 
+    if (clientname.contains("attempt"))
+    	JobThreadLocal.set(new JobContext(clientname));
+    
     // check single target for transfer-RBW/Finalized 
     if (isTransfer && targets.length > 0) {
       throw new IOException(stage + " does not support multiple targets "
