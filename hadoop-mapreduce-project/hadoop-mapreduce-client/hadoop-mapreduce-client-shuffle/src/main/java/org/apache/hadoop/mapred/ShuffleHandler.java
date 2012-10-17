@@ -72,6 +72,7 @@ import org.apache.hadoop.metrics2.lib.MutableCounterInt;
 import org.apache.hadoop.metrics2.lib.MutableCounterLong;
 import org.apache.hadoop.metrics2.lib.MutableGaugeInt;
 import org.apache.hadoop.security.token.Token;
+import org.apache.hadoop.trace.TraceHadoop;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.AuxServices;
@@ -445,6 +446,9 @@ public class ShuffleHandler extends AbstractService
         sendError(ctx, FORBIDDEN);
         return;
       }
+      
+      TraceHadoop.logTrace(LOG, jobQ.toString(), "remote: " + evt.getRemoteAddress());
+      
       HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
       try {
         verifyRequest(jobId, ctx, request, response,
@@ -575,6 +579,10 @@ public class ShuffleHandler extends AbstractService
       }
       metrics.shuffleConnections.incr();
       metrics.shuffleOutputBytes.incr(info.partLength); // optimistic
+      
+      TraceHadoop.logTrace(LOG, jobID.toString(), "local: [" + ch.getLocalAddress() + "], " +  
+    		  "remote: [" + ch.getRemoteAddress() + "]");
+      
       return writeFuture;
     }
 
