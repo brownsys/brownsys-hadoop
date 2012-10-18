@@ -20,6 +20,7 @@ package org.apache.hadoop.net;
 
 import java.io.IOException;
 import java.io.InterruptedIOException;
+import java.net.Socket;
 import java.net.SocketAddress;
 import java.net.SocketTimeoutException;
 import java.nio.ByteBuffer;
@@ -191,8 +192,11 @@ abstract class SocketIOWithTimeout {
     
     try { 
       if (channel.connect(endpoint)) {
-        TraceHadoop.logTrace(LOG, channel.socket().toString());
-        return;
+    	  Socket sock = channel.socket();
+    	  SocketAddress remote = sock.getRemoteSocketAddress();
+    	  TraceHadoop.logTrace(LOG, sock.getLocalAddress(), new Integer(sock.getLocalPort()),
+    			  TraceHadoop.getHostName(remote), TraceHadoop.getPort(remote));
+          return;
       }
 
       long timeoutLeft = timeout;
@@ -206,8 +210,11 @@ abstract class SocketIOWithTimeout {
                                   SelectionKey.OP_CONNECT, timeoutLeft);
         
         if (ret > 0 && channel.finishConnect()) {
-        	TraceHadoop.logTrace(LOG, channel.socket().toString());
-        	return;	
+        	Socket sock = channel.socket();
+      	  	SocketAddress remote = sock.getRemoteSocketAddress();
+      	  	TraceHadoop.logTrace(LOG, sock.getLocalAddress(), new Integer(sock.getLocalPort()),
+      	  			TraceHadoop.getHostName(remote), TraceHadoop.getPort(remote));
+      	  	return;	
         }
         
         if (ret == 0 ||

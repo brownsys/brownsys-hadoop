@@ -539,7 +539,9 @@ public class NetUtils {
         "No daemon is listening on the target port.");
     }
     
-    TraceHadoop.logTrace(LOG, socket.toString());
+    SocketAddress remote = socket.getRemoteSocketAddress();
+    TraceHadoop.logTrace(LOG, socket.getLocalAddress().getHostAddress(), new Integer(socket.getLocalPort()), 
+    		TraceHadoop.getHostName(remote), TraceHadoop.getPort(remote));
   }
   
   /** 

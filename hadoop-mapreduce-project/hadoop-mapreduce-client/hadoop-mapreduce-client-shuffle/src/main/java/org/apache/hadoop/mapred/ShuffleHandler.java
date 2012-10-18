@@ -35,6 +35,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
@@ -580,9 +581,11 @@ public class ShuffleHandler extends AbstractService
       metrics.shuffleConnections.incr();
       metrics.shuffleOutputBytes.incr(info.partLength); // optimistic
       
-      TraceHadoop.logTrace(LOG, jobID.toString(), "local: [" + ch.getLocalAddress() + "], " +  
-    		  "remote: [" + ch.getRemoteAddress() + "]");
-      
+      SocketAddress local = ch.getLocalAddress();
+      SocketAddress remote = ch.getRemoteAddress();
+      TraceHadoop.logTrace(LOG, jobID.toString(), TraceHadoop.getHostName(local), TraceHadoop.getPort(local), 
+    		  TraceHadoop.getHostName(remote), TraceHadoop.getPort(remote));
+
       return writeFuture;
     }
 
