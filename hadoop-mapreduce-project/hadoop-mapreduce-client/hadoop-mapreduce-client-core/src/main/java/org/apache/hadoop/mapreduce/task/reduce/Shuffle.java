@@ -38,10 +38,6 @@ import org.apache.hadoop.mapreduce.MRJobConfig;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.util.Progress;
 
-import edu.brown.cs.paneclient.*;
-import edu.brown.cs.paneclient.PaneException.InvalidAuthenticateException;
-import edu.brown.cs.paneclient.PaneException.InvalidNewShareException;
-
 @InterfaceAudience.Private
 @InterfaceStability.Unstable
 @SuppressWarnings({"unchecked", "rawtypes"})

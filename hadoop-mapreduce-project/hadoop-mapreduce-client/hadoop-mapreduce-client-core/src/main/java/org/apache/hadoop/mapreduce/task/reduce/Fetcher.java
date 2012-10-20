@@ -114,9 +114,12 @@ class Fetcher<K,V> extends Thread {
 
  
   ///////////////////////////////////////////////////
-  private final String DEFAULT_PANE_ADDRESS = "127.0.0.1";
+  private final String DEFAULT_PANE_ADDRESS = "localhost";
   private final int DEFAULT_PANE_PORT = 4242;
   private final boolean DEFAULT_PANE_ENABLED = false;
+  private final String DEFAULT_PANE_SHARE = "rootShare";
+  private final String DEFAULT_PANE_USER = "root";
+  private final int DEFAULT_PANE_DEADLINE = 30000;
 
   private boolean paneEnabled;
 
@@ -125,6 +128,7 @@ class Fetcher<K,V> extends Thread {
   private PaneClientImpl paneClient;
   private PaneShare shuffleShare;
   private int maxBandwidth = 100;//the total bandwidth for the share, how to set?
+  private int paneDeadline;
   //////////////////////////////////////////////////
   
   private void initializePane(String paneHost, int panePort) {
@@ -487,7 +491,7 @@ class Fetcher<K,V> extends Thread {
       
       /////////////////////////////////////////////////////////////
       if (paneEnabled && paneSpeaker != null)
-        paneSpeaker.makeReservation(host, compressedLength, myPort);
+        paneSpeaker.makeReservation(host, compressedLength, myPort, paneDeadline);
       /////////////////////////////////////////////////////////////
       LOG.info("fetcher#" + id + " about to shuffle output of map " + 
                mapOutput.getMapId() + " decomp: " +

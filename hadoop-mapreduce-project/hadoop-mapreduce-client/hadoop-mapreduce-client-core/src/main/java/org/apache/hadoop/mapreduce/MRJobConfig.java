@@ -613,5 +613,10 @@ public interface MRJobConfig {
   public static final String PANE_ADDRESS = "pane.address";
 
   public static final String PANE_PORT = "pane.port";
-  
+
+  public static final String PANE_USER = "pane.user";
+
+  public static final String PANE_SHARE = "pane.share";
+
+  public static final String PANE_DEADLINE = "pane.deadline";  
 }
