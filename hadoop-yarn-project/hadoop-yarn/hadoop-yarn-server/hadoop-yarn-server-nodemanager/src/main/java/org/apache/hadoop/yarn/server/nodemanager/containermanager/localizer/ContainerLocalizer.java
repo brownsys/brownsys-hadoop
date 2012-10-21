@@ -200,7 +200,7 @@ public class ContainerLocalizer {
   Callable<Path> download(LocalDirAllocator lda, LocalResource rsrc,
       UserGroupInformation ugi) throws IOException {
     Path destPath = lda.getLocalPathForWrite(".", getEstimatedSize(rsrc), conf);
-    return new FSDownload(lfs, ugi, conf, destPath, rsrc, new Random());
+    return new FSDownload(lfs, ugi, conf, destPath, rsrc, new Random(), appId);
   }
 
   static long getEstimatedSize(LocalResource rsrc) {

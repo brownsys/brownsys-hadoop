@@ -41,22 +41,32 @@ public class TraceHadoop {
     	logger.info(genTraceString(jobId, socketInfo));
     }
     
+    private static String formatAddress(String addr) {
+    	addr = addr.replaceAll("/", "");
+    	addr = addr.replaceAll(".cs.brown.edu", "");
+    	return addr;
+    }
+    
     @SuppressWarnings("unchecked")
 	public static String genTraceObjStr(String jobId, String src, Integer src_port, String dest, Integer dest_port) {
     	JSONObject obj = new JSONObject();
         String strace = "";
         for (StackTraceElement ste : Thread.currentThread().getStackTrace())
           strace += (" " + ste);
-    	
+        
         obj.put("id", "trace-tag");
-        obj.put("timestamp", new Long(System.currentTimeMillis()/1000));
+        obj.put("timestamp", new Long(System.currentTimeMillis()));
         obj.put("jobid", jobId);
     	obj.put("threadname", Thread.currentThread().getName());
-        obj.put("source", src);
+        obj.put("source", formatAddress(src));
         obj.put("source_port", src_port);
-        obj.put("dest", dest);
+        obj.put("dest", formatAddress(dest));
         obj.put("dest_port", dest_port);
     	obj.put("stacktrace", strace);
+    	if (src_port == null || dest_port == null)
+    		obj.put("single_address", true);
+    	else
+    		obj.put("single_address", false);
     	return obj.toString();
     }
 

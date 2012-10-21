@@ -194,7 +194,7 @@ abstract class SocketIOWithTimeout {
       if (channel.connect(endpoint)) {
     	  Socket sock = channel.socket();
     	  SocketAddress remote = sock.getRemoteSocketAddress();
-    	  TraceHadoop.logTrace(LOG, sock.getLocalAddress(), new Integer(sock.getLocalPort()),
+    	  TraceHadoop.logTrace(LOG, sock.getLocalAddress().toString(), new Integer(sock.getLocalPort()),
     			  TraceHadoop.getHostName(remote), TraceHadoop.getPort(remote));
           return;
       }
@@ -212,7 +212,7 @@ abstract class SocketIOWithTimeout {
         if (ret > 0 && channel.finishConnect()) {
         	Socket sock = channel.socket();
       	  	SocketAddress remote = sock.getRemoteSocketAddress();
-      	  	TraceHadoop.logTrace(LOG, sock.getLocalAddress(), new Integer(sock.getLocalPort()),
+      	  	TraceHadoop.logTrace(LOG, sock.getLocalAddress().toString(), new Integer(sock.getLocalPort()),
       	  			TraceHadoop.getHostName(remote), TraceHadoop.getPort(remote));
       	  	return;	
         }

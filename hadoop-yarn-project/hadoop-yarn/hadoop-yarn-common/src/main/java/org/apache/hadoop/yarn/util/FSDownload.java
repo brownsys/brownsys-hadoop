@@ -38,6 +38,8 @@ import org.apache.hadoop.fs.Options.Rename;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.fs.permission.FsAction;
+import org.apache.hadoop.trace.JobContext;
+import org.apache.hadoop.trace.JobThreadLocal;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.util.RunJar;
 import org.apache.hadoop.yarn.api.records.LocalResource;
@@ -78,6 +80,12 @@ public class FSDownload implements Callable<Path> {
     this.userUgi = ugi;
     this.resource = resource;
     this.rand = rand;
+  }
+  
+  public FSDownload(FileContext files, UserGroupInformation ugi, Configuration conf, 
+		  Path destDirPath, LocalResource resource, Random rand, String jobId) {
+	this(files, ugi, conf, destDirPath, resource, rand);
+	JobThreadLocal.set(new JobContext(jobId));
   }
 
   LocalResource getResource() {

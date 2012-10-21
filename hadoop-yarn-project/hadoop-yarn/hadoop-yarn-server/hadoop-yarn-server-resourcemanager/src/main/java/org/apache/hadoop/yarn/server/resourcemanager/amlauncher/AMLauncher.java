@@ -37,6 +37,8 @@ import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.SecurityUtil;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
+import org.apache.hadoop.trace.JobContext;
+import org.apache.hadoop.trace.JobThreadLocal;
 import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.ContainerManager;
@@ -248,6 +250,7 @@ public class AMLauncher implements Runnable {
   
   @SuppressWarnings("unchecked")
   public void run() {
+	JobThreadLocal.set(new JobContext(application.getAppAttemptId().toString()));
     switch (eventType) {
     case LAUNCH:
       try {
