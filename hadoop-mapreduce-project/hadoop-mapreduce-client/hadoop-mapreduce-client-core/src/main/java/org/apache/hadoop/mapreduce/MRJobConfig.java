@@ -608,15 +608,15 @@ public interface MRJobConfig {
   };
 
   //for PANE
-  public static final String PANE_ENABLED = "pane.enabled";
+  public static final String PANE_ENABLED_MAPRED = "mapred.pane.enabled";
 
-  public static final String PANE_ADDRESS = "pane.address";
+  public static final String PANE_ADDRESS_MAPRED = "mapred.pane.address";
 
-  public static final String PANE_PORT = "pane.port";
+  public static final String PANE_PORT_MAPRED = "mapred.pane.port";
 
-  public static final String PANE_USER = "pane.user";
+  public static final String PANE_USER_MAPRED = "mapred.pane.user";
 
-  public static final String PANE_SHARE = "pane.share";
+  public static final String PANE_SHARE_MAPRED = "mapred.pane.share";
 
-  public static final String PANE_DEADLINE = "pane.deadline";  
+  public static final String PANE_DEADLINE_MAPRED = "mapred.pane.deadline";  
 }

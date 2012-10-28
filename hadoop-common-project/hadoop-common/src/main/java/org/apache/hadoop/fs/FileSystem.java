@@ -713,6 +713,11 @@ public abstract class FileSystem extends Configured implements Closeable {
     return open(f, getConf().getInt("io.file.buffer.size", 4096));
   }
 
+  /////////////////////////////////////////////
+  public FSDataInputStream open(Path f, PaneResvDescription paneResv) throws IOException {
+	  return open(f, getConf().getInt("io.file.buffer.size", 4096));
+  }
+  /////////////////////////////////////////////
   /**
    * Create an FSDataOutputStream at the indicated Path.
    * Files are overwritten by default.
@@ -736,6 +741,25 @@ public abstract class FileSystem extends Configured implements Closeable {
                   getDefaultBlockSize(f));
   }
 
+  //////////////////////////////////////////////////////////////  
+  public FSDataOutputStream create(Path f, boolean overwrite, PaneResvDescription resv)
+		  throws IOException {
+	  return create(resv, f, overwrite, 
+			  getConf().getInt("io.file.buffer.size", 4096),
+			  getDefaultReplication(f),
+			  getDefaultBlockSize(f));
+  }
+
+  public FSDataOutputStream create(PaneResvDescription resv, Path f, 
+		  boolean overwrite,
+		  int bufferSize,
+		  short replication,
+		  long blockSize
+		  ) throws IOException {
+	  return create(f, overwrite, bufferSize, replication, blockSize, null);
+  }
+
+  //////////////////////////////////////////////////////////////
   /**
    * Create an FSDataOutputStream at the indicated Path with write-progress
    * reporting.

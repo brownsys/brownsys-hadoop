@@ -10,7 +10,7 @@ import org.apache.commons.logging.LogFactory;
 import edu.brown.cs.paneclient.*;
 import edu.brown.cs.paneclient.PaneException.InvalidResvException;
 
-public class PaneSpeaker {
+public class PaneSpeakerShuffle {
 
 	InetSocketAddress paneAddress;
 
@@ -20,14 +20,15 @@ public class PaneSpeaker {
 
 	static int baseRate = 100;
 
-	private static final Log LOG = LogFactory.getLog(PaneSpeaker.class);
+	private static final Log LOG = LogFactory.getLog(PaneSpeakerShuffle.class);
 
-	public PaneSpeaker(InetSocketAddress paneAddress, PaneShare share) {
+	public PaneSpeakerShuffle(InetSocketAddress paneAddress, PaneShare share) {
 		this.paneAddress = paneAddress;
 		this.share = share;
 	}
 
 	private int computePaneRate(int time, long size) {
+		
 		double result = (double)size/(double)time;
 		int rate = (int)Math.round(result);
 
@@ -40,7 +41,7 @@ public class PaneSpeaker {
 
 	public boolean makeReservation(MapHost host, long size, int myPort, int deadline) throws IOException {
 
-		LOG.info("Making PANE reservation");
+		LOG.info("Making PANE reservation, deadline:" + deadline + " size:" + size);
 
 		PaneReservation resv;
 		PaneFlowGroup fg;

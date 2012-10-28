@@ -409,4 +409,19 @@ public class DFSConfigKeys extends CommonConfigurationKeys {
   public static final String DFS_ENCRYPT_DATA_TRANSFER_KEY = "dfs.encrypt.data.transfer";
   public static final boolean DFS_ENCRYPT_DATA_TRANSFER_DEFAULT = false;
   public static final String DFS_DATA_ENCRYPTION_ALGORITHM_KEY = "dfs.encrypt.data.transfer.algorithm";
+  
+  //////////////////////////////////////
+  public static final String PANE_ENABLED_DFS = "dfs.pane.enabled";
+  public static final boolean PANE_ENABLED_DEFAULT_DFS = false;
+  public static final String PANE_ADDRESS_DFS = "dfs.pane.address";
+  public static final String PANE_ADDRESS_DEFAULT_DFS = "localhost";
+  public static final String PANE_PORT_DFS = "dfs.pane.port";
+  public static final int PANE_PORT_DEFAULT_DFS = 4242;
+  public static final String PANE_USER_DFS = "dfs.pane.user";
+  public static final String PANE_USER_DEFAULT_DFS = "root";
+  public static final String PANE_SHARE_DFS = "dfs.pane.share";
+  public static final String PANE_SHARE_DEFAULT_DFS = "rootShare";
+  public static final String PANE_DEADLINE_DFS = "dfs.pane.deadline"; 
+  public static final int PANE_DEADLINE_DEFAULT_DFS = 3000;   
+  //////////////////////////////////////
 }

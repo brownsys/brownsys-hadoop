@@ -228,6 +228,37 @@ public class DFSClient implements java.io.Closeable {
     final boolean getHdfsBlocksMetadataEnabled;
     final int getFileBlockStorageLocationsNumThreads;
     final int getFileBlockStorageLocationsTimeout;
+    
+    
+    /////////////////////////////for pane///////////////////////
+    boolean paneEnabled;
+    String paneAddress;
+    int panePort;
+    String paneUser;
+    String paneShareName;
+    int paneDeadline;
+    
+    private void configPane(Configuration conf) {
+  	  paneEnabled = conf.getBoolean(
+			  DFSConfigKeys.PANE_ENABLED_DFS, 
+			  DFSConfigKeys.PANE_ENABLED_DEFAULT_DFS);
+	  paneAddress = conf.get(
+			  DFSConfigKeys.PANE_ADDRESS_DFS,
+			  DFSConfigKeys.PANE_ADDRESS_DEFAULT_DFS);
+	  panePort = conf.getInt(
+			  DFSConfigKeys.PANE_PORT_DFS,
+			  DFSConfigKeys.PANE_PORT_DEFAULT_DFS);
+	  paneUser = conf.get(
+			  DFSConfigKeys.PANE_USER_DFS,
+			  DFSConfigKeys.PANE_USER_DEFAULT_DFS);
+	  paneShareName = conf.get(
+			  DFSConfigKeys.PANE_SHARE_DFS,
+			  DFSConfigKeys.PANE_SHARE_DEFAULT_DFS);
+	  paneDeadline = conf.getInt(
+			  DFSConfigKeys.PANE_DEADLINE_DFS,
+			  DFSConfigKeys.PANE_DEADLINE_DEFAULT_DFS);	
+    }
+    ///////////////////////////////////////////////////////////
 
     Conf(Configuration conf) {
       maxFailoverAttempts = conf.getInt(
@@ -289,6 +320,10 @@ public class DFSClient implements java.io.Closeable {
       getFileBlockStorageLocationsTimeout = conf.getInt(
           DFSConfigKeys.DFS_CLIENT_FILE_BLOCK_STORAGE_LOCATIONS_TIMEOUT,
           DFSConfigKeys.DFS_CLIENT_FILE_BLOCK_STORAGE_LOCATIONS_TIMEOUT_DEFAULT);
+      
+      ////////////////////////
+      configPane(conf);
+      ///////////////////////
     }
 
     private DataChecksum.Type getChecksumType(Configuration conf) {

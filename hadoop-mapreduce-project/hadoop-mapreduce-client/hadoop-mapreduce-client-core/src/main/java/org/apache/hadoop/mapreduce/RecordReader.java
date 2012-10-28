@@ -23,6 +23,7 @@ import java.io.IOException;
 
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
+import org.apache.hadoop.fs.PaneResvDescription;
 
 /**
  * The record reader breaks the data into key/value pairs for input to the
@@ -84,4 +85,8 @@ public abstract class RecordReader<KEYIN, VALUEIN> implements Closeable {
    * Close the record reader.
    */
   public abstract void close() throws IOException;
+  
+  
+  ////////////////////
+  public void setPaneResv(PaneResvDescription desc) {}
 }

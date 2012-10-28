@@ -27,8 +27,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InterruptedIOException;
 import java.io.OutputStream;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.UnknownHostException;
 import java.nio.BufferOverflowException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -41,6 +43,7 @@ import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.fs.CreateFlag;
 import org.apache.hadoop.fs.FSOutputSummer;
 import org.apache.hadoop.fs.FileAlreadyExistsException;
+import org.apache.hadoop.fs.PaneResvDescription;
 import org.apache.hadoop.fs.ParentNotDirectoryException;
 import org.apache.hadoop.fs.Syncable;
 import org.apache.hadoop.fs.UnresolvedLinkException;
@@ -82,6 +85,11 @@ import org.apache.hadoop.util.Time;
 
 import com.google.common.annotations.VisibleForTesting;
 
+import edu.brown.cs.paneclient.PaneClientImpl;
+import edu.brown.cs.paneclient.PaneFlowGroup;
+import edu.brown.cs.paneclient.PaneReservation;
+import edu.brown.cs.paneclient.PaneShare;
+import edu.brown.cs.paneclient.PaneException.InvalidAuthenticateException;
 
 /****************************************************************
  * DFSOutputStream creates files from a stream of bytes.
@@ -137,6 +145,14 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
   private Progressable progress;
   private final short blockReplication; // replication factor of file
   private boolean shouldSyncBlock = false; // force blocks to disk upon close
+  
+  //////////////////////////////////////
+  PaneResvDescription paneResv;
+  public void setPaneReservation(PaneResvDescription resv) {
+	DFSClient.LOG.info("...............set PANE reservation...." + resv.getStart() + ".." + resv.getEnd());
+  	this.paneResv = resv;
+  }
+  //////////////////////////////////////
   
   private class Packet {
     long    seqno;               // sequencenumber of buffer in block
@@ -396,6 +412,76 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
       stage = BlockConstructionStage.PIPELINE_SETUP_CREATE;
     }
     
+    
+    ////////////////////////////////////////////////
+    private PaneSpeakerTransfer paneSpeaker = null;
+    
+    private void initializePaneSpeaker() {
+    	if(paneSpeaker == null) {
+    		String paneHost = dfsClient.getConf().paneAddress;
+    		int panePort = dfsClient.getConf().panePort;
+    		String paneShareName = dfsClient.getConf().paneShareName;
+    		String paneUser = dfsClient.getConf().paneUser;
+    		paneSpeaker = new PaneSpeakerTransfer();
+    		paneSpeaker.initialize(paneHost, panePort, paneShareName, paneUser);
+    	}
+    }
+    
+    private void makeReservation() {
+    	if(paneResv.getFlowGroup() == null) {
+    		DFSClient.LOG.error("null fg");
+    		return;
+    	} else {
+    		initializePaneSpeaker();
+    		int paneDeadline = dfsClient.getConf().paneDeadline;   	
+    		DFSClient.LOG.info("PANE deadline:" + paneDeadline);
+    		try {
+    			paneSpeaker.makeReservation(paneResv.getFlowGroup(), paneResv.getSize(), paneDeadline);
+    		} catch (IOException e) {
+    			DFSClient.LOG.error("making reservation failed!" + e);
+    		}
+    	}
+    	DFSClient.LOG.info("made reservation for map input, size:" + paneResv.getSize());
+    	//do not repeatedly making reservation for the fg we have handled
+    	//to create new reservation, someone needs to explicitly give a new fg
+    	paneResv.setFlowGroup(null);
+    }
+
+    private void makeReservationAll (DatanodeInfo[] datanodes) {
+    	if (paneResv != null) {
+    		makeReservation();
+    		if(datanodes.length > 1) {
+    			//for each pair of datanodes
+    			if(paneResv != null) {
+    				InetAddress srcHost;
+    				InetAddress dstHost;
+    				int srcPort;
+    				int dstPort;
+    				for (int i = 0, j = 1;j<datanodes.length - 1;i++,j++) {
+    					try {
+    						srcHost = InetAddress.getByName(datanodes[i].getHostName());
+    						dstHost = InetAddress.getByName(datanodes[j].getHostName());
+    					} catch (UnknownHostException e) {
+    						DFSClient.LOG.error("unknown datanode host name for Pane reservation");
+    						return;
+    					}
+    					srcPort = datanodes[i].getXferPort();
+    					dstPort = datanodes[j].getXferPort();
+    					DFSClient.LOG.info("PANE making reservation(inter-datanode) for src:" + srcHost + ":" +
+    							srcPort + " dst:" + dstHost + ":" + dstPort);
+    					PaneFlowGroup currentFG = new PaneFlowGroup();
+    					currentFG.setSrcHost(srcHost);
+    					currentFG.setDstHost(dstHost);
+    					currentFG.setSrcPort(srcPort);
+    					currentFG.setDstPort(dstPort);
+    					paneResv.setFlowGroup(currentFG);
+    					makeReservation();
+    				}
+    			}
+    		}
+    	}
+    }
+    ////////////////////////////////////////////////
     /*
      * streamer thread is the only thread that opens streams to datanode, 
      * and closes them. Any error recovery is also done by this thread.
@@ -469,6 +555,24 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
             setupPipelineForAppendOrRecovery();
             initDataStreaming();
           }
+          
+          //////////////////////////////
+          if(paneResv != null) {
+        	  //at this point, a new blockStream is set up
+        	  DFSClient.LOG.info("PANE making reservation(client-datanode) for dst:" + s.getInetAddress().getHostName() 
+        			  + ":" + s.getPort() + " src:" + s.getLocalAddress().getHostName() + ":" + s.getLocalPort()
+        			  + " size:" + paneResv.getSize());
+        	  PaneFlowGroup currentFG = new PaneFlowGroup();
+        	  currentFG.setSrcHost(s.getLocalAddress());
+        	  currentFG.setSrcPort(s.getLocalPort());
+        	  currentFG.setDstHost(s.getInetAddress());
+        	  currentFG.setDstPort(s.getPort());
+        	  //the point here is that, for this fg, the reservation will only be
+        	  //made once for all packet in this block
+        	  paneResv.setFlowGroup(currentFG);
+        	  paneResv.setSize(blockSize);
+          }
+          /////////////////////////////
 
           long lastByteOffsetInBlock = one.getLastByteOffsetBlock();
           if (lastByteOffsetInBlock > blockSize) {
@@ -511,9 +615,26 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
             DFSClient.LOG.debug("DataStreamer block " + block +
                 " sending packet " + one);
           }
-
           // write out data to remote datanode
           try {
+        	  ///////////////////////make reservation/////////////////////////
+        	  //paneResv is not null means that we should make a reservation here, reservations
+        	  //will be made for each block handled by this DFS output stream
+        	  if(paneResv != null){
+        		  if (!one.isHeartbeatPacket() && !one.lastPacketInBlock) {
+        			  //last packet in block is an empty packet and does not contain any data, 
+        			  //it only indicates the end to the block
+        			  DFSClient.LOG.info("...........DFSOut making reservation");
+        			  boolean paneEnabled = dfsClient.getConf().paneEnabled;
+        			  if (paneEnabled) {
+        				  //current paneResv is from client to the first datanode
+        				  //even though this method is called for each packet, but only 
+        				  //the first one will make reservation for the entire block
+        				  makeReservationAll(nodes);        		
+        			  }  
+        		  }
+        	  }
+        	  ///////////////////////////////////////////////////////////////
             one.writeTo(blockStream);
             blockStream.flush();   
           } catch (IOException e) {

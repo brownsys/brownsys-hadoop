@@ -26,6 +26,7 @@ import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.PaneResvDescription;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.FSDataOutputStream;
 
@@ -37,6 +38,9 @@ import org.apache.hadoop.mapreduce.OutputFormat;
 import org.apache.hadoop.mapreduce.RecordWriter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.util.*;
+
+import org.apache.hadoop.fs.PaneResvDescription;
+import edu.brown.cs.paneclient.*;
 
 /** An {@link OutputFormat} that writes plain text files. */
 @InterfaceAudience.Public
@@ -112,6 +116,25 @@ public class TextOutputFormat<K, V> extends FileOutputFormat<K, V> {
     }
   }
 
+  
+  ///////////////////////////////
+  private PaneResvDescription generateReservation(Configuration conf) {
+	     
+	  PaneResvDescription resv = new PaneResvDescription();
+	  /////////////////////////
+	  
+	  //what information need to be put here? All information
+	  //for the reservation can be found at DFS client. 
+	  //So far, the action of passing a PaneResvDescription object itself
+	  //already means that we want a reservation for this, and DFS client
+	  //takes charge of everything else. In the future, probably job
+	  //specific information needs to be put here?
+	  
+	  /////////////////////////
+	  return resv;
+	  
+  }
+  //////////////////////////////
   public RecordWriter<K, V> 
          getRecordWriter(TaskAttemptContext job
                          ) throws IOException, InterruptedException {
@@ -129,10 +152,12 @@ public class TextOutputFormat<K, V> extends FileOutputFormat<K, V> {
     Path file = getDefaultWorkFile(job, extension);
     FileSystem fs = file.getFileSystem(conf);
     if (!isCompressed) {
-      FSDataOutputStream fileOut = fs.create(file, false);
+      //FSDataOutputStream fileOut = fs.create(file, false);
+      FSDataOutputStream fileOut = fs.create(file, false, generateReservation(conf));
       return new LineRecordWriter<K, V>(fileOut, keyValueSeparator);
     } else {
-      FSDataOutputStream fileOut = fs.create(file, false);
+      //FSDataOutputStream fileOut = fs.create(file, false);
+	  FSDataOutputStream fileOut = fs.create(file, false, generateReservation(conf));
       return new LineRecordWriter<K, V>(new DataOutputStream
                                         (codec.createOutputStream(fileOut)),
                                         keyValueSeparator);

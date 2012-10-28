@@ -25,6 +25,7 @@ import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.PaneResvDescription;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.Seekable;
 import org.apache.hadoop.io.LongWritable;
@@ -73,6 +74,13 @@ public class LineRecordReader extends RecordReader<LongWritable, Text> {
     this.recordDelimiterBytes = recordDelimiter;
   }
 
+  ///////////////
+  PaneResvDescription desc;
+  @Override
+  public void setPaneResv(PaneResvDescription desc) {
+	  this.desc = desc;
+  }
+  //////////////
   public void initialize(InputSplit genericSplit,
                          TaskAttemptContext context) throws IOException {
     FileSplit split = (FileSplit) genericSplit;
@@ -86,7 +94,8 @@ public class LineRecordReader extends RecordReader<LongWritable, Text> {
 
     // open the file and seek to the start of the split
     final FileSystem fs = file.getFileSystem(job);
-    fileIn = fs.open(file);
+    //fileIn = fs.open(file);
+    fileIn = fs.open(file,this.desc);
     if (isCompressedInput()) {
       decompressor = CodecPool.getDecompressor(codec);
       if (codec instanceof SplittableCompressionCodec) {

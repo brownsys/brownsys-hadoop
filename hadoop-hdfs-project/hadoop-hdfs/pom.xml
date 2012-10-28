@@ -176,6 +176,11 @@ http://maven.apache.org/xsd/maven-4.0.0.xsd">
       <artifactId>xmlenc</artifactId>
       <scope>compile</scope>
     </dependency>
+    <dependency>
+      <groupId>edu.brown.cs</groupId>
+      <artifactId>paneclient</artifactId>
+      <version>0.1-SNAPSHOT</version>
+    </dependency>
   </dependencies>
 
   <build>

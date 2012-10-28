@@ -37,6 +37,7 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.PaneResvDescription;
 import org.apache.hadoop.fs.FileSystem.Statistics;
 import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
@@ -342,6 +343,7 @@ class MapTask extends Task {
  private <T> T getSplitDetails(Path file, long offset) 
   throws IOException {
    FileSystem fs = file.getFileSystem(conf);
+   //FSDataInputStream inFile = fs.open(file);
    FSDataInputStream inFile = fs.open(file);
    inFile.seek(offset);
    String className = StringInterner.weakIntern(Text.readString(inFile));
@@ -488,6 +490,7 @@ class MapTask extends Task {
                            org.apache.hadoop.mapreduce.TaskAttemptContext context
                            ) throws IOException, InterruptedException {
       long bytesInPrev = getInputBytes(fsStats);
+      //real is LineRecordReader by default
       real.initialize(split, context);
       long bytesInCurr = getInputBytes(fsStats);
       fileInputByteCounter.increment(bytesInCurr - bytesInPrev);
@@ -506,6 +509,12 @@ class MapTask extends Task {
       return result;
     }
 
+    @Override
+    public void setPaneResv(PaneResvDescription desc) {
+    	//pass the desc to line record reader
+    	real.setPaneResv(desc);
+    }
+    
     private long getInputBytes(List<Statistics> stats) {
       if (stats == null) return 0;
       long bytesRead = 0;
@@ -698,6 +707,9 @@ class MapTask extends Task {
         splitIndex.getStartOffset());
     LOG.info("Processing split: " + split);
 
+	  LOG.info("..............run new mapper, split " + split.toString() + "......" + inputFormat.getClass().getCanonicalName());
+	  LOG.info("...........location " + splitIndex.getSplitLocation());
+    
     org.apache.hadoop.mapreduce.RecordReader<INKEY,INVALUE> input =
       new NewTrackingRecordReader<INKEY,INVALUE>
         (split, inputFormat, reporter, taskContext);
@@ -725,6 +737,12 @@ class MapTask extends Task {
           new WrappedMapper<INKEY, INVALUE, OUTKEY, OUTVALUE>().getMapContext(
               mapContext);
 
+    LOG.info("..............run new mapper, input " + input.getClass().getCanonicalName());
+    //what information needs to be added to desc? at this moment, looks like all
+    //information is accessible in DFSInput. But deadline is a constant from DFSInput,
+    //may be used for passing deadline in the future?
+    input.setPaneResv(new PaneResvDescription());
+    
     input.initialize(split, mapperContext);
     mapper.run(mapperContext);
     mapPhase.complete();

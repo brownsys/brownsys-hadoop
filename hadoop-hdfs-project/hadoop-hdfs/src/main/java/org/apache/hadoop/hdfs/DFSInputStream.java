@@ -18,6 +18,7 @@
 package org.apache.hadoop.hdfs;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.ByteBuffer;
@@ -36,6 +37,7 @@ import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.fs.ChecksumException;
 import org.apache.hadoop.fs.ByteBufferReadable;
 import org.apache.hadoop.fs.FSInputStream;
+import org.apache.hadoop.fs.PaneResvDescription;
 import org.apache.hadoop.fs.UnresolvedLinkException;
 import org.apache.hadoop.hdfs.SocketCache.SocketAndStreams;
 import org.apache.hadoop.hdfs.protocol.ClientDatanodeProtocol;
@@ -53,6 +55,10 @@ import org.apache.hadoop.ipc.RemoteException;
 import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.security.AccessControlException;
 import org.apache.hadoop.security.token.Token;
+import org.mortbay.log.Log;
+
+import edu.brown.cs.paneclient.PaneFlowGroup;
+import edu.brown.cs.paneclient.PaneRelativeTime;
 
 /****************************************************************
  * DFSInputStream provides bytes from a named file.  It handles 
@@ -99,6 +105,51 @@ public class DFSInputStream extends FSInputStream implements ByteBufferReadable 
   private final byte[] oneByteBuf = new byte[1]; // used for 'int read()'
 
   private final int nCachedConnRetry;
+  
+  //////////////////////////////////////
+  private PaneResvDescription paneResv;
+  private PaneSpeakerTransfer paneSpeaker = null;
+  
+  public void setPaneReservation(PaneResvDescription resv) {
+	DFSClient.LOG.info("set PANE reservation description for input:" + resv.getStart() + ".." + resv.getEnd());
+  	this.paneResv = resv;
+  }
+  
+  private void initializePaneSpeaker() {
+  	if(paneSpeaker == null) {
+  		String paneHost = dfsClient.getConf().paneAddress;
+  		int panePort = dfsClient.getConf().panePort;
+  		String paneShareName = dfsClient.getConf().paneShareName;
+  		String paneUser = dfsClient.getConf().paneUser;
+  		paneSpeaker = new PaneSpeakerTransfer();
+  		paneSpeaker.initialize(paneHost, panePort, paneShareName, paneUser);
+  	}
+  }
+  
+  private void makeReservation() {
+	  //make reservation according to current flowgroup of paneResv
+	  if(paneResv != null) { 
+		  if(paneResv.getFlowGroup() == null) {
+			  DFSClient.LOG.error("null fg");
+			  return;
+		  } else {
+			  initializePaneSpeaker();
+			  int paneDeadline = dfsClient.getConf().paneDeadline;   	
+			  DFSClient.LOG.info("PANE deadline:" + paneDeadline);
+			  try {
+				  paneSpeaker.makeReservation(paneResv.getFlowGroup(), paneResv.getSize(), paneDeadline);
+			  } catch (IOException e) {
+				  DFSClient.LOG.error("making reservation failed!" + e);
+			  }
+		  }
+		  DFSClient.LOG.info("made reservation for map input, size:" + paneResv.getSize());
+		  //each read to a datanode has a size (4096 by default)reservation,
+		  //is made only once for each datanode right before the first read
+		  paneResv.setFlowGroup(null);
+		  paneResv.setSize(0);
+	  }
+  }
+  //////////////////////////////////////
 
   void addToDeadNodes(DatanodeInfo dnInfo) {
     deadNodes.put(dnInfo, dnInfo);
@@ -645,6 +696,13 @@ public class DFSInputStream extends FSInputStream implements ByteBufferReadable 
             currentNode = blockSeekTo(pos);
           }
           int realLen = (int) Math.min(len, (blockEnd - pos + 1L));
+          //////////////////////////////
+          //current datanode may change for different blocks,
+          //but blockSeekTo() call will eventually call getBlockReader
+          //which create a new currentPaneFG object, and thus the following
+          //call will then generate a new reservation
+          makeReservation();
+          //////////////////////////////
           int result = readBuffer(strategy, off, realLen, corruptedBlockMap);
           
           if (result >= 0) {
@@ -684,15 +742,17 @@ public class DFSInputStream extends FSInputStream implements ByteBufferReadable 
    */
   @Override
   public synchronized int read(final byte buf[], int off, int len) throws IOException {
+	  ////////////////////////////
+	  //this is the read actually being called
+	  ///////////////////////////
+	  DFSClient.LOG.info("reading:off:" + off + " len:"  + len);
     ReaderStrategy byteArrayReader = new ByteArrayStrategy(buf);
-
     return readWithStrategy(byteArrayReader, off, len);
   }
 
   @Override
   public synchronized int read(final ByteBuffer buf) throws IOException {
     ReaderStrategy byteBufferReader = new ByteBufferStrategy(buf);
-
     return readWithStrategy(byteBufferReader, 0, buf.remaining());
   }
 
@@ -943,6 +1003,20 @@ public class DFSInputStream extends FSInputStream implements ByteBufferReadable 
                                        clientName,
                                        dfsClient.getDataEncryptionKey(),
                                        sockAndStreams == null ? null : sockAndStreams.ioStreams);
+        ///////////////////////////////////////
+        DFSClient.LOG.info("........Input Socket:" + sock.getInetAddress() + ":" + sock.getPort() +
+        		"--" + sock.getLocalAddress() + ":" + sock.getLocalPort() + " len:" + len );
+        if(paneResv != null) {
+        	PaneFlowGroup currentPaneFG = new PaneFlowGroup();
+        	currentPaneFG.setDstHost(sock.getLocalAddress());
+        	currentPaneFG.setSrcHost(sock.getInetAddress());
+        	currentPaneFG.setDstPort(sock.getLocalPort());
+        	currentPaneFG.setSrcPort(sock.getPort());
+        	//assuming here fields partially filled in paneResv does not contain  
+        	paneResv.setFlowGroup(currentPaneFG);
+        	paneResv.setSize(len);
+        }
+        ///////////////////////////////////////
         return reader;
       } catch (IOException ex) {
         // Our socket is no good.

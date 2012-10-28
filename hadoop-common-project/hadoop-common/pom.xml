@@ -246,6 +246,11 @@
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>edu.brown.cs</groupId>
+      <artifactId>paneclient</artifactId>
+      <version>0.1-SNAPSHOT</version>
+    </dependency>
   </dependencies>
 
   <build>

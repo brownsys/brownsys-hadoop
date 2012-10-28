@@ -33,6 +33,7 @@ import org.apache.hadoop.fs.BlockLocation;
 import org.apache.hadoop.fs.ContentSummary;
 import org.apache.hadoop.fs.CreateFlag;
 import org.apache.hadoop.fs.BlockStorageLocation;
+import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.VolumeId;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
@@ -67,6 +68,7 @@ import org.apache.hadoop.security.token.SecretManager.InvalidToken;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.util.Progressable;
 
+import org.apache.hadoop.fs.PaneResvDescription;
 
 /****************************************************************
  * Implementation of the abstract FileSystem for the DFS system.
@@ -244,6 +246,18 @@ public class DistributedFileSystem extends FileSystem {
     return new DFSClient.DFSDataInputStream(
           dfs.open(getPathName(f), bufferSize, verifyChecksum));
   }
+  
+  //////////////////////////////////////////////
+  @SuppressWarnings("deprecation")
+  @Override
+  public HdfsDataInputStream open(Path f, PaneResvDescription paneResv) throws IOException {
+	  statistics.incrementReadOps(1);
+	  DFSInputStream input = dfs.open(getPathName(f), getConf().getInt("io.file.buffer.size", 4096), verifyChecksum);
+	  DFSClient.LOG.info(".............file length:" + input.getFileLength());
+	  input.setPaneReservation(paneResv);
+	  return new DFSClient.DFSDataInputStream(input);
+  }
+  //////////////////////////////////////////////
 
   /** This optional operation is not yet supported. */
   @Override
@@ -272,6 +286,27 @@ public class DistributedFileSystem extends FileSystem {
         replication, blockSize, progress, bufferSize, checksumOpt);
     return new HdfsDataOutputStream(out, statistics);
   }
+  
+  /////////////////////////////////////////////////////////////
+  @Override
+  public HdfsDataOutputStream create(PaneResvDescription resv, Path f, 
+		  boolean overwrite,
+		  int bufferSize,
+		  short replication,
+		  long blockSize
+		  ) throws IOException {
+	  LOG.info("...........create with PANE reservation is called" + f);
+	  statistics.incrementWriteOps(1);
+	  //progress and checksumOpt are null
+	  final DFSOutputStream out = dfs.create(
+			  getPathName(f), 
+			  FsPermission.getDefault().applyUMask(FsPermission.getUMask(getConf())), 
+			  overwrite ? EnumSet.of(CreateFlag.CREATE, CreateFlag.OVERWRITE): EnumSet.of(CreateFlag.CREATE),
+					  replication, blockSize, null, bufferSize, null);
+	  out.setPaneReservation(resv);
+	  return new HdfsDataOutputStream(out, statistics);
+  }
+  /////////////////////////////////////////////////////////////
   
   @SuppressWarnings("deprecation")
   @Override
