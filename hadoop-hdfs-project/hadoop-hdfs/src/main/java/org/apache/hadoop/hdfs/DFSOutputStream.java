@@ -429,7 +429,7 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
     
     private void makeReservation() {
     	if(paneResv.getFlowGroup() == null) {
-    		DFSClient.LOG.error("null fg");
+		DFSClient.LOG.error("null fg");
     		return;
     	} else {
     		initializePaneSpeaker();
@@ -561,7 +561,7 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
         	  //at this point, a new blockStream is set up
         	  DFSClient.LOG.info("PANE making reservation(client-datanode) for dst:" + s.getInetAddress().getHostName() 
         			  + ":" + s.getPort() + " src:" + s.getLocalAddress().getHostName() + ":" + s.getLocalPort()
-        			  + " size:" + paneResv.getSize());
+        			  + " size:" + blockSize);
         	  PaneFlowGroup currentFG = new PaneFlowGroup();
         	  currentFG.setSrcHost(s.getLocalAddress());
         	  currentFG.setSrcPort(s.getLocalPort());
@@ -620,19 +620,21 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
         	  ///////////////////////make reservation/////////////////////////
         	  //paneResv is not null means that we should make a reservation here, reservations
         	  //will be made for each block handled by this DFS output stream
-        	  if(paneResv != null){
-        		  if (!one.isHeartbeatPacket() && !one.lastPacketInBlock) {
-        			  //last packet in block is an empty packet and does not contain any data, 
-        			  //it only indicates the end to the block
-        			  DFSClient.LOG.info("...........DFSOut making reservation");
-        			  boolean paneEnabled = dfsClient.getConf().paneEnabled;
-        			  if (paneEnabled) {
+        	  boolean paneEnabled = dfsClient.getConf().paneEnabled;
+        	  if (paneEnabled) {
+        		  if(paneResv != null){
+        			  if (!one.isHeartbeatPacket() && !one.lastPacketInBlock) {
+        				  //last packet in block is an empty packet and does not contain any data, 
+        				  //it only indicates the end to the block
+        				  DFSClient.LOG.info("...........DFSOut making reservation");
         				  //current paneResv is from client to the first datanode
         				  //even though this method is called for each packet, but only 
         				  //the first one will make reservation for the entire block
         				  makeReservationAll(nodes);        		
         			  }  
         		  }
+        	  } else {
+        		  DFSClient.LOG.info("..........pane not enabled, skipped");
         	  }
         	  ///////////////////////////////////////////////////////////////
             one.writeTo(blockStream);

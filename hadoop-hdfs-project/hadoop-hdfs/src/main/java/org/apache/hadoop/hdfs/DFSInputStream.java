@@ -130,7 +130,7 @@ public class DFSInputStream extends FSInputStream implements ByteBufferReadable 
 	  //make reservation according to current flowgroup of paneResv
 	  if(paneResv != null) { 
 		  if(paneResv.getFlowGroup() == null) {
-			  DFSClient.LOG.error("null fg");
+			  DFSClient.LOG.info("input:null fg");
 			  return;
 		  } else {
 			  initializePaneSpeaker();
@@ -701,7 +701,12 @@ public class DFSInputStream extends FSInputStream implements ByteBufferReadable 
           //but blockSeekTo() call will eventually call getBlockReader
           //which create a new currentPaneFG object, and thus the following
           //call will then generate a new reservation
-          makeReservation();
+          boolean paneEnabled = dfsClient.getConf().paneEnabled;
+          if (paneEnabled) {
+        	  makeReservation();
+          } else {
+        	  DFSClient.LOG.info("........pane not enabled, skipped");
+          }
           //////////////////////////////
           int result = readBuffer(strategy, off, realLen, corruptedBlockMap);
           
