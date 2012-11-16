@@ -52,6 +52,7 @@ message RpcPayloadHeaderProto { // the header for the RpcRequest
   optional RpcKindProto rpcKind = 1;
   optional RpcPayloadOperationProto rpcOp = 2;
   required uint32 callId = 3; // each rpc has a callId that is also used in response
+  optional bytes xtrace = 4; // X-Trace metadata
 }
 
 enum RpcStatusProto {
@@ -74,4 +75,5 @@ message RpcResponseHeaderProto {
   required uint32 callId = 1; // callId used in Request
   required RpcStatusProto status = 2;
   optional uint32 serverIpcVersionNum = 3; // in case of an fatal IPC error 
+  optional bytes xtrace = 4; // X-Trace metadata
 }

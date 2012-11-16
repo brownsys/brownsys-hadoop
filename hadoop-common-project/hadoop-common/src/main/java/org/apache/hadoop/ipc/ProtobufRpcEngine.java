@@ -51,6 +51,9 @@ import com.google.protobuf.Descriptors.MethodDescriptor;
 import com.google.protobuf.Message;
 import com.google.protobuf.ServiceException;
 
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceProcess;
+
 /**
  * RPC Engine for for protobuf based RPCs.
  */
@@ -173,38 +176,48 @@ public class ProtobufRpcEngine implements RpcEngine {
     @Override
     public Object invoke(Object proxy, Method method, Object[] args)
         throws ServiceException {
-      long startTime = 0;
-      if (LOG.isDebugEnabled()) {
-        startTime = System.currentTimeMillis();
-      }
-
-      HadoopRpcRequestProto rpcRequest = constructRpcRequest(method, args);
-      RpcResponseWritable val = null;
-      try {
-        val = (RpcResponseWritable) client.call(RPC.RpcKind.RPC_PROTOCOL_BUFFER,
-            new RpcRequestWritable(rpcRequest), remoteId);
-      } catch (Throwable e) {
-        throw new ServiceException(e);
-      }
-
-      if (LOG.isDebugEnabled()) {
-        long callTime = System.currentTimeMillis() - startTime;
-        LOG.debug("Call: " + method.getName() + " " + callTime);
-      }
-      
-      Message prototype = null;
-      try {
-        prototype = getReturnProtoType(method);
-      } catch (Exception e) {
-        throw new ServiceException(e);
-      }
+	  XTraceProcess xtrace_remoteMethodCallProcess = 
+	    XTraceContext.startProcess("ProtobufRpcEngine", 
+	    		"RPC Client invoking remote method " + method.getName(),
+	    		"Protocol", this.protocolName,
+	    		"ConnectionID", this.remoteId);
       Message returnMessage;
       try {
-        returnMessage = prototype.newBuilderForType()
-            .mergeFrom(val.responseMessage).build();
-      } catch (Throwable e) {
-        throw new ServiceException(e);
+	      long startTime = 0;
+	      if (LOG.isDebugEnabled()) {
+	        startTime = System.currentTimeMillis();
+	      }	
+	      HadoopRpcRequestProto rpcRequest = constructRpcRequest(method, args);
+	      RpcResponseWritable val = null;
+	      try {
+	        val = (RpcResponseWritable) client.call(RPC.RpcKind.RPC_PROTOCOL_BUFFER,
+	            new RpcRequestWritable(rpcRequest), remoteId);
+	      } catch (Throwable e) {
+	        throw new ServiceException(e);
+	      }
+	
+	      if (LOG.isDebugEnabled()) {
+	        long callTime = System.currentTimeMillis() - startTime;
+	        LOG.debug("Call: " + method.getName() + " " + callTime);
+	      }
+	      
+	      Message prototype = null;
+	      try {
+	        prototype = getReturnProtoType(method);
+	      } catch (Exception e) {
+	        throw new ServiceException(e);
+	      }
+	      try {
+	        returnMessage = prototype.newBuilderForType()
+	            .mergeFrom(val.responseMessage).build();
+	      } catch (Throwable e) {
+	        throw new ServiceException(e);
+	      }
+      } catch (ServiceException e) {
+    	  XTraceContext.failProcess(xtrace_remoteMethodCallProcess, e);
+    	  throw e;
       }
+      XTraceContext.endProcess(xtrace_remoteMethodCallProcess, "Client invocation of " + method.getName() + " successful");
       return returnMessage;
     }
 
@@ -406,40 +419,49 @@ public class ProtobufRpcEngine implements RpcEngine {
         if (server.verbose)
           LOG.info("Call: protocol=" + protocol + ", method=" + methodName);
         
-        ProtoClassProtoImpl protocolImpl = getProtocolImpl(server, protoName,
-            clientVersion);
-        BlockingService service = (BlockingService) protocolImpl.protocolImpl;
-        MethodDescriptor methodDescriptor = service.getDescriptorForType()
-            .findMethodByName(methodName);
-        if (methodDescriptor == null) {
-          String msg = "Unknown method " + methodName + " called on " + protocol
-              + " protocol.";
-          LOG.warn(msg);
-          throw new RpcServerException(msg);
-        }
-        Message prototype = service.getRequestPrototype(methodDescriptor);
-        Message param = prototype.newBuilderForType()
-            .mergeFrom(rpcRequest.getRequest()).build();
+        XTraceProcess xtrace_process = XTraceContext.startProcess("ProtobufRpcEngine", 
+        		"Invoking method " + methodName, "Protocol", protocol);
+
         Message result;
         try {
-          long startTime = System.currentTimeMillis();
-          server.rpcDetailedMetrics.init(protocolImpl.protocolClass);
-          result = service.callBlockingMethod(methodDescriptor, null, param);
-          int processingTime = (int) (System.currentTimeMillis() - startTime);
-          int qTime = (int) (startTime - receiveTime);
-          if (LOG.isDebugEnabled()) {
-            LOG.info("Served: " + methodName + " queueTime= " + qTime +
-                      " procesingTime= " + processingTime);
-          }
-          server.rpcMetrics.addRpcQueueTime(qTime);
-          server.rpcMetrics.addRpcProcessingTime(processingTime);
-          server.rpcDetailedMetrics.addProcessingTime(methodName,
-              processingTime);
-        } catch (ServiceException e) {
-          throw (Exception) e.getCause();
+	        ProtoClassProtoImpl protocolImpl = getProtocolImpl(server, protoName,
+	            clientVersion);
+	        BlockingService service = (BlockingService) protocolImpl.protocolImpl;
+	        MethodDescriptor methodDescriptor = service.getDescriptorForType()
+	            .findMethodByName(methodName);
+	        if (methodDescriptor == null) {
+	          String msg = "Unknown method " + methodName + " called on " + protocol
+	              + " protocol.";
+	          LOG.warn(msg);
+	          throw new RpcServerException(msg);
+	        }
+	        Message prototype = service.getRequestPrototype(methodDescriptor);
+	        Message param = prototype.newBuilderForType()
+	            .mergeFrom(rpcRequest.getRequest()).build();
+	        try {
+	          long startTime = System.currentTimeMillis();
+	          server.rpcDetailedMetrics.init(protocolImpl.protocolClass);
+	          result = service.callBlockingMethod(methodDescriptor, null, param);
+	          int processingTime = (int) (System.currentTimeMillis() - startTime);
+	          int qTime = (int) (startTime - receiveTime);
+	          if (LOG.isDebugEnabled()) {
+	            LOG.info("Served: " + methodName + " queueTime= " + qTime +
+	                      " procesingTime= " + processingTime);
+	          }
+	          server.rpcMetrics.addRpcQueueTime(qTime);
+	          server.rpcMetrics.addRpcProcessingTime(processingTime);
+	          server.rpcDetailedMetrics.addProcessingTime(methodName,
+	              processingTime);
+	        } catch (ServiceException e) {
+	          throw (Exception) e.getCause();
+	        } catch (Exception e) {
+	          throw e;
+	        }
         } catch (Exception e) {
-          throw e;
+        	XTraceContext.failProcess(xtrace_process, e);
+        	throw e;
         }
+    	XTraceContext.endProcess(xtrace_process, "Invocation of " + methodName + " completed, responding to client");
         return new RpcResponseWritable(result);
       }
     }

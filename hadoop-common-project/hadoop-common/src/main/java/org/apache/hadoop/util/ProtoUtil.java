@@ -28,6 +28,9 @@ import org.apache.hadoop.ipc.protobuf.RpcPayloadHeaderProtos.*;
 import org.apache.hadoop.security.SaslRpcServer.AuthMethod;
 import org.apache.hadoop.security.UserGroupInformation;
 
+import com.google.protobuf.ByteString;
+import edu.berkeley.xtrace.XTraceContext;
+
 public abstract class ProtoUtil {
 
   /**
@@ -161,6 +164,9 @@ public abstract class ProtoUtil {
       RpcPayloadOperationProto operation, int callId) {
     RpcPayloadHeaderProto.Builder result = RpcPayloadHeaderProto.newBuilder();
     result.setRpcKind(convert(rpcKind)).setRpcOp(operation).setCallId(callId);
+    if (XTraceContext.isValid()) {
+      result.setXtrace(ByteString.copyFrom(XTraceContext.getThreadContext().pack()));
+    }
     return result.build();
   }
 }
