@@ -26,6 +26,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
+import java.io.StringWriter;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.URI;
@@ -49,6 +50,8 @@ import org.apache.hadoop.mapreduce.protocol.ClientProtocol;
 import org.apache.hadoop.mapreduce.task.JobContextImpl;
 import org.apache.hadoop.mapreduce.util.ConfigUtil;
 import org.apache.hadoop.util.StringUtils;
+
+import edu.berkeley.xtrace.XTraceContext;
 
 /**
  * The job submitter's view of the Job.
@@ -143,6 +146,15 @@ public class Job extends JobContextImpl implements JobContext {
   Job(JobConf conf) throws IOException {
     super(conf, null);
     this.cluster = null;
+    StringWriter partial = new StringWriter();
+    conf.writeXml(partial);
+    StringWriter full = new StringWriter();
+    Configuration.dumpConfiguration(conf, full);
+	XTraceContext.startTrace("Hadoop Job", "Initializaing Job", 
+			"Configuration", 				conf.toString(), 
+			"Non-default Configuration", 	partial.toString(), 
+			"Full Configuration", 			full.toString()
+	);
   }
 
   Job(JobStatus status, JobConf conf) throws IOException {
@@ -1240,9 +1252,12 @@ public class Job extends JobContextImpl implements JobContext {
   public boolean waitForCompletion(boolean verbose
                                    ) throws IOException, InterruptedException,
                                             ClassNotFoundException {
+	  
+	XTraceContext.startTrace("MapReduce Job", "Preparing Job");
     if (state == JobState.DEFINE) {
       submit();
     }
+    XTraceContext.logEvent("MapReduce Job", "Submitted Job " + getJobID());
     if (verbose) {
       monitorAndPrintJob();
     } else {
@@ -1256,6 +1271,7 @@ public class Job extends JobContextImpl implements JobContext {
         }
       }
     }
+    XTraceContext.logEvent("MapReduce Job", "finished job with success = " + isSuccessful());
     return isSuccessful();
   }
   

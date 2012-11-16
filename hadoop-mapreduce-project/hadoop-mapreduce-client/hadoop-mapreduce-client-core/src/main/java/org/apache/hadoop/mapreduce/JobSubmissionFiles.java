@@ -27,6 +27,8 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.conf.Configuration;
+
+import edu.berkeley.xtrace.XTraceContext;
 /**
  * A utility to manage job submission files.
  */
@@ -115,6 +117,7 @@ public class JobSubmissionFiles {
       fs.mkdirs(stagingArea, 
           new FsPermission(JOB_DIR_PERMISSION));
     }
+    XTraceContext.logEvent("JobSubmissionFiles", "Staging directory is " + stagingArea.toString());
     return stagingArea;
   }
   

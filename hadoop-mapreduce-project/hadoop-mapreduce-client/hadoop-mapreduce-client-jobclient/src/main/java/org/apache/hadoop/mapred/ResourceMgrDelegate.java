@@ -67,6 +67,9 @@ import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
 import org.apache.hadoop.yarn.ipc.YarnRPC;
 import org.apache.hadoop.yarn.util.ProtoUtils;
 
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceProcess;
+
 
 // TODO: This should be part of something like yarn-client.
 public class ResourceMgrDelegate {
@@ -82,10 +85,13 @@ public class ResourceMgrDelegate {
    * Delegate responsible for communicating with the Resource Manager's {@link ClientRMProtocol}.
    * @param conf the configuration object.
    */
-  public ResourceMgrDelegate(YarnConfiguration conf) {
+  public ResourceMgrDelegate(YarnConfiguration conf) {	
     this.conf = conf;
     YarnRPC rpc = YarnRPC.create(this.conf);
     this.rmAddress = getRmAddress(conf);
+    
+    XTraceContext.logEvent("ResourceMgrDelegate", "Selected " + rpc.getClass().getName() + " as RPC implementation");
+    
     LOG.debug("Connecting to ResourceManager at " + rmAddress);
     applicationsManager =
         (ClientRMProtocol) rpc.getProxy(ClientRMProtocol.class,
@@ -179,7 +185,9 @@ public class ResourceMgrDelegate {
   public JobID getNewJobID() throws IOException, InterruptedException {
     GetNewApplicationRequest request = recordFactory.newRecordInstance(GetNewApplicationRequest.class);
     applicationId = applicationsManager.getNewApplication(request).getApplicationId();
-    return TypeConverter.fromYarn(applicationId);
+    JobID id = TypeConverter.fromYarn(applicationId);
+    XTraceContext.logEvent("ResourceMgrDelegate", "Acquired application ID " + id.getId());
+    return id;
   }
 
   private static final String ROOT = "root";

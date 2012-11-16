@@ -57,6 +57,9 @@ import org.codehaus.jackson.JsonParseException;
 import org.codehaus.jackson.map.JsonMappingException;
 import org.codehaus.jackson.map.ObjectMapper;
 
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceProcess;
+
 @InterfaceAudience.Private
 @InterfaceStability.Unstable
 class JobSubmitter {
@@ -322,7 +325,9 @@ class JobSubmitter {
   JobStatus submitJobInternal(Job job, Cluster cluster) 
   throws ClassNotFoundException, InterruptedException, IOException {
 
-    //validate the jobs output specs 
+	XTraceProcess submitProcess = XTraceContext.startProcess("JobSubmitter", "Submitting Job");
+	  
+    //validate the jobs output specs
     checkSpecs(job);
     
     Path jobStagingArea = JobSubmissionFiles.getStagingDir(cluster, 
@@ -337,6 +342,7 @@ class JobSubmitter {
       conf.set(MRJobConfig.JOB_SUBMITHOSTADDR,submitHostAddress);
     }
     JobID jobId = submitClient.getNewJobID();
+    System.out.println("Submitting job with jobid " + jobId + " and the client class is " + submitClient.getClass().getName());
     job.setJobID(jobId);
     Path submitJobDir = new Path(jobStagingArea, jobId.toString());
     JobStatus status = null;
@@ -396,6 +402,8 @@ class JobSubmitter {
           jtFs.delete(submitJobDir, true);
 
       }
+      
+      XTraceContext.endProcess(submitProcess, "Job submission complete");
     }
   }
   
