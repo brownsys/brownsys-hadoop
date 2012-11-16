@@ -28,6 +28,10 @@ import java.util.Stack;
 
 import org.apache.hadoop.yarn.util.Graph;
 
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceEvent;
+import edu.berkeley.xtrace.XTraceMetadata;
+
 /**
  * State machine topology.
  * This object is semantically immutable.  If you have a
@@ -423,6 +427,7 @@ final public class StateMachineFactory
         implements StateMachine<STATE, EVENTTYPE, EVENT> {
     private final OPERAND operand;
     private STATE currentState;
+    private XTraceMetadata previousState_danglingTrace;
 
     InternalStateMachine(OPERAND operand, STATE initialState) {
       this.operand = operand;
@@ -440,8 +445,26 @@ final public class StateMachineFactory
     @Override
     public synchronized STATE doTransition(EVENTTYPE eventType, EVENT event)
          throws InvalidStateTransitonException  {
-      currentState = StateMachineFactory.this.doTransition
-          (operand, currentState, eventType, event);
+      try {
+    	  if (this.previousState_danglingTrace == XTraceContext.getThreadContext()) {
+    		  this.previousState_danglingTrace = null;
+    	  }
+    	  XTraceEvent xtrace_event = XTraceContext.createEvent("StateMachine", currentState.getDeclaringClass().getSimpleName() + 
+    			  "." + currentState.name() + " transitioning with event " + event.getClass().getSimpleName());
+    	  if (this.previousState_danglingTrace != null) {
+    		  xtrace_event.addEdge(this.previousState_danglingTrace);
+    	  }
+    	  this.previousState_danglingTrace = null;
+    	  xtrace_event.sendReport();
+    	  
+    	  currentState = StateMachineFactory.this.doTransition
+    			  (operand, currentState, eventType, event);
+    	  
+    	  this.previousState_danglingTrace = XTraceContext.getThreadContext();
+      } catch (InvalidStateTransitonException e) {
+    	  XTraceContext.logEvent("StateMachine", e.getMessage());
+    	  throw e;
+      }
       return currentState;
     }
   }
