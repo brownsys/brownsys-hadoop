@@ -57,6 +57,9 @@ import org.apache.hadoop.util.ReflectionUtils;
 
 import com.google.common.base.Preconditions;
 
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceProcess;
+
 @InterfaceAudience.LimitedPrivate({"HDFS", "MapReduce"})
 @InterfaceStability.Unstable
 public class NetUtils {
@@ -507,42 +510,54 @@ public class NetUtils {
       throw new IllegalArgumentException("Illegal argument for connect()");
     }
     
-    SocketChannel ch = socket.getChannel();
+    XTraceProcess xtrace_connect_process = XTraceContext.startProcess("NetUtils", "Connection to " + endpoint,
+    		"Socket", socket.toString(), 
+    		"timeout", timeout);
     
-    if (localAddr != null) {
-      Class localClass = localAddr.getClass();
-      Class remoteClass = endpoint.getClass();
-      Preconditions.checkArgument(localClass.equals(remoteClass),
-          "Local address %s must be of same family as remote address %s.",
-          localAddr, endpoint);
-      socket.bind(localAddr);
-    }
-
     try {
-      if (ch == null) {
-        // let the default implementation handle it.
-        socket.connect(endpoint, timeout);
-      } else {
-        SocketIOWithTimeout.connect(ch, endpoint, timeout);
+      
+      SocketChannel ch = socket.getChannel();
+      
+      if (localAddr != null) {
+        Class localClass = localAddr.getClass();
+        Class remoteClass = endpoint.getClass();
+        Preconditions.checkArgument(localClass.equals(remoteClass),
+            "Local address %s must be of same family as remote address %s.",
+            localAddr, endpoint);
+        socket.bind(localAddr);
       }
-    } catch (SocketTimeoutException ste) {
-      throw new ConnectTimeoutException(ste.getMessage());
+  
+      try {
+        if (ch == null) {
+          // let the default implementation handle it.
+          socket.connect(endpoint, timeout);
+        } else {
+          SocketIOWithTimeout.connect(ch, endpoint, timeout);
+        }
+      } catch (SocketTimeoutException ste) {
+        throw new ConnectTimeoutException(ste.getMessage());
+      }
+  
+      // There is a very rare case allowed by the TCP specification, such that
+      // if we are trying to connect to an endpoint on the local machine,
+      // and we end up choosing an ephemeral port equal to the destination port,
+      // we will actually end up getting connected to ourself (ie any data we
+      // send just comes right back). This is only possible if the target
+      // daemon is down, so we'll treat it like connection refused.
+      if (socket.getLocalPort() == socket.getPort() &&
+          socket.getLocalAddress().equals(socket.getInetAddress())) {
+        LOG.info("Detected a loopback TCP socket, disconnecting it");
+        socket.close();
+        throw new ConnectException(
+          "Localhost targeted connection resulted in a loopback. " +
+          "No daemon is listening on the target port.");
+      }
+    } catch (IOException e) {
+    	XTraceContext.failProcess(xtrace_connect_process, e);
+    	throw e;
     }
-
-    // There is a very rare case allowed by the TCP specification, such that
-    // if we are trying to connect to an endpoint on the local machine,
-    // and we end up choosing an ephemeral port equal to the destination port,
-    // we will actually end up getting connected to ourself (ie any data we
-    // send just comes right back). This is only possible if the target
-    // daemon is down, so we'll treat it like connection refused.
-    if (socket.getLocalPort() == socket.getPort() &&
-        socket.getLocalAddress().equals(socket.getInetAddress())) {
-      LOG.info("Detected a loopback TCP socket, disconnecting it");
-      socket.close();
-      throw new ConnectException(
-        "Localhost targeted connection resulted in a loopback. " +
-        "No daemon is listening on the target port.");
-    }
+    
+    XTraceContext.endProcess(xtrace_connect_process, "Connected socket " + socket);
   }
   
   /** 
