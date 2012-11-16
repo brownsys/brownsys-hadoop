@@ -31,6 +31,8 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.yarn.YarnException;
 import org.apache.hadoop.yarn.service.AbstractService;
 
+import edu.berkeley.xtrace.XTraceContext;
+
 /**
  * Dispatches events in a separate thread. Currently only single thread does
  * that. Potentially there could be multiple channels for each event type
@@ -122,6 +124,7 @@ public class AsyncDispatcher extends AbstractService implements Dispatcher {
     Class<? extends Enum> type = event.getType().getDeclaringClass();
 
     try{
+      event.takeContext();
       eventDispatchers.get(type).handle(event);
     }
     catch (Throwable t) {
@@ -176,6 +179,7 @@ public class AsyncDispatcher extends AbstractService implements Dispatcher {
             + remCapacity);
       }
       try {
+    	event.rememberContext();
         eventQueue.put(event);
       } catch (InterruptedException e) {
         LOG.warn("AsyncDispatcher thread interrupted", e);

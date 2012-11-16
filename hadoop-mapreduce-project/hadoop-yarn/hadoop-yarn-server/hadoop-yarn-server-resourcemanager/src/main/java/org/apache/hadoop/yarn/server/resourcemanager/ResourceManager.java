@@ -361,6 +361,7 @@ public class ResourceManager extends CompositeService implements Recoverable {
           LOG.info("Very low remaining capacity on scheduler event queue: "
               + remCapacity);
         }
+        event.rememberContext();
         this.eventQueue.put(event);
       } catch (InterruptedException e) {
         throw new YarnException(e);
@@ -621,6 +622,7 @@ public class ResourceManager extends CompositeService implements Recoverable {
   }
   
   public static void main(String argv[]) {
+	  System.out.println("I am ResourceManager, king of kings. Look on my works ye mighty, and despair.");
     StringUtils.startupShutdownMessage(ResourceManager.class, argv, LOG);
     try {
       Configuration conf = new YarnConfiguration();
