@@ -45,6 +45,8 @@ import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.RMAppAttempt;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.YarnScheduler;
 import org.apache.hadoop.yarn.server.security.ApplicationACLsManager;
 
+import edu.berkeley.xtrace.XTraceContext;
+
 /**
  * This class manages the list of applications for the resource manager. 
  */
@@ -224,6 +226,7 @@ public class RMAppManager implements EventHandler<RMAppManagerEvent> {
       ApplicationSubmissionContext submissionContext, long submitTime) {
     ApplicationId applicationId = submissionContext.getApplicationId();
     RMApp application = null;
+    XTraceContext.logEvent("RMAppManager", "Submitting application with applicationId: " + applicationId.getId());
     try {
 
       String clientTokenStr = null;

@@ -69,6 +69,8 @@ import org.apache.hadoop.yarn.server.resourcemanager.security.authorize.RMPolicy
 import org.apache.hadoop.yarn.service.AbstractService;
 import org.apache.hadoop.yarn.util.BuilderUtils;
 
+import edu.berkeley.xtrace.XTraceContext;
+
 @SuppressWarnings("unchecked")
 @Private
 public class ApplicationMasterService extends AbstractService implements
@@ -339,6 +341,7 @@ public class ApplicationMasterService extends AbstractService implements
     AMResponse response = recordFactory.newRecordInstance(AMResponse.class);
     response.setResponseId(0);
     LOG.info("Registering " + attemptId);
+    XTraceContext.logEvent("ApplicationMasterService", "Registering " + attemptId);
     responseMap.put(attemptId, response);
   }
 
