@@ -42,6 +42,7 @@ import org.apache.hadoop.mapreduce.v2.LogParams;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.SecretManager.InvalidToken;
 import org.apache.hadoop.security.token.Token;
+import edu.berkeley.xtrace.XTraceContext;
 
 /**
  * Provides a way to access information about the map/reduce cluster.
@@ -76,9 +77,16 @@ public class Cluster {
 
   public Cluster(InetSocketAddress jobTrackAddr, Configuration conf) 
       throws IOException {
+	XTraceContext.logEvent("Cluster (Client)", "Initializing cluster");
+	    
     this.conf = conf;
     this.ugi = UserGroupInformation.getCurrentUser();
-    initialize(jobTrackAddr, conf);
+    try {
+    	initialize(jobTrackAddr, conf);
+    } catch (IOException e) {
+    	XTraceContext.logEvent("Cluster (Client)", "Failed to initialize cluster: " + e.getMessage());
+    	throw e;
+    } 
   }
   
   private void initialize(InetSocketAddress jobTrackAddr, Configuration conf)
