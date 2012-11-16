@@ -18,6 +18,8 @@
 
 package org.apache.hadoop.yarn.event;
 
+import edu.berkeley.xtrace.XTraceContext;
+
 /**
  * Interface defining events api.
  *
@@ -27,4 +29,6 @@ public interface Event<TYPE extends Enum<TYPE>> {
   TYPE getType();
   long getTimestamp();
   String toString();
+  void rememberContext();
+  void takeContext();
 }

@@ -617,6 +617,7 @@ public class FifoScheduler implements ResourceScheduler, Configurable {
 
   @Override
   public void handle(SchedulerEvent event) {
+    event.takeContext();
     switch(event.getType()) {
     case NODE_ADDED:
     {
