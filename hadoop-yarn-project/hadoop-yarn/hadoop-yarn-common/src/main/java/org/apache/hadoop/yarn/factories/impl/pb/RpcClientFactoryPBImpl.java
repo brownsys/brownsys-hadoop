@@ -31,6 +31,8 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.yarn.YarnException;
 import org.apache.hadoop.yarn.factories.RpcClientFactory;
 
+import edu.berkeley.xtrace.XTraceContext;
+
 public class RpcClientFactoryPBImpl implements RpcClientFactory {
 
   private static final Log LOG = LogFactory
@@ -56,8 +58,10 @@ public class RpcClientFactoryPBImpl implements RpcClientFactory {
     if (constructor == null) {
       Class<?> pbClazz = null;
       try {
+        XTraceContext.logEvent("RpcClientFactoryPBImpl", "Protocol " + protocol.getName() + " implementation selected " + getPBImplClassName(protocol));
         pbClazz = localConf.getClassByName(getPBImplClassName(protocol));
       } catch (ClassNotFoundException e) {
+        XTraceContext.logEvent("RpcClientFactoryPBImpl", "Unable to load class " + getPBImplClassName(protocol));
         throw new YarnException("Failed to load class: ["
             + getPBImplClassName(protocol) + "]", e);
       }

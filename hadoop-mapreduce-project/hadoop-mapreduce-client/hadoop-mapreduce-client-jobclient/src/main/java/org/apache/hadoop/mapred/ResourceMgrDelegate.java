@@ -43,6 +43,8 @@ import org.apache.hadoop.yarn.api.records.YarnClusterMetrics;
 import org.apache.hadoop.yarn.client.YarnClientImpl;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.util.ProtoUtils;
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceProcess;
 
 public class ResourceMgrDelegate extends YarnClientImpl {
   private static final Log LOG = LogFactory.getLog(ResourceMgrDelegate.class);
@@ -101,7 +103,9 @@ public class ResourceMgrDelegate extends YarnClientImpl {
   public JobID getNewJobID() throws IOException, InterruptedException {
     this.application = super.getNewApplication();
     this.applicationId = this.application.getApplicationId();
-    return TypeConverter.fromYarn(applicationId);
+    JobID id = TypeConverter.fromYarn(applicationId);
+    XTraceContext.logEvent("ResourceMgrDelegate", "Acquired application ID " + id.getId());
+    return id;
   }
 
   public QueueInfo getQueue(String queueName) throws IOException,
