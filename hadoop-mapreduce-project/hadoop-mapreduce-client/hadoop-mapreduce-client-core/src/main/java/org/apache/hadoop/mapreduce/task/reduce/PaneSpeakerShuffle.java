@@ -47,9 +47,19 @@ public class PaneSpeakerShuffle {
 		PaneFlowGroup fg;
 		PaneRelativeTime start = new PaneRelativeTime();
 		PaneRelativeTime end = new PaneRelativeTime();
-
+		int rate = computePaneRate(deadline, size);
 		start.setRelativeTime(0);
-		end.setRelativeTime(deadline);
+		long endtime = deadline;
+		if (rate == baseRate) {
+			//probably deadline is too large for this small flow
+			endtime = size/rate;
+			if(endtime == 0) {
+				//otherwise it would from now to now and cause error,
+				//probably does not need to reserve in this case?
+				endtime = 1;
+			}
+		}
+		end.setRelativeTime(endtime);
 
 		fg = new PaneFlowGroup();
 		fg.setTransportProto(PaneFlowGroup.PROTO_TCP);

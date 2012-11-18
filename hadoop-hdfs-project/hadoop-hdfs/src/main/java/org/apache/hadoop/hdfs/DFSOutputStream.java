@@ -457,7 +457,7 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
     				InetAddress dstHost;
     				int srcPort;
     				int dstPort;
-    				for (int i = 0, j = 1;j<datanodes.length - 1;i++,j++) {
+    				for (int i = 0, j = 1;j<datanodes.length;i++,j++) {
     					try {
     						srcHost = InetAddress.getByName(datanodes[i].getHostName());
     						dstHost = InetAddress.getByName(datanodes[j].getHostName());
