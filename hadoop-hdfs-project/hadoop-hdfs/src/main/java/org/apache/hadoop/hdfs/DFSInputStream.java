@@ -111,7 +111,8 @@ public class DFSInputStream extends FSInputStream implements ByteBufferReadable 
   private PaneSpeakerTransfer paneSpeaker = null;
   
   public void setPaneReservation(PaneResvDescription resv) {
-	DFSClient.LOG.info("set PANE reservation description for input:" + resv.getStart() + ".." + resv.getEnd());
+	DFSClient.LOG.info("set PANE reservation description for input:" +
+  (resv!=null?(resv.getStart() + ".." + resv.getEnd()):"null"));
   	this.paneResv = resv;
   }
   
@@ -750,7 +751,7 @@ public class DFSInputStream extends FSInputStream implements ByteBufferReadable 
 	  ////////////////////////////
 	  //this is the read actually being called
 	  ///////////////////////////
-	  DFSClient.LOG.info("reading:off:" + off + " len:"  + len);
+	  //DFSClient.LOG.info("reading:off:" + off + " len:"  + len);
     ReaderStrategy byteArrayReader = new ByteArrayStrategy(buf);
     return readWithStrategy(byteArrayReader, off, len);
   }

@@ -1719,7 +1719,13 @@ public class SequenceFile {
       }
     }
 
+    //////////////////////////////////
     public Reader(Configuration conf, Option... opts) throws IOException {
+    	this(conf, null, opts);
+    }
+    //////////////////////////////////
+    
+    public Reader(Configuration conf, PaneResvDescription desc, Option... opts) throws IOException {
       // Look up the options, these are null if not set
       FileOption fileOpt = Options.getOption(FileOption.class, opts);
       InputStreamOption streamOpt = 
@@ -1749,7 +1755,7 @@ public class SequenceFile {
         len = null == lenOpt
           ? fs.getFileStatus(filename).getLen()
           : lenOpt.getValue();
-        file = openFile(fs, filename, bufSize, len);
+        file = openFile(fs, filename, bufSize, len, desc);
       } else {
         len = null == lenOpt ? Long.MAX_VALUE : lenOpt.getValue();
         file = streamOpt.getValue();
@@ -1766,12 +1772,19 @@ public class SequenceFile {
      * @param conf Configuration
      * @throws IOException
      * @deprecated Use Reader(Configuration, Option...) instead.
-     */
+     */      
     @Deprecated
     public Reader(FileSystem fs, Path file, 
                   Configuration conf) throws IOException {
       this(conf, file(file.makeQualified(fs)));
     }
+    
+    //////////////////////////////////////////
+    public Reader(FileSystem fs, Path file, 
+    		Configuration conf, PaneResvDescription desc) throws IOException {
+    	this(conf, desc, file(file.makeQualified(fs)));
+    }
+    //////////////////////////////////////////
 
     /**
      * Construct a reader by the given input stream.
@@ -1830,6 +1843,13 @@ public class SequenceFile {
     protected FSDataInputStream openFile(FileSystem fs, Path file,
         int bufferSize, long length) throws IOException {
       return fs.open(file, bufferSize);
+    }
+
+    protected FSDataInputStream openFile(FileSystem fs, Path file,
+        int bufferSize, long length, PaneResvDescription paneResv) throws IOException {
+    	LOG.info("....SequenceFile:open with paneResv:" + (paneResv==null?"null":"not null"));
+    	return fs.open(file, bufferSize, paneResv);
+      //return fs.open(file, bufferSize);
     }
     
     /**

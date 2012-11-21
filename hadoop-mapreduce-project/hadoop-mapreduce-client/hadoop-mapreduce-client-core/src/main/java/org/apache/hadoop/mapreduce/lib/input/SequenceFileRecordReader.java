@@ -25,6 +25,7 @@ import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.PaneResvDescription;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.*;
 import org.apache.hadoop.mapreduce.InputSplit;
@@ -43,6 +44,14 @@ public class SequenceFileRecordReader<K, V> extends RecordReader<K, V> {
   private V value = null;
   protected Configuration conf;
 
+  ///////////////
+  PaneResvDescription desc;
+  @Override
+  public void setPaneResv(PaneResvDescription desc) {
+	  this.desc = desc;
+  }
+  //////////////
+  
   @Override
   public void initialize(InputSplit split, 
                          TaskAttemptContext context
@@ -51,7 +60,9 @@ public class SequenceFileRecordReader<K, V> extends RecordReader<K, V> {
     conf = context.getConfiguration();    
     Path path = fileSplit.getPath();
     FileSystem fs = path.getFileSystem(conf);
-    this.in = new SequenceFile.Reader(fs, path, conf);
+    ///////////////////////////////////////////
+    this.in = new SequenceFile.Reader(fs, path, conf, this.desc);
+    ///////////////////////////////////////////
     this.end = fileSplit.getStart() + fileSplit.getLength();
 
     if (fileSplit.getStart() > in.getPosition()) {

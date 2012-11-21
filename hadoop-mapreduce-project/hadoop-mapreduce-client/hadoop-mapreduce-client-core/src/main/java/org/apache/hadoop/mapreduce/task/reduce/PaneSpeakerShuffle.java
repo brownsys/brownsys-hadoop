@@ -18,7 +18,7 @@ public class PaneSpeakerShuffle {
 	PaneShare share;
 	int selfPort;
 
-	static int baseRate = 100;
+	static int baseRate = 1;
 
 	private static final Log LOG = LogFactory.getLog(PaneSpeakerShuffle.class);
 
@@ -29,7 +29,7 @@ public class PaneSpeakerShuffle {
 
 	private int computePaneRate(int time, long size) {
 		
-		double result = (double)size/(double)time;
+		double result = (double)size/1000000/(double)time;//MB per second
 		int rate = (int)Math.round(result);
 
 		if (rate < baseRate) {
@@ -52,7 +52,7 @@ public class PaneSpeakerShuffle {
 		long endtime = deadline;
 		if (rate == baseRate) {
 			//probably deadline is too large for this small flow
-			endtime = size/rate;
+			endtime = size/1000000/rate;
 			if(endtime == 0) {
 				//otherwise it would from now to now and cause error,
 				//probably does not need to reserve in this case?

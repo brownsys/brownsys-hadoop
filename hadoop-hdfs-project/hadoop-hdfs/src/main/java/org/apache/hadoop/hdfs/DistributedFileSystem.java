@@ -250,6 +250,16 @@ public class DistributedFileSystem extends FileSystem {
   //////////////////////////////////////////////
   @SuppressWarnings("deprecation")
   @Override
+  public HdfsDataInputStream open(Path f, int bufferSize, PaneResvDescription paneResv) throws IOException {
+	  statistics.incrementReadOps(1);
+	  DFSInputStream input = dfs.open(getPathName(f), bufferSize, verifyChecksum);
+	  DFSClient.LOG.info(".............file length:" + input.getFileLength());
+	  input.setPaneReservation(paneResv);
+	  return new DFSClient.DFSDataInputStream(input);
+  }
+  
+  @SuppressWarnings("deprecation")
+  @Override
   public HdfsDataInputStream open(Path f, PaneResvDescription paneResv) throws IOException {
 	  statistics.incrementReadOps(1);
 	  DFSInputStream input = dfs.open(getPathName(f), getConf().getInt("io.file.buffer.size", 4096), verifyChecksum);
