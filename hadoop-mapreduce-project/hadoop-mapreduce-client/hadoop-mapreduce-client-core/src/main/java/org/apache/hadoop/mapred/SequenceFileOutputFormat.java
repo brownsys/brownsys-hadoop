@@ -26,6 +26,7 @@ import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.FileUtil;
+import org.apache.hadoop.fs.PaneResvDescription;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.SequenceFile.CompressionType;
@@ -60,13 +61,21 @@ public class SequenceFileOutputFormat <K,V> extends FileOutputFormat<K, V> {
 	  DefaultCodec.class);
       codec = ReflectionUtils.newInstance(codecClass, job);
     }
+//    final SequenceFile.Writer out =
+//      SequenceFile.createWriter(fs, job, file,
+//                                job.getOutputKeyClass(),
+//                                job.getOutputValueClass(),
+//                                compressionType,
+//                                codec,
+//                                progress);
     final SequenceFile.Writer out = 
-      SequenceFile.createWriter(fs, job, file,
-                                job.getOutputKeyClass(),
-                                job.getOutputValueClass(),
-                                compressionType,
-                                codec,
-                                progress);
+	      SequenceFile.createWriter(fs, job, file,
+	                                job.getOutputKeyClass(),
+	                                job.getOutputValueClass(),
+	                                compressionType,
+	                                codec,
+	                                progress,
+	                                new PaneResvDescription());
 
     return new RecordWriter<K, V>() {
 

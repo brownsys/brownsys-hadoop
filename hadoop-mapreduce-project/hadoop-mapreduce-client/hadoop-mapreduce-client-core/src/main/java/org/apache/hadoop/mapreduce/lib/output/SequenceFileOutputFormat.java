@@ -21,6 +21,7 @@ package org.apache.hadoop.mapreduce.lib.output;
 import java.io.IOException;
 
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.PaneResvDescription;
 import org.apache.hadoop.fs.Path;
 
 import org.apache.hadoop.io.SequenceFile;
@@ -61,12 +62,15 @@ public class SequenceFileOutputFormat <K,V> extends FileOutputFormat<K, V> {
     // get the path of the temporary output file 
     Path file = getDefaultWorkFile(context, "");
     FileSystem fs = file.getFileSystem(conf);
+    //////////////////////////////////////////////////////////
     return SequenceFile.createWriter(fs, conf, file,
              keyClass,
              valueClass,
              compressionType,
              codec,
-             context);
+             context,
+             new PaneResvDescription());
+    /////////////////////////////////////////////////////////
   }
   
   public RecordWriter<K, V> 

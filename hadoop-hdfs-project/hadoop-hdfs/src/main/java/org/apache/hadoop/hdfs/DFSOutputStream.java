@@ -441,7 +441,7 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
     			DFSClient.LOG.error("making reservation failed!" + e);
     		}
     	}
-    	DFSClient.LOG.info("made reservation for map input, size:" + paneResv.getSize());
+	DFSClient.LOG.info("made reservation for output, size:" + paneResv.getSize());
     	//do not repeatedly making reservation for the fg we have handled
     	//to create new reservation, someone needs to explicitly give a new fg
     	paneResv.setFlowGroup(null);
@@ -482,6 +482,36 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
     	}
     }
     ////////////////////////////////////////////////
+
+    private void paneReserve() {
+	boolean paneEnabled = dfsClient.getConf().paneEnabled;
+	if (paneEnabled) {
+		if(paneResv != null) {
+			//at this point, a new blockStream is set up
+			DFSClient.LOG.info("PANE making reservation(client-datanode) for dst:" + s.getInetAddress().getHostName() 
+					+ ":" + s.getPort() + " src:" + s.getLocalAddress().getHostName() + ":" + s.getLocalPort()
+					+ " size:" + blockSize);
+			PaneFlowGroup currentFG = new PaneFlowGroup();
+			currentFG.setSrcHost(s.getLocalAddress());
+			currentFG.setSrcPort(s.getLocalPort());
+			currentFG.setDstHost(s.getInetAddress());
+			currentFG.setDstPort(s.getPort());
+			//the point here is that, for this fg, the reservation will only be
+			//made once for all packet in this block
+			paneResv.setFlowGroup(currentFG);
+			//last packet in block is an empty packet and does not contain any data,
+			//it only indicates the end to the block
+			DFSClient.LOG.info("...........DFSOut making reservation");
+			//current paneResv is from client to the first datanode
+			//even though this method is called for each packet, but only
+			//the first one will make reservation for the entire block
+			paneResv.setSize(blockSize);
+			makeReservationAll(nodes);
+		}
+	} else {
+			DFSClient.LOG.info("..........pane not enabled, skipped");
+	}
+    }
     /*
      * streamer thread is the only thread that opens streams to datanode, 
      * and closes them. Any error recovery is also done by this thread.
@@ -542,22 +572,27 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
           assert one != null;
 
           // get new block from namenode.
+          /////////////////////////////////////////////////
           if (stage == BlockConstructionStage.PIPELINE_SETUP_CREATE) {
+            DFSClient.LOG.info("Allocating new block");
             if(DFSClient.LOG.isDebugEnabled()) {
               DFSClient.LOG.debug("Allocating new block");
             }
             nodes = nextBlockOutputStream(src);
             initDataStreaming();
+            paneReserve();
           } else if (stage == BlockConstructionStage.PIPELINE_SETUP_APPEND) {
+        	DFSClient.LOG.info("Append to block " + block);
             if(DFSClient.LOG.isDebugEnabled()) {
               DFSClient.LOG.debug("Append to block " + block);
             }
             setupPipelineForAppendOrRecovery();
             initDataStreaming();
+            paneReserve();
           }
-          
+          /////////////////////////////////////////////////
           //////////////////////////////
-          if(paneResv != null) {
+          /*if(paneResv != null) {
         	  //at this point, a new blockStream is set up
         	  DFSClient.LOG.info("PANE making reservation(client-datanode) for dst:" + s.getInetAddress().getHostName() 
         			  + ":" + s.getPort() + " src:" + s.getLocalAddress().getHostName() + ":" + s.getLocalPort()
@@ -570,8 +605,7 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
         	  //the point here is that, for this fg, the reservation will only be
         	  //made once for all packet in this block
         	  paneResv.setFlowGroup(currentFG);
-        	  paneResv.setSize(blockSize);
-          }
+          }*/
           /////////////////////////////
 
           long lastByteOffsetInBlock = one.getLastByteOffsetBlock();
@@ -620,22 +654,26 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
         	  ///////////////////////make reservation/////////////////////////
         	  //paneResv is not null means that we should make a reservation here, reservations
         	  //will be made for each block handled by this DFS output stream
-        	  boolean paneEnabled = dfsClient.getConf().paneEnabled;
+        	  /*boolean paneEnabled = dfsClient.getConf().paneEnabled;
         	  if (paneEnabled) {
         		  if(paneResv != null){
         			  if (!one.isHeartbeatPacket() && !one.lastPacketInBlock) {
         				  //last packet in block is an empty packet and does not contain any data, 
         				  //it only indicates the end to the block
-        				  DFSClient.LOG.info("...........DFSOut making reservation");
+        				  DFSClient.LOG.info("...........DFSOut making reservation:" + one.dataStart + ":" + one.offsetInBlock + ":" + one.seqno + ":" + one.getLastByteOffsetBlock());
         				  //current paneResv is from client to the first datanode
         				  //even though this method is called for each packet, but only 
         				  //the first one will make reservation for the entire block
+        				  int totalLen = HdfsConstants.BYTES_IN_INTEGER +
+        						  (one.dataPos - one.dataStart) +
+        						  (one.checksumPos - one.checksumStart);
+                                          paneResv.setSize(totalLen);
         				  makeReservationAll(nodes);        		
         			  }  
         		  }
         	  } else {
         		  DFSClient.LOG.info("..........pane not enabled, skipped");
-        	  }
+        	  }*/
         	  ///////////////////////////////////////////////////////////////
             one.writeTo(blockStream);
             blockStream.flush();   
@@ -1943,3 +1981,4 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
   }
 
 }
+

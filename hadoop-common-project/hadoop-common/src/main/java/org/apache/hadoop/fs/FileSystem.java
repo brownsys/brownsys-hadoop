@@ -885,6 +885,34 @@ public abstract class FileSystem extends Configured implements Closeable {
         replication, blockSize, progress);
   }
 
+  ///////////////////////////////////////////////////
+  public FSDataOutputStream create(Path f,
+		  boolean overwrite,
+		  int bufferSize,
+		  short replication,
+		  long blockSize,
+		  Progressable progress,
+		  PaneResvDescription desc
+		  ) throws IOException {
+	  return this.create(f, FsPermission.getDefault().applyUMask(
+			  FsPermission.getUMask(getConf())), overwrite, bufferSize,
+			  replication, blockSize, progress, desc);
+  }
+
+  public FSDataOutputStream create(Path f,
+	      FsPermission permission,
+	      boolean overwrite,
+	      int bufferSize,
+	      short replication,
+	      long blockSize,
+	      Progressable progress,
+	      PaneResvDescription desc) throws IOException{
+	  return this.create(f, FsPermission.getDefault().applyUMask(
+		        FsPermission.getUMask(getConf())), overwrite, bufferSize,
+		        replication, blockSize, progress);
+  }
+  ///////////////////////////////////////////////////
+
   /**
    * Create an FSDataOutputStream at the indicated Path with write-progress
    * reporting.

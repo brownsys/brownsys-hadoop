@@ -299,13 +299,35 @@ public class DistributedFileSystem extends FileSystem {
   
   /////////////////////////////////////////////////////////////
   @Override
+  public HdfsDataOutputStream create(Path f,
+	      FsPermission permission,
+	      boolean overwrite,
+	      int bufferSize,
+	      short replication,
+	      long blockSize,
+	      Progressable progress,
+	      PaneResvDescription desc) throws IOException{
+	  LOG.info("<pane-tag>create with PANE reservation is called(1)" + f);
+	  statistics.incrementWriteOps(1);
+	  statistics.incrementWriteOps(1);
+	  final DFSOutputStream out = dfs.create(getPathName(f), permission,
+			  overwrite ? EnumSet.of(CreateFlag.CREATE, CreateFlag.OVERWRITE)
+					  : EnumSet.of(CreateFlag.CREATE),
+					  replication, blockSize, progress, bufferSize, null);
+	  out.setPaneReservation(desc);
+	  return new HdfsDataOutputStream(out, statistics);
+  }
+
+
+
+  @Override
   public HdfsDataOutputStream create(PaneResvDescription resv, Path f, 
 		  boolean overwrite,
 		  int bufferSize,
 		  short replication,
 		  long blockSize
 		  ) throws IOException {
-	  LOG.info("...........create with PANE reservation is called" + f);
+	  LOG.info("<pane-tag>create with PANE reservation is called(2)" + f);
 	  statistics.incrementWriteOps(1);
 	  //progress and checksumOpt are null
 	  final DFSOutputStream out = dfs.create(

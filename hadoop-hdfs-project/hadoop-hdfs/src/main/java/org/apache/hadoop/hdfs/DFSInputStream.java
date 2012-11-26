@@ -131,7 +131,7 @@ public class DFSInputStream extends FSInputStream implements ByteBufferReadable 
 	  //make reservation according to current flowgroup of paneResv
 	  if(paneResv != null) { 
 		  if(paneResv.getFlowGroup() == null) {
-			  DFSClient.LOG.info("input:null fg");
+			  //DFSClient.LOG.info("input:null fg");
 			  return;
 		  } else {
 			  initializePaneSpeaker();

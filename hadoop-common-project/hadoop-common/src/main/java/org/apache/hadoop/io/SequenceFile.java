@@ -275,6 +275,30 @@ public class SequenceFile {
     }
   }
 
+  //////////////////////////////////////////////////
+  public static Writer createWriter(Configuration conf, PaneResvDescription desc,
+		  Writer.Option... opts) throws IOException {
+	  Writer.CompressionOption compressionOption =
+			  Options.getOption(Writer.CompressionOption.class, opts);
+	  CompressionType kind;
+	  if (compressionOption != null) {
+		  kind = compressionOption.getValue();
+	  } else {
+		  kind = getDefaultCompressionType(conf);
+		  opts = Options.prependOptions(opts, Writer.compression(kind));
+	  }
+	  switch (kind) {
+	  default:
+	  case NONE:
+		  return new Writer(conf, desc, opts);
+	  case RECORD:
+		  return new RecordCompressWriter(conf, desc, opts);
+	  case BLOCK:
+		  return new BlockCompressWriter(conf, desc, opts);
+	  }
+  }
+  //////////////////////////////////////////////////
+
   /**
    * Construct the preferred type of SequenceFile Writer.
    * @param fs The configured filesystem. 
@@ -532,6 +556,22 @@ public class SequenceFile {
                         Writer.progressable(progress));
   }
 
+  //////////////////////////////////////////////////////////////
+  public static Writer
+  createWriter(FileSystem fs, Configuration conf, Path name,
+               Class keyClass, Class valClass,
+               CompressionType compressionType, CompressionCodec codec,
+               Progressable progress,
+               PaneResvDescription desc) throws IOException {
+	  LOG.info("....SequenceFile:create with paneResv:" + (desc==null?"null":"not null"));
+  return createWriter(conf, desc, Writer.file(name),
+                      Writer.filesystem(fs),
+                      Writer.keyClass(keyClass),
+                      Writer.valueClass(valClass),
+                      Writer.compression(compressionType, codec),
+                      Writer.progressable(progress));
+}
+  //////////////////////////////////////////////////////////////
   /**
    * Construct the preferred type of 'raw' SequenceFile Writer.
    * @param conf The configuration.
@@ -1016,7 +1056,7 @@ public class SequenceFile {
      * @param options the options used when creating the writer
      * @throws IOException if it fails
      */
-    Writer(Configuration conf, 
+    Writer(Configuration conf, PaneResvDescription desc,
            Option... opts) throws IOException {
       BlockSizeOption blockSizeOption = 
         Options.getOption(BlockSizeOption.class, opts);
@@ -1068,7 +1108,8 @@ public class SequenceFile {
           blockSizeOption.getValue();
         Progressable progress = progressOption == null ? null :
           progressOption.getValue();
-        out = fs.create(p, true, bufferSize, replication, blockSize, progress);
+        LOG.info("..........SequenceFile:create-->" + (desc == null?"null":"not null"));
+        out = fs.create(p, true, bufferSize, replication, blockSize, progress, desc);
       } else {
         out = streamOption.getValue();
       }
@@ -1090,6 +1131,13 @@ public class SequenceFile {
       }
       init(conf, out, ownStream, keyClass, valueClass, codec, metadata);
     }
+
+    ////////////////////////////////////
+    Writer(Configuration conf,
+            Option... opts) throws IOException{
+        this(conf, null, opts);
+    }
+    ////////////////////////////////////
 
     /** Create the named file.
      * @deprecated Use 
@@ -1366,10 +1414,17 @@ public class SequenceFile {
   /** Write key/compressed-value pairs to a sequence-format file. */
   static class RecordCompressWriter extends Writer {
     
-    RecordCompressWriter(Configuration conf, 
+    RecordCompressWriter(Configuration conf, PaneResvDescription desc,
                          Option... options) throws IOException {
-      super(conf, options);
+      super(conf, desc, options);
     }
+
+    ////////////////////////////////
+    RecordCompressWriter(Configuration conf,
+		Option... options) throws IOException {
+	super(conf, null, options);
+    }
+    ////////////////////////////////
 
     /** Append a key/value pair. */
     @Override
@@ -1436,9 +1491,9 @@ public class SequenceFile {
 
     private final int compressionBlockSize;
     
-    BlockCompressWriter(Configuration conf,
+    BlockCompressWriter(Configuration conf, PaneResvDescription desc,
                         Option... options) throws IOException {
-      super(conf, options);
+      super(conf, desc, options);
       compressionBlockSize = 
         conf.getInt("io.seqfile.compress.blocksize", 1000000);
       keySerializer.close();
@@ -1446,6 +1501,12 @@ public class SequenceFile {
       uncompressedValSerializer.close();
       uncompressedValSerializer.open(valBuffer);
     }
+    //////////////////////////////////
+    BlockCompressWriter(Configuration conf,
+            Option... options) throws IOException {
+	this(conf, null, options);
+    }
+    //////////////////////////////////
 
     /** Workhorse to check and write out compressed data/lengths */
     private synchronized 
@@ -1755,6 +1816,9 @@ public class SequenceFile {
         len = null == lenOpt
           ? fs.getFileStatus(filename).getLen()
           : lenOpt.getValue();
+        ///////////////////////////////
+        LOG.info("<pane-tag>read desc is " + (desc == null?"null:":"not null"));
+        ///////////////////////////////
         file = openFile(fs, filename, bufSize, len, desc);
       } else {
         len = null == lenOpt ? Long.MAX_VALUE : lenOpt.getValue();
@@ -1783,6 +1847,13 @@ public class SequenceFile {
     public Reader(FileSystem fs, Path file, 
     		Configuration conf, PaneResvDescription desc) throws IOException {
     	this(conf, desc, file(file.makeQualified(fs)));
+    }
+    //////////////////////////////////////////
+
+    //////////////////////////////////////////
+    public Reader(FileSystem fs, Path file,
+		Configuration conf, PaneResvDescription desc) throws IOException {
+	this(conf, desc, file(file.makeQualified(fs)));
     }
     //////////////////////////////////////////
 
