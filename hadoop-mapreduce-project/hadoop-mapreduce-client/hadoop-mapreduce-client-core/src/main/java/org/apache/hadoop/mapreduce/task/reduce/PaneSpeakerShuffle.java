@@ -3,6 +3,7 @@ package org.apache.hadoop.mapreduce.task.reduce;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.SocketException;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -71,16 +72,26 @@ public class PaneSpeakerShuffle {
 		fg.setSrcPort(srcPort);
 
 		InetAddress srcHost = InetAddress.getByName(addr[0]);
+		InetAddress localHost = InetAddress.getLocalHost();
+		InetAddress src = fg.getSrcHost();
+		if (srcHost.equals(localHost)) {
+			LOG.info("The shuffle reservation has same dst and src host, ignore");
+			return true;
+		}
+
 		fg.setSrcHost(srcHost);
 
 		fg.setDstPort(myPort);
-		fg.setDstHost(InetAddress.getLocalHost());
+		fg.setDstHost(localHost);
 		resv = new PaneReservation(computePaneRate(deadline, size), fg, start, end);
 
 		try {
 			share.reserve(resv);
 		} catch (InvalidResvException e) {
 			LOG.error("Failed to make PANE reservation, " + e);
+			return false;
+		} catch (SocketException e) {
+			LOG.error("SocketException when making PANE reservation, " + e);
 			return false;
 		}
 

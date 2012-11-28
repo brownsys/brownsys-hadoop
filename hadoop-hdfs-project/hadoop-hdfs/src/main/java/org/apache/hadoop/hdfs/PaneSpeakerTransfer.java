@@ -1,16 +1,6 @@
 package org.apache.hadoop.hdfs;
 
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.Socket;
-import java.net.UnknownHostException;
-
-import org.apache.hadoop.hdfs.protocol.DatanodeInfo;
-
-import edu.brown.cs.paneclient.*;
-import edu.brown.cs.paneclient.PaneException.InvalidAuthenticateException;
-import edu.brown.cs.paneclient.PaneException.InvalidResvException;
 
 public class PaneSpeakerTransfer {
 
@@ -71,6 +61,13 @@ public class PaneSpeakerTransfer {
 	public boolean makeReservation(PaneFlowGroup fg, long size, int deadline) throws IOException {
 		PaneRelativeTime start = new PaneRelativeTime();
 		PaneRelativeTime end = new PaneRelativeTime();
+		InetAddress dst = fg.getDstHost();
+		InetAddress src = fg.getSrcHost();
+		if (dst.equals(src)) {
+			DFSClient.LOG.info("The transfer reservation has same dst and src host, ignore");
+			return true;
+		}
+
 		int rate = computePaneRate(deadline, size);
 		start.setRelativeTime(0);
 		long endtime = deadline;
@@ -93,6 +90,9 @@ public class PaneSpeakerTransfer {
 		} catch (InvalidResvException e) {
 			DFSClient.LOG.error("Failed to make PANE reservation, " + e);
 			return false;
+		} catch (SocketException e) {
+			DFSClient.LOG.error("SocketException when making PANE reservation, " + e);
+			return false;
 		}
 
 		DFSClient.LOG.info("Making PANE reservation succeeded:" + resv.generateCmd());
@@ -114,3 +114,4 @@ public class PaneSpeakerTransfer {
 		return makeReservation(fg, size, deadline);
 	}
 }
+
