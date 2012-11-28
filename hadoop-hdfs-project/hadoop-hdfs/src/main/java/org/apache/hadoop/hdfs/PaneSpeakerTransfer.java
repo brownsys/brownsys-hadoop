@@ -1,6 +1,14 @@
 package org.apache.hadoop.hdfs;
 
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.SocketException;
+import java.net.UnknownHostException;
+
+import edu.brown.cs.paneclient.*;
+import edu.brown.cs.paneclient.PaneException.InvalidAuthenticateException;
+import edu.brown.cs.paneclient.PaneException.InvalidResvException;
 
 public class PaneSpeakerTransfer {
 
