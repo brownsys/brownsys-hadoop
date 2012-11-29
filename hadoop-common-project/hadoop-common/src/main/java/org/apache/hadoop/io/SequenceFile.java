@@ -1850,13 +1850,6 @@ public class SequenceFile {
     }
     //////////////////////////////////////////
 
-    //////////////////////////////////////////
-    public Reader(FileSystem fs, Path file,
-		Configuration conf, PaneResvDescription desc) throws IOException {
-	this(conf, desc, file(file.makeQualified(fs)));
-    }
-    //////////////////////////////////////////
-
     /**
      * Construct a reader by the given input stream.
      * @param in An input stream.
