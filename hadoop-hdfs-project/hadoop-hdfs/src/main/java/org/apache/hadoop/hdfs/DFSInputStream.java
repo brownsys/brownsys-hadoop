@@ -706,7 +706,9 @@ public class DFSInputStream extends FSInputStream implements ByteBufferReadable 
           if (paneEnabled) {
         	  makeReservation();
           } else {
-        	  DFSClient.LOG.info("........pane not enabled, skipped");
+		  if(paneResv != null)
+			 if(paneResv.getFlowGroup() != null)
+				 DFSClient.LOG.info("Input: pane not enabled, skipped");
           }
           //////////////////////////////
           int result = readBuffer(strategy, off, realLen, corruptedBlockMap);

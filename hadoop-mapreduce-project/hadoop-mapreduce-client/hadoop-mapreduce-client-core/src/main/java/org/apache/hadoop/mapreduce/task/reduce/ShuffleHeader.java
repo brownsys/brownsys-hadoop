@@ -52,6 +52,11 @@ public class ShuffleHeader implements Writable {
   public ShuffleHeader() { }
   
   public ShuffleHeader(String mapId, long compressedLength,
+      long uncompressedLength, int forReduce) {
+    this(mapId, compressedLength, uncompressedLength, forReduce, -1);
+  }
+
+  public ShuffleHeader(String mapId, long compressedLength,
       long uncompressedLength, int forReduce, int remotePort) {
     this.mapId = mapId;
     this.compressedLength = compressedLength;

@@ -114,16 +114,16 @@ class Fetcher<K,V> extends Thread {
 
  
   ///////////////////////////////////////////////////
-  private final String DEFAULT_PANE_ADDRESS = "localhost";
-  private final int DEFAULT_PANE_PORT = 4242;
-  private final boolean DEFAULT_PANE_ENABLED = false;
-  private final String DEFAULT_PANE_SHARE = "rootShare";
-  private final String DEFAULT_PANE_USER = "root";
-  private final int DEFAULT_PANE_DEADLINE = 30000;
+  private final String DEFAULT_PANE_ADDRESS_MAPRED = "localhost";
+  private final int DEFAULT_PANE_PORT_MAPRED = 4242;
+  private final boolean DEFAULT_PANE_ENABLED_MAPRED = false;
+  private final String DEFAULT_PANE_SHARE_MAPRED = "rootShare";
+  private final String DEFAULT_PANE_USER_MAPRED = "root";
+  private final int DEFAULT_PANE_DEADLINE_MAPRED = 30000;
 
   private boolean paneEnabled;
 
-  private PaneSpeaker paneSpeaker;
+  private PaneSpeakerShuffle paneSpeaker;
   private InetSocketAddress paneAddress;
   private PaneClientImpl paneClient;
   private PaneShare shuffleShare;
@@ -133,57 +133,49 @@ class Fetcher<K,V> extends Thread {
   
   private void initializePane(String paneHost, int panePort) {
 
-          LOG.info("PANE initialization started");
+    LOG.info("PANE initialization started");
 
-	  try {
-		  paneAddress = new InetSocketAddress(InetAddress.getByName(paneHost), panePort);
-	  } catch (UnknownHostException e) {
-		  LOG.error("Unknown PANE host, " + e);
-		  return;
-	  }
-	  //this.shuffleShare = new PaneShare("shuffle", maxBandwidth, null);
-	  LOG.info("PANE Address created:" + paneAddress);
+    try {
+      paneAddress = new InetSocketAddress(InetAddress.getByName(paneHost), panePort);
+    } catch (UnknownHostException e) {
+      LOG.error("Unknown PANE host, " + e);
+      return;
+    }
+    //this.shuffleShare = new PaneShare("shuffle", maxBandwidth, null);
+    LOG.info("PANE Address created:" + paneAddress);
 
-	  try {
-		  paneClient = new PaneClientImpl(paneAddress.getAddress(), paneAddress.getPort());
-	  } catch (IOException e) {
-		  LOG.error("Failed to create PANE client, from " + paneAddress + " " + e);
-                  return;
-	  }
+    try {
+      paneClient = new PaneClientImpl(paneAddress.getAddress(), paneAddress.getPort());
+    } catch (IOException e) {
+      LOG.error("Failed to create PANE client, from " + paneAddress + " " + e);
+      return;
+    }
 
-          LOG.info("PANE Client created");
+    LOG.info("PANE Client created");
 
-          try {
-		  shuffleShare = paneClient.getRootShare();
-          } catch (IOException e) {
-		  LOG.error("Failed to get PANE root share, " + e);
-                  return;
-          }
+    String shareName = job.get(MRJobConfig.PANE_SHARE_MAPRED, DEFAULT_PANE_SHARE_MAPRED);
+    shuffleShare = new PaneShare(shareName, Integer.MAX_VALUE, null);
+    shuffleShare.setClient(paneClient);
 
-          LOG.info("PANE root got");
+    LOG.info("PANE share name:" + shareName);
+    String user = job.get(MRJobConfig.PANE_USER_MAPRED, DEFAULT_PANE_USER_MAPRED);
+    try {
+      paneClient.authenticate(user);
+    } catch (InvalidAuthenticateException e) {
+      LOG.error("Invalid authentication of PANE client, " + e);
+      return;
+    } catch (IOException e) {
+      LOG.error("Failed to create new share, " + e);
+      return;
+    }
 
-	  try {
-		  paneClient.authenticate("root");
-	  } catch (InvalidAuthenticateException e) {
-		  LOG.error("Invalid authentication of PANE client, " + e);
-                  return;
-	  } catch (IOException e) {
-		  LOG.error("Failed to create new share, " + e);
-		  return;
-	  }
-	  
-          LOG.info("PANE authentication succeeded");
-	  /*try {
-		  paneClient.getRootShare().newShare(shuffleShare);
-	  } catch (InvalidNewShareException e) {
-		  LOG.error("Invalid new share, " + e);
-		  return;
-	  } catch (IOException e) {
-		  LOG.error("Failed to create new share, " + e);
-		  return;
-	  }*/
-          paneSpeaker = new PaneSpeaker(paneAddress, shuffleShare);
-          LOG.info("PANE initialization completed");
+    LOG.info("PANE authentication succeeded, user name:" + user);
+    paneSpeaker = new PaneSpeakerShuffle(paneAddress, shuffleShare);
+
+    paneDeadline = job.getInt(MRJobConfig.PANE_DEADLINE_MAPRED,
+        DEFAULT_PANE_DEADLINE_MAPRED);
+    LOG.info("PANE deadline:" + paneDeadline);
+    LOG.info("PANE initialization completed");
   }
   
   public Fetcher(JobConf job, TaskAttemptID reduceId, 
@@ -245,10 +237,10 @@ class Fetcher<K,V> extends Thread {
       }
     }
     ////////////////////////////////
-    paneEnabled = job.getBoolean(MRJobConfig.PANE_ENABLED, DEFAULT_PANE_ENABLED);
+    paneEnabled = job.getBoolean(MRJobConfig.PANE_ENABLED_MAPRED, DEFAULT_PANE_ENABLED_MAPRED);
     if (paneEnabled) {
-      String paneHost = job.get(MRJobConfig.PANE_ADDRESS, DEFAULT_PANE_ADDRESS);
-      int panePort = job.getInt(MRJobConfig.PANE_PORT, DEFAULT_PANE_PORT);
+      String paneHost = job.get(MRJobConfig.PANE_ADDRESS_MAPRED, DEFAULT_PANE_ADDRESS_MAPRED);
+      int panePort = job.getInt(MRJobConfig.PANE_PORT_MAPRED, DEFAULT_PANE_PORT_MAPRED);
       initializePane(paneHost, panePort);
     }
     ////////////////////////////////

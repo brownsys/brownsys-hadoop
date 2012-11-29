@@ -509,7 +509,8 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
 			makeReservationAll(nodes);
 		}
 	} else {
-			DFSClient.LOG.info("..........pane not enabled, skipped");
+		if(paneResv != null)
+			DFSClient.LOG.info("Output: pane not enabled, skipped");
 	}
     }
     /*

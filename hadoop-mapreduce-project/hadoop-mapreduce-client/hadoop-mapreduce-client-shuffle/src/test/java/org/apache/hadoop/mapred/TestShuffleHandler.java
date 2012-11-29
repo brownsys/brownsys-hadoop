@@ -105,12 +105,12 @@ public class TestShuffleHandler {
           }
           @Override
           protected ChannelFuture sendMapOutput(ChannelHandlerContext ctx,
-              Channel ch, String user, String jobId, String mapId, int reduce)
+              Channel ch, String user, String jobId, String mapId, int reduce, int remotePort)
                   throws IOException {
             // send a shuffle header and a lot of data down the channel
             // to trigger a broken pipe
             ShuffleHeader header =
-                new ShuffleHeader("attempt_12345_1_m_1_0", 5678, 5678, 1);
+                new ShuffleHeader("attempt_12345_1_m_1_0", 5678, 5678, 1, remotePort);
             DataOutputBuffer dob = new DataOutputBuffer();
             header.write(dob);
             ch.write(wrappedBuffer(dob.getData(), 0, dob.getLength()));
