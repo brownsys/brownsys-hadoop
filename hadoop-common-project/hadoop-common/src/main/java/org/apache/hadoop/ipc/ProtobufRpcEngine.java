@@ -38,7 +38,6 @@ import org.apache.hadoop.io.DataOutputOutputStream;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.ipc.Client.ConnectionId;
 import org.apache.hadoop.ipc.RPC.RpcInvoker;
-
 import org.apache.hadoop.ipc.protobuf.HadoopRpcProtos.HadoopRpcRequestProto;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.SecretManager;
@@ -177,7 +176,7 @@ public class ProtobufRpcEngine implements RpcEngine {
     public Object invoke(Object proxy, Method method, Object[] args)
         throws ServiceException {
 	  XTraceProcess xtrace_remoteMethodCallProcess = 
-	    XTraceContext.startProcess("ProtobufRpcEngine", 
+	    XTraceContext.startProcess(RPC.class, "ProtobufRpcEngine", 
 	    		"RPC Client invoking remote method " + method.getName(),
 	    		"Protocol", this.protocolName,
 	    		"ConnectionID", this.remoteId);
@@ -419,7 +418,7 @@ public class ProtobufRpcEngine implements RpcEngine {
         if (server.verbose)
           LOG.info("Call: protocol=" + protocol + ", method=" + methodName);
         
-        XTraceProcess xtrace_process = XTraceContext.startProcess("ProtobufRpcEngine", 
+        XTraceProcess xtrace_process = XTraceContext.startProcess(RPC.class, "ProtobufRpcEngine", 
         		"Invoking method " + methodName, "Protocol", protocol);
 
         Message result;

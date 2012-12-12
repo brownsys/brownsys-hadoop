@@ -48,6 +48,8 @@ import org.apache.hadoop.yarn.server.nodemanager.containermanager.launcher.Conta
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.localizer.ContainerLocalizer;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 
+import edu.berkeley.xtrace.XTraceContext;
+
 public class DefaultContainerExecutor extends ContainerExecutor {
 
   private static final Log LOG = LogFactory
@@ -172,6 +174,7 @@ public class DefaultContainerExecutor extends ContainerExecutor {
       String[] command = {"bash", "-c",
           wrapperScriptDst.toUri().getPath().toString()};
       LOG.info("launchContainer: " + Arrays.toString(command));
+      XTraceContext.logEvent(ContainerExecutor.class, "DefaultContainerExecutor", "Launching container", "args", Arrays.toString(command));
       shExec = new ShellCommandExecutor(
           command,
           new File(containerWorkDir.toUri().getPath()),

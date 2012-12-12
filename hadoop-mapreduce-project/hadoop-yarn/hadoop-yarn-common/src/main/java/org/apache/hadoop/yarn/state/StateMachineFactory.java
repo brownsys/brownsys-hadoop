@@ -18,6 +18,7 @@
 
 package org.apache.hadoop.yarn.state;
 
+import java.util.Collection;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -427,7 +428,7 @@ final public class StateMachineFactory
         implements StateMachine<STATE, EVENTTYPE, EVENT> {
     private final OPERAND operand;
     private STATE currentState;
-    private XTraceMetadata previousState_danglingTrace;
+    private Collection<XTraceMetadata> lifecycle_context;
 
     InternalStateMachine(OPERAND operand, STATE initialState) {
       this.operand = operand;
@@ -435,6 +436,7 @@ final public class StateMachineFactory
       if (!optimized) {
         maybeMakeStateMachineTable();
       }
+      this.lifecycle_context = XTraceContext.getThreadContext();
     }
 
     @Override
@@ -445,27 +447,38 @@ final public class StateMachineFactory
     @Override
     public synchronized STATE doTransition(EVENTTYPE eventType, EVENT event)
          throws InvalidStateTransitonException  {
-      try {
-    	  if (this.previousState_danglingTrace == XTraceContext.getThreadContext()) {
-    		  this.previousState_danglingTrace = null;
-    	  }
-    	  XTraceEvent xtrace_event = XTraceContext.createEvent("StateMachine", currentState.getDeclaringClass().getSimpleName() + 
-    			  "." + currentState.name() + " transitioning with event " + event.getClass().getSimpleName());
-    	  if (this.previousState_danglingTrace != null) {
-    		  xtrace_event.addEdge(this.previousState_danglingTrace);
-    	  }
-    	  this.previousState_danglingTrace = null;
-    	  xtrace_event.sendReport();
-    	  
-    	  currentState = StateMachineFactory.this.doTransition
-    			  (operand, currentState, eventType, event);
-    	  
-    	  this.previousState_danglingTrace = XTraceContext.getThreadContext();
-      } catch (InvalidStateTransitonException e) {
-    	  XTraceContext.logEvent("StateMachine", e.getMessage());
-    	  throw e;
-      }
-      return currentState;
+    	/* Coming into a transition, there can be two valid contexts - the current thread context,
+    	 * and the thread context left over from the previous lifecycle transition. */
+    	boolean restoreThreadContext = XTraceContext.isValid();
+    	boolean restoreLifecycleContext = this.lifecycle_context!=null;
+	  
+		try {
+			XTraceContext.joinContext(this.lifecycle_context);
+			XTraceContext.logEvent(operand.getClass(), operand.getClass().getSimpleName(), 
+					currentState.getDeclaringClass().getSimpleName() + "." + currentState.name()
+					+ " transitioning with event " + event.toString());
+			
+			Collection<XTraceMetadata> transition_start = XTraceContext.getThreadContext();
+			try {
+				currentState = StateMachineFactory.this.doTransition(operand, currentState, eventType, event);
+			} catch (InvalidStateTransitonException e) {
+				XTraceContext.joinContext(transition_start);
+				XTraceContext.logEvent(operand.getClass(), operand.getClass().getSimpleName(), e.getMessage());
+				throw e;
+			}
+
+			XTraceContext.joinContext(transition_start);
+			if (!XTraceContext.is(transition_start)) {
+				XTraceContext.logEvent(operand.getClass(), operand.getClass().getSimpleName(),
+					"Successfully transitioned to " + currentState.getDeclaringClass()
+					.getSimpleName() + "." + currentState.name());
+			}
+			
+			return currentState;
+		} finally {
+			this.lifecycle_context = restoreLifecycleContext ? XTraceContext.getThreadContext() : null;
+			if (!restoreThreadContext) { XTraceContext.clearThreadContext(); }
+		}
     }
   }
 

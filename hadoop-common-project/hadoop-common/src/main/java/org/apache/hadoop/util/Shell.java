@@ -30,7 +30,8 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
-import org.apache.hadoop.conf.Configuration;
+
+import edu.berkeley.xtrace.XTraceContext;
 
 /** 
  * A base class for running a Unix command.
@@ -141,6 +142,11 @@ abstract public class Shell {
     if (environment != null) {
       builder.environment().putAll(this.environment);
     }
+    // put xtrace context if there is one, merging as appropriate
+    if (XTraceContext.isValid()) {
+        builder.environment().put(XTraceContext.XTRACE_CONTEXT_ENV_VARIABLE, XTraceContext.logMerge().toString());	
+    }
+    
     if (dir != null) {
       builder.directory(this.dir);
     }

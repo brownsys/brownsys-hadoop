@@ -108,6 +108,9 @@ import org.apache.hadoop.yarn.service.CompositeService;
 import org.apache.hadoop.yarn.service.Service;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
+
 /**
  * The Map-Reduce Application Master.
  * The state machine is encapsulated in the implementation of Job interface.
@@ -212,6 +215,11 @@ public class MRAppMaster extends CompositeService {
     newApiCommitter = false;
     jobId = MRBuilderUtils.newJobId(appAttemptID.getApplicationId(),
         appAttemptID.getApplicationId().getId());
+    
+    /* This will either generate a new task id, or pick up from an existing one 
+     * if we had one passed to us or the xtrace environment variable was set */
+    XTraceContext.startTrace("MRAppMaster", "Starting job " + jobId );
+    
     int numReduceTasks = conf.getInt(MRJobConfig.NUM_REDUCES, 0);
     if ((numReduceTasks > 0 && 
         conf.getBoolean("mapred.reducer.new-api", false)) ||

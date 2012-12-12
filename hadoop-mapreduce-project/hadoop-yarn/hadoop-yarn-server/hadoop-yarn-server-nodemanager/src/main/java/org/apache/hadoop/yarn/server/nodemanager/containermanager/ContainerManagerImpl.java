@@ -100,6 +100,8 @@ import org.apache.hadoop.yarn.service.CompositeService;
 import org.apache.hadoop.yarn.service.Service;
 import org.apache.hadoop.yarn.service.ServiceStateChangeListener;
 
+import edu.berkeley.xtrace.XTraceContext;
+
 public class ContainerManagerImpl extends CompositeService implements
     ServiceStateChangeListener, ContainerManager,
     EventHandler<ContainerManagerEvent> {
@@ -362,6 +364,8 @@ public class ContainerManagerImpl extends CompositeService implements
 
     LOG.info("Start request for " + launchContext.getContainerId()
         + " by user " + launchContext.getUser());
+    
+    XTraceContext.logEvent(ContainerManager.class, "ContainerManagerImpl", "Start request for " + launchContext.getContainerId() + " by user " + launchContext.getUser());
 
     // //////////// Parse credentials
     ByteBuffer tokens = launchContext.getContainerTokens();

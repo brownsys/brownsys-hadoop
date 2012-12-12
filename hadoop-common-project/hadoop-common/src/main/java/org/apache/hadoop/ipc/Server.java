@@ -44,6 +44,7 @@ import java.nio.channels.WritableByteChannel;
 import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -75,7 +76,11 @@ import org.apache.hadoop.ipc.RPC.VersionMismatch;
 import org.apache.hadoop.ipc.metrics.RpcDetailedMetrics;
 import org.apache.hadoop.ipc.metrics.RpcMetrics;
 import org.apache.hadoop.ipc.protobuf.IpcConnectionContextProtos.IpcConnectionContextProto;
-import org.apache.hadoop.ipc.protobuf.RpcPayloadHeaderProtos.*;
+import org.apache.hadoop.ipc.protobuf.RpcPayloadHeaderProtos.RpcKindProto;
+import org.apache.hadoop.ipc.protobuf.RpcPayloadHeaderProtos.RpcPayloadHeaderProto;
+import org.apache.hadoop.ipc.protobuf.RpcPayloadHeaderProtos.RpcPayloadOperationProto;
+import org.apache.hadoop.ipc.protobuf.RpcPayloadHeaderProtos.RpcResponseHeaderProto;
+import org.apache.hadoop.ipc.protobuf.RpcPayloadHeaderProtos.RpcStatusProto;
 import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.security.AccessControlException;
 import org.apache.hadoop.security.SaslRpcServer;
@@ -97,11 +102,10 @@ import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.hadoop.util.StringUtils;
 
 import com.google.common.annotations.VisibleForTesting;
-
 import com.google.protobuf.ByteString;
-import edu.berkeley.xtrace.XTraceMetadata;
+
 import edu.berkeley.xtrace.XTraceContext;
-import edu.berkeley.xtrace.XTraceProcess;
+import edu.berkeley.xtrace.XTraceMetadata;
 
 /** An abstract IPC service.  IPC calls take a single {@link Writable} as a
  * parameter, and return a {@link Writable} as their value.  A service runs on
@@ -408,7 +412,7 @@ public abstract class Server {
                                           // time served when response is not null
     private ByteBuffer rpcResponse;       // the response for this call
     private final RPC.RpcKind rpcKind;
-    private XTraceMetadata xtrace;  // the X-Trace context this was received with
+    private Collection<XTraceMetadata> xtrace;  // the X-Trace context this was received with
 
     public Call(int id, Writable param, Connection connection) {
       this( id,  param,  connection, RPC.RpcKind.RPC_BUILTIN );    
@@ -421,7 +425,7 @@ public abstract class Server {
       this.rpcResponse = null;
       this.rpcKind = kind;
       if (XTraceContext.isValid()) {
-    	  XTraceContext.logEvent("RPC Server", "Received RPC call with id #" + id);
+    	  XTraceContext.logEvent(RPC.class, "RPC Server", "Received RPC call with id #" + id);
     	  this.xtrace = XTraceContext.getThreadContext();
       }
       XTraceContext.clearThreadContext(); //nothing happens until call gets dequeued
@@ -1689,7 +1693,7 @@ public abstract class Server {
           final Call call = callQueue.take(); // pop the queue; maybe blocked here
           if (call.xtrace != null) {
         	  XTraceContext.setThreadContext(call.xtrace);
-        	  XTraceContext.logEvent("RPC Server", "Processing call from " + call.connection,
+        	  XTraceContext.logEvent(RPC.class, "RPC Server", "Processing call from " + call.connection,
         			  "Protocol", call.connection.protocolName, "rpcKind", call.rpcKind);
           }
           if (LOG.isDebugEnabled()) {
@@ -1903,9 +1907,9 @@ public abstract class Server {
     response.setCallId(call.callId);
     response.setStatus(status);
     if (XTraceContext.isValid()) {
-      XTraceContext.logEvent("RPC Server", "Sending " + status + " response to "
+      XTraceContext.logEvent(RPC.class, "RPC Server", "Sending " + status + " response to "
     		  				+ call.connection + " for RPC id #" + call.callId);
-      response.setXtrace(ByteString.copyFrom(XTraceContext.getThreadContext().pack()));
+      response.setXtrace(ByteString.copyFrom(XTraceContext.logMerge().pack()));
     }
     /* X-Trace: we have to send in the response the last event in the server
      * before the data is sent, and this is not it, there can be more events

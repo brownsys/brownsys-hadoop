@@ -25,6 +25,8 @@ import org.apache.hadoop.ipc.Server;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 
+import edu.berkeley.xtrace.XTraceContext;
+
 /** 
  * Manages NodeManager audit logs.
  *
@@ -85,6 +87,7 @@ public class NMAuditLogger {
    */
   public static void logSuccess(String user, String operation, String target,
       ApplicationId appId, ContainerId containerId) {
+	XTraceContext.logEvent(NMAuditLogger.class, "NMAuditLogger", createSuccessLog(user, operation, target, appId, containerId));
     if (LOG.isInfoEnabled()) {
       LOG.info(createSuccessLog(user, operation, target, appId, containerId));
     }
@@ -102,6 +105,7 @@ public class NMAuditLogger {
    * and hence the value fields should not contains tabs ('\t').
    */
   public static void logSuccess(String user, String operation, String target) {
+	XTraceContext.logEvent(NMAuditLogger.class, "NMAuditLogger", createSuccessLog(user, operation, target, null, null));
     if (LOG.isInfoEnabled()) {
       LOG.info(createSuccessLog(user, operation, target, null, null));
     }
@@ -146,6 +150,7 @@ public class NMAuditLogger {
    */
   public static void logFailure(String user, String operation, String target, 
       String description, ApplicationId appId, ContainerId containerId) {
+	XTraceContext.logEvent(NMAuditLogger.class, "NMAuditLogger", createFailureLog(user, operation, target, description, appId, containerId));
     if (LOG.isWarnEnabled()) {
       LOG.warn(createFailureLog(user, operation, target, description, appId, containerId));
     }
@@ -166,6 +171,7 @@ public class NMAuditLogger {
    */
   public static void logFailure(String user, String operation, 
                          String target, String description) {
+	XTraceContext.logEvent(NMAuditLogger.class, "NMAuditLogger", createFailureLog(user, operation, target, description, null, null));
     if (LOG.isWarnEnabled()) {
       LOG.warn(createFailureLog(user, operation, target, description, null, null));
     }
