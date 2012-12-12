@@ -68,7 +68,6 @@ import org.apache.hadoop.yarn.ipc.YarnRPC;
 import org.apache.hadoop.yarn.util.ProtoUtils;
 
 import edu.berkeley.xtrace.XTraceContext;
-import edu.berkeley.xtrace.XTraceProcess;
 
 
 // TODO: This should be part of something like yarn-client.
@@ -89,8 +88,6 @@ public class ResourceMgrDelegate {
     this.conf = conf;
     YarnRPC rpc = YarnRPC.create(this.conf);
     this.rmAddress = getRmAddress(conf);
-    
-    XTraceContext.logEvent("ResourceMgrDelegate", "Selected " + rpc.getClass().getName() + " as RPC implementation");
     
     LOG.debug("Connecting to ResourceManager at " + rmAddress);
     applicationsManager =
