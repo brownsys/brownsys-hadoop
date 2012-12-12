@@ -78,15 +78,12 @@ public class Cluster {
   }
 
   public Cluster(InetSocketAddress jobTrackAddr, Configuration conf) 
-      throws IOException {
-	XTraceContext.logEvent("Cluster (Client)", "Initializing cluster");
-	    
+      throws IOException {	    
     this.conf = conf;
     this.ugi = UserGroupInformation.getCurrentUser();
     try {
     	initialize(jobTrackAddr, conf);
     } catch (IOException e) {
-    	XTraceContext.logEvent("Cluster (Client)", "Failed to initialize cluster: " + e.getMessage());
     	throw e;
     } 
   }

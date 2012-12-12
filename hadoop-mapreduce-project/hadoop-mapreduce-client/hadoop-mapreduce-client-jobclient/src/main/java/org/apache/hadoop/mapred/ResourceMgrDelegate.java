@@ -45,7 +45,6 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.util.ProtoUtils;
 import org.apache.hadoop.yarn.client.YarnClientImpl;
 import edu.berkeley.xtrace.XTraceContext;
-import edu.berkeley.xtrace.XTraceProcess;
 
 public class ResourceMgrDelegate extends YarnClientImpl {
   private static final Log LOG = LogFactory.getLog(ResourceMgrDelegate.class);
