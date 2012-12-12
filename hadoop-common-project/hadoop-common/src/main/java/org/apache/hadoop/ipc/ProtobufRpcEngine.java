@@ -189,10 +189,10 @@ public class ProtobufRpcEngine implements RpcEngine {
     public Object invoke(Object proxy, Method method, Object[] args)
         throws ServiceException {
       XTraceProcess xtrace_remoteMethodCallProcess = 
-        XTraceContext.startProcess("ProtobufRpcEngine", 
-            "RPC Client invoking remote method " + method.getName(),
-            "Protocol", this.protocolName,
-            "ConnectionID", this.remoteId);
+          XTraceContext.startProcess(RPC.class, "ProtobufRpcEngine", 
+              "RPC Client invoking remote method " + method.getName(),
+              "Protocol", this.protocolName,
+              "ConnectionID", this.remoteId);
       Message returnMessage;
       try {
         long startTime = 0;
@@ -447,7 +447,7 @@ public class ProtobufRpcEngine implements RpcEngine {
         if (server.verbose)
           LOG.info("Call: protocol=" + protocol + ", method=" + methodName);
         
-        XTraceProcess xtrace_process = XTraceContext.startProcess("ProtobufRpcEngine", 
+        XTraceProcess xtrace_process = XTraceContext.startProcess(RPC.class, "ProtobufRpcEngine", 
         		"Invoking method " + methodName, "Protocol", protocol);
 
         Message result;
