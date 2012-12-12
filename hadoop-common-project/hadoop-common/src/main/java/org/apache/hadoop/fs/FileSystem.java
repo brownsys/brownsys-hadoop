@@ -57,8 +57,6 @@ import org.apache.hadoop.util.Progressable;
 import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.hadoop.util.ShutdownHookManager;
 
-import edu.berkeley.xtrace.XTraceContext;
-
 /****************************************************************
  * An abstract base class for a fairly generic filesystem.  It
  * may be implemented as a distributed filesystem, or as a "local"
@@ -2136,15 +2134,12 @@ public abstract class FileSystem extends Configured implements Closeable {
 
   private static FileSystem createFileSystem(URI uri, Configuration conf
       ) throws IOException {
-    XTraceContext.logEvent("FileSystem", "Initializing filesystem " + uri.toString());
     Class<?> clazz = getFileSystemClass(uri.getScheme(), conf);
     if (clazz == null) {
-      XTraceContext.logEvent("FileSystem", "No FileSystem for scheme: " + uri.getScheme());
       throw new IOException("No FileSystem for scheme: " + uri.getScheme());
     }
     FileSystem fs = (FileSystem)ReflectionUtils.newInstance(clazz, conf);
     fs.initialize(uri, conf);
-    XTraceContext.logEvent("FileSystem", "File system initialized");
     return fs;
   }
 
