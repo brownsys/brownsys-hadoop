@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.security.PrivilegedAction;
+import java.util.Collection;
 import java.util.Map;
 
 import javax.crypto.SecretKey;
@@ -62,6 +63,9 @@ import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.RMAppAttemptE
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.event.RMAppAttemptLaunchFailedEvent;
 import org.apache.hadoop.yarn.util.ProtoUtils;
 
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
+
 /**
  * The launch of the AM itself.
  */
@@ -80,6 +84,8 @@ public class AMLauncher implements Runnable {
   
   @SuppressWarnings("rawtypes")
   private final EventHandler handler;
+
+  private Collection<XTraceMetadata> xtrace;
   
   public AMLauncher(RMContext rmContext, RMAppAttempt application,
       AMLauncherEventType eventType, Configuration conf) {
@@ -88,6 +94,7 @@ public class AMLauncher implements Runnable {
     this.eventType = eventType;
     this.rmContext = rmContext;
     this.handler = rmContext.getDispatcher().getEventHandler();
+    this.xtrace = XTraceContext.getThreadContext();
   }
   
   private void connect() throws IOException {
@@ -101,6 +108,8 @@ public class AMLauncher implements Runnable {
     ContainerId masterContainerID = application.getMasterContainer().getId();
     ApplicationSubmissionContext applicationContext =
       application.getSubmissionContext();
+    XTraceContext.logEvent("AMLauncher", "Setting up container " + application.getMasterContainer() 
+        + " for AM " + application.getAppAttemptId());
     LOG.info("Setting up container " + application.getMasterContainer() 
         + " for AM " + application.getAppAttemptId());  
     ContainerLaunchContext launchContext =
@@ -248,6 +257,8 @@ public class AMLauncher implements Runnable {
   
   @SuppressWarnings("unchecked")
   public void run() {
+    Collection<XTraceMetadata> prior_context = XTraceContext.getThreadContext();
+    XTraceContext.setThreadContext(this.xtrace);
     switch (eventType) {
     case LAUNCH:
       try {
@@ -275,5 +286,7 @@ public class AMLauncher implements Runnable {
       LOG.warn("Received unknown event-type " + eventType + ". Ignoring.");
       break;
     }
+    
+    XTraceContext.setThreadContext(prior_context);
   }
 }
