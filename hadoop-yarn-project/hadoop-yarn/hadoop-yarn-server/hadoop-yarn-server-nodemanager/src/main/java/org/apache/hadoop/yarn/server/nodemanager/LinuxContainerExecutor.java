@@ -43,6 +43,8 @@ import org.apache.hadoop.yarn.server.nodemanager.util.DefaultLCEResourcesHandler
 import org.apache.hadoop.yarn.server.nodemanager.util.LCEResourcesHandler;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 
+import edu.berkeley.xtrace.XTraceContext;
+
 public class LinuxContainerExecutor extends ContainerExecutor {
 
   private static final Log LOG = LogFactory
@@ -126,6 +128,7 @@ public class LinuxContainerExecutor extends ContainerExecutor {
     if (LOG.isDebugEnabled()) {
       LOG.debug("checkLinuxExecutorSetup: " + Arrays.toString(commandArray));
     }
+    XTraceContext.logEvent(ContainerExecutor.class, "LinuxContainerExecutor", "init", "args", Arrays.toString(commandArray));
     try {
       shExec.execute();
     } catch (ExitCodeException e) {
@@ -179,6 +182,7 @@ public class LinuxContainerExecutor extends ContainerExecutor {
     if (LOG.isDebugEnabled()) {
       LOG.debug("initApplication: " + Arrays.toString(commandArray));
     }
+    XTraceContext.logEvent(ContainerExecutor.class, "LinuxContainerExecutor", "Starting localizer", "args", Arrays.toString(commandArray));
     try {
       shExec.execute();
       if (LOG.isDebugEnabled()) {
@@ -188,6 +192,7 @@ public class LinuxContainerExecutor extends ContainerExecutor {
       int exitCode = shExec.getExitCode();
       LOG.warn("Exit code from container is : " + exitCode);
       logOutput(shExec.getOutput());
+      XTraceContext.logEvent(ContainerExecutor.class, "LinuxContainerExecutor", "Exit code from container is " + exitCode);
       throw new IOException("App initialization failed (" + exitCode + 
           ") with output: " + shExec.getOutput(), e);
     }
@@ -227,6 +232,7 @@ public class LinuxContainerExecutor extends ContainerExecutor {
             container.getLaunchContext().getEnvironment()); // sanitized env
         // DEBUG
         LOG.info("launchContainer: " + Arrays.toString(commandArray));
+        XTraceContext.logEvent(ContainerExecutor.class, "LinuxContainerExecutor", "Launching container", "args", Arrays.toString(commandArray));
         shExec.execute();
         if (LOG.isDebugEnabled()) {
           logOutput(shExec.getOutput());
@@ -243,6 +249,7 @@ public class LinuxContainerExecutor extends ContainerExecutor {
 
       int exitCode = shExec.getExitCode();
       LOG.warn("Exit code from container is : " + exitCode);
+      XTraceContext.logEvent(ContainerExecutor.class, "LinuxContainerExecutor", "Exit code from container is " + exitCode);
       // 143 (SIGTERM) and 137 (SIGKILL) exit codes means the container was
       // terminated/killed forcefully. In all other cases, log the
       // container-executor's output
@@ -283,6 +290,7 @@ public class LinuxContainerExecutor extends ContainerExecutor {
     if (LOG.isDebugEnabled()) {
       LOG.debug("signalContainer: " + Arrays.toString(command));
     }
+    XTraceContext.logEvent(ContainerExecutor.class, "LinuxContainerExecutor", "signalContainer: Signalling container with signal " + signal.toString(), "args", Arrays.toString(command));
     try {
       shExec.execute();
     } catch (ExitCodeException e) {
@@ -291,6 +299,7 @@ public class LinuxContainerExecutor extends ContainerExecutor {
         return false;
       }
       logOutput(shExec.getOutput());
+      XTraceContext.logEvent(ContainerExecutor.class, "LinuxContainerExecutor", "signalContainer: Problem signalling container " + pid + " with " + signal + "; exit = " + ret_code);
       throw new IOException("Problem signalling container " + pid + " with " +
                             signal + "; exit = " + ret_code);
     }
@@ -319,6 +328,7 @@ public class LinuxContainerExecutor extends ContainerExecutor {
     if (LOG.isDebugEnabled()) {
       LOG.debug("deleteAsUser: " + Arrays.toString(commandArray));
     }
+    XTraceContext.logEvent(ContainerExecutor.class, "LinuxContainerExecutor", "Delete as user ", "args", Arrays.toString(commandArray));
     try {
       shExec.execute();
       if (LOG.isDebugEnabled()) {
@@ -332,6 +342,8 @@ public class LinuxContainerExecutor extends ContainerExecutor {
             + " returned with non-zero exit code" + exitCode);
         LOG.error("Output from LinuxContainerExecutor's deleteAsUser follows:");
         logOutput(shExec.getOutput());
+      } else {
+          XTraceContext.logEvent(ContainerExecutor.class, "LinuxContainerExecutor", "deleteAsUser exit code from container is : " + exitCode);
       }
     }
   }

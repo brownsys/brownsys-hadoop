@@ -165,7 +165,7 @@ public abstract class ProtoUtil {
     RpcPayloadHeaderProto.Builder result = RpcPayloadHeaderProto.newBuilder();
     result.setRpcKind(convert(rpcKind)).setRpcOp(operation).setCallId(callId);
     if (XTraceContext.isValid()) {
-      result.setXtrace(ByteString.copyFrom(XTraceContext.getThreadContext().pack()));
+      result.setXtrace(ByteString.copyFrom(XTraceContext.logMerge().pack()));
     }
     return result.build();
   }

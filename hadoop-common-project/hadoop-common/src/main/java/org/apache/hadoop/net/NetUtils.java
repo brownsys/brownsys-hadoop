@@ -22,6 +22,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.Constructor;
 import java.net.BindException;
+import java.net.ConnectException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
@@ -34,12 +35,17 @@ import java.net.SocketTimeoutException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.UnknownHostException;
-import java.net.ConnectException;
 import java.nio.channels.SocketChannel;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
-import java.util.regex.Pattern;
-import java.util.*;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Pattern;
 
 import javax.net.SocketFactory;
 
@@ -510,7 +516,7 @@ public class NetUtils {
       throw new IllegalArgumentException("Illegal argument for connect()");
     }
     
-    XTraceProcess xtrace_connect_process = XTraceContext.startProcess("NetUtils", "Connection to " + endpoint,
+    XTraceProcess xtrace_connect_process = XTraceContext.startProcess(NetUtils.class, "NetUtils", "Connection to " + endpoint,
     		"Socket", socket.toString(), 
     		"timeout", timeout);
     
