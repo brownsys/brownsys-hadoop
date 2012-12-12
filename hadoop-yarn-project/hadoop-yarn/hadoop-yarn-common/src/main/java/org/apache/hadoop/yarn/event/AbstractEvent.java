@@ -18,6 +18,8 @@
 
 package org.apache.hadoop.yarn.event;
 
+import java.util.Collection;
+
 import edu.berkeley.xtrace.XTraceContext;
 import edu.berkeley.xtrace.XTraceMetadata;
 
@@ -29,7 +31,7 @@ public abstract class AbstractEvent<TYPE extends Enum<TYPE>>
 
   private final TYPE type;
   private final long timestamp;
-  private XTraceMetadata xtraceContext;
+  private Collection<XTraceMetadata> xtraceContext;
 
   // use this if you DON'T care about the timestamp
   public AbstractEvent(TYPE type) {
