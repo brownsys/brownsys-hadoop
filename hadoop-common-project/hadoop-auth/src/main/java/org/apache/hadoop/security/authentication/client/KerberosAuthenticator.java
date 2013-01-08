@@ -47,9 +47,6 @@ import java.util.Map;
  */
 public class KerberosAuthenticator implements Authenticator {
   
-  private static Logger LOG = LoggerFactory.getLogger(
-      KerberosAuthenticator.class);
-
   private static Logger LOG = LoggerFactory.getLogger(KerberosAuthenticator.class);
   
   /**
