@@ -59,6 +59,8 @@ import org.apache.hadoop.mapreduce.v2.jobhistory.FileNameIndexUtils;
 import org.apache.hadoop.mapreduce.v2.jobhistory.JHAdminConfig;
 import org.apache.hadoop.mapreduce.v2.jobhistory.JobHistoryUtils;
 import org.apache.hadoop.mapreduce.v2.jobhistory.JobIndexInfo;
+import org.apache.hadoop.trace.JobContext;
+import org.apache.hadoop.trace.JobThreadLocal;
 import org.apache.hadoop.yarn.YarnException;
 import org.apache.hadoop.yarn.service.AbstractService;
 
@@ -286,6 +288,7 @@ public class HistoryFileManager extends AbstractService {
         if (summaryFile == null) {
           LOG.info("No summary file for job: " + jobId);
         } else {
+          JobThreadLocal.set(new JobContext(jobId.toString()));
           String jobSummaryString = getJobSummary(intermediateDoneDirFc,
               summaryFile);
           SUMMARY_LOG.info(jobSummaryString);
