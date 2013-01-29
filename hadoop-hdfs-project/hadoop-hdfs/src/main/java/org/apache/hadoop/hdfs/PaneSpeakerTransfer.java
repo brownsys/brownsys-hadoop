@@ -58,7 +58,7 @@ public class PaneSpeakerTransfer {
 	}
 
 	private int computePaneRate(int time, long size) {
-		double result = (double)size/1024*1024/(double)time;
+		double result = (double)size/(1024*1024)/(double)time;
 		int rate = (int)Math.round(result);
         rate *= 8; // convert bytes to bits
 		if (rate < baseRate) {
@@ -82,7 +82,7 @@ public class PaneSpeakerTransfer {
 		long endtime = deadline + 4; // give some grace time
 		if (rate == baseRate) {
 			//probably deadline is too large for this small flow
-			endtime = size/1024*1024/rate;
+			endtime = size/(1024*1024)/rate;
 			if(endtime == 0) {
 				//otherwise it would from now to now and cause error,
 				//probably does not need to reserve in this case?
