@@ -645,6 +645,7 @@ public abstract class TaskImpl implements Task, EventHandler<TaskEvent> {
 
   @Override
   public void handle(TaskEvent event) {
+    event.joinContext();
     if (LOG.isDebugEnabled()) {
       LOG.debug("Processing " + event.getTaskID() + " of type "
           + event.getType());

@@ -256,6 +256,7 @@ public class RecoveryService extends CompositeService implements Recovery {
     @Override
     @SuppressWarnings("unchecked")
     public void dispatch(Event event) {
+      event.joinContext();
       if (recoveryMode) {
         if (event.getType() == TaskAttemptEventType.TA_CONTAINER_LAUNCHED) {
           TaskAttemptInfo attInfo = getTaskAttemptInfo(((TaskAttemptEvent) event)
@@ -330,6 +331,7 @@ public class RecoveryService extends CompositeService implements Recovery {
 
     @Override
     public void handle(Event event) {
+      event.joinContext();
       if (!recoveryMode) {
         // delegate to the dispatcher one
         actualHandler.handle(event);

@@ -108,6 +108,10 @@ import org.apache.hadoop.yarn.util.FSDownload;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
+import edu.berkeley.xtrace.XTraceMetadataCollection;
+
 public class ResourceLocalizationService extends CompositeService
     implements EventHandler<LocalizationEvent>, LocalizationProtocol {
 
@@ -269,6 +273,7 @@ public class ResourceLocalizationService extends CompositeService
 
   @Override
   public void handle(LocalizationEvent event) {
+    event.joinContext();
     // TODO: create log dir as $logdir/$user/$appId
     switch (event.getType()) {
     case INIT_APPLICATION_RESOURCES:
@@ -331,14 +336,20 @@ public class ResourceLocalizationService extends CompositeService
         c.getUser(), c.getContainerID(), c.getCredentials());
     Map<LocalResourceVisibility, Collection<LocalResourceRequest>> rsrcs =
       rsrcReqs.getRequestedResources();
+    Collection<XTraceMetadata> startCtx = XTraceContext.getThreadContext();
+    Collection<XTraceMetadata> endCtxs = new XTraceMetadataCollection();
     for (Map.Entry<LocalResourceVisibility, Collection<LocalResourceRequest>> e :
          rsrcs.entrySet()) {
       LocalResourcesTracker tracker = getLocalResourcesTracker(e.getKey(), c.getUser(), 
           c.getContainerID().getApplicationAttemptId().getApplicationId());
       for (LocalResourceRequest req : e.getValue()) {
+    	  XTraceContext.setThreadContext(startCtx);
         tracker.handle(new ResourceRequestEvent(req, e.getKey(), ctxt));
+        endCtxs.addAll(XTraceContext.getThreadContext());
+        XTraceContext.clearThreadContext();
       }
     }
+    XTraceContext.joinContext(endCtxs);
   }
   
   private void handleCacheCleanup(LocalizationEvent event) {
@@ -357,6 +368,7 @@ public class ResourceLocalizationService extends CompositeService
   @SuppressWarnings("unchecked")
   private void handleCleanupContainerResources(
       ContainerLocalizationCleanupEvent rsrcCleanup) {
+    rsrcCleanup.joinContext();
     Container c = rsrcCleanup.getContainer();
     Map<LocalResourceVisibility, Collection<LocalResourceRequest>> rsrcs =
       rsrcCleanup.getResources();
@@ -503,6 +515,7 @@ public class ResourceLocalizationService extends CompositeService
 
     @Override
     public void handle(LocalizerEvent event) {
+      event.joinContext();
       String locId = event.getLocalizerId();
       switch (event.getType()) {
       case REQUEST_RESOURCE_LOCALIZATION:
@@ -565,6 +578,7 @@ public class ResourceLocalizationService extends CompositeService
     final Map<Future<Path>,LocalizerResourceRequestEvent> pending;
     // TODO hack to work around broken signaling
     final Map<LocalResourceRequest,List<LocalizerResourceRequestEvent>> attempts;
+    private Collection<XTraceMetadata> xtrace_context;
 
     PublicLocalizer(Configuration conf) {
       this(conf, getLocalFileContext(conf),
@@ -601,6 +615,7 @@ public class ResourceLocalizationService extends CompositeService
 
       this.threadPool = threadPool;
       this.queue = new ExecutorCompletionService<Path>(threadPool);
+      this.xtrace_context = XTraceContext.getThreadContext();
     }
 
     public void addResource(LocalizerResourceRequestEvent request) {
@@ -632,6 +647,8 @@ public class ResourceLocalizationService extends CompositeService
     @Override
     @SuppressWarnings("unchecked") // dispatcher not typed
     public void run() {
+      XTraceContext.joinContext(xtrace_context);
+      XTraceContext.logEvent(PublicLocalizer.class, "Localizer Thread", "Localizer Thread started");
       try {
         // TODO shutdown, better error handling esp. DU
         while (!Thread.currentThread().isInterrupted()) {
@@ -710,6 +727,7 @@ public class ResourceLocalizationService extends CompositeService
     // TODO: threadsafe, use outer?
     private final RecordFactory recordFactory =
       RecordFactoryProvider.getRecordFactory(getConfig());
+    private Collection<XTraceMetadata> xtrace_context;
 
     LocalizerRunner(LocalizerContext context, String localizerId) {
       super("LocalizerRunner for " + localizerId);
@@ -718,6 +736,7 @@ public class ResourceLocalizationService extends CompositeService
       this.pending = new ArrayList<LocalizerResourceRequestEvent>();
       this.scheduled =
           new HashMap<LocalResourceRequest, LocalizerResourceRequestEvent>();
+      this.xtrace_context = XTraceContext.getThreadContext();
     }
 
     public void addResource(LocalizerResourceRequestEvent request) {
@@ -842,6 +861,8 @@ public class ResourceLocalizationService extends CompositeService
     @Override
     @SuppressWarnings("unchecked") // dispatcher not typed
     public void run() {
+      XTraceContext.joinContext(xtrace_context);
+      XTraceContext.logEvent(LocalizerRunner.class, "Localizer Runner Thread", "Localizer Runner Thread started");
       Path nmPrivateCTokensPath = null;
       try {
         // Get nmPrivateDir
@@ -913,15 +934,19 @@ public class ResourceLocalizationService extends CompositeService
   static class CacheCleanup extends Thread {
 
     private final Dispatcher dispatcher;
+    private Collection<XTraceMetadata> xtrace_context;
 
     public CacheCleanup(Dispatcher dispatcher) {
       super("CacheCleanup");
       this.dispatcher = dispatcher;
+      this.xtrace_context = XTraceContext.getThreadContext();
     }
 
     @Override
     @SuppressWarnings("unchecked") // dispatcher not typed
     public void run() {
+      XTraceContext.setThreadContext(xtrace_context);
+      XTraceContext.logEvent(CacheCleanup.class, "Cache Cleanup Thread", "Cache Cleanup Thread started");
       dispatcher.getEventHandler().handle(
           new LocalizationEvent(LocalizationEventType.CACHE_CLEANUP));
     }

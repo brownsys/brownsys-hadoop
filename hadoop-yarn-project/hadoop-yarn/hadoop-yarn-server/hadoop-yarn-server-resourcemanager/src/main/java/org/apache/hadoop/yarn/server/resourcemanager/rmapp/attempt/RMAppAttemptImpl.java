@@ -575,6 +575,7 @@ public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
 
   @Override
   public void handle(RMAppAttemptEvent event) {
+    event.joinContext();
 
     this.writeLock.lock();
 

@@ -19,6 +19,7 @@
 package org.apache.hadoop.yarn.event;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +34,7 @@ import org.apache.hadoop.yarn.YarnException;
 import org.apache.hadoop.yarn.service.AbstractService;
 
 import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
 
 /**
  * Dispatches events in a separate thread. Currently only single thread does
@@ -66,6 +68,7 @@ public class AsyncDispatcher extends AbstractService implements Dispatcher {
       @Override
       public void run() {
         while (!stopped && !Thread.currentThread().isInterrupted()) {
+          XTraceContext.clearThreadContext();
           Event event;
           try {
             event = eventQueue.take();
@@ -76,6 +79,7 @@ public class AsyncDispatcher extends AbstractService implements Dispatcher {
             return;
           }
           if (event != null) {
+            event.joinContext();
             dispatch(event);
           }
         }
@@ -118,13 +122,12 @@ public class AsyncDispatcher extends AbstractService implements Dispatcher {
 
   @SuppressWarnings("unchecked")
   protected void dispatch(Event event) {
+    event.joinContext();
     //all events go thru this loop
     if (LOG.isDebugEnabled()) {
       LOG.debug("Dispatching the event " + event.getClass().getName() + "."
           + event.toString());
     }
-    
-    event.takeContext();
 
     Class<? extends Enum> type = event.getType().getDeclaringClass();
 
@@ -189,7 +192,6 @@ public class AsyncDispatcher extends AbstractService implements Dispatcher {
             + remCapacity);
       }
       try {
-        event.rememberContext();
         eventQueue.put(event);
       } catch (InterruptedException e) {
         if (!stopped) {
@@ -214,9 +216,15 @@ public class AsyncDispatcher extends AbstractService implements Dispatcher {
 
     @Override
     public void handle(Event event) {
+      Collection<XTraceMetadata> start_xtrace_context = XTraceContext.getThreadContext();
+      Collection<XTraceMetadata> result_xtrace_contexts = new ArrayList<XTraceMetadata>();
       for (EventHandler<Event> handler: listofHandlers) {
+        event.joinContext();
         handler.handle(event);
+        result_xtrace_contexts.addAll(XTraceContext.getThreadContext());
+        XTraceContext.setThreadContext(start_xtrace_context);
       }
+      XTraceContext.setThreadContext(result_xtrace_contexts);
     }
 
     void addHandler(EventHandler<Event> handler) {

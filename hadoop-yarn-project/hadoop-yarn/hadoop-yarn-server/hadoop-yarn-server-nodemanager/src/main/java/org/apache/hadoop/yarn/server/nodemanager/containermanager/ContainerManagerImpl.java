@@ -554,6 +554,7 @@ public class ContainerManagerImpl extends CompositeService implements
   class ContainerEventDispatcher implements EventHandler<ContainerEvent> {
     @Override
     public void handle(ContainerEvent event) {
+      event.joinContext();
       Map<ContainerId,Container> containers =
         ContainerManagerImpl.this.context.getContainers();
       Container c = containers.get(event.getContainerID());
@@ -570,6 +571,7 @@ public class ContainerManagerImpl extends CompositeService implements
 
     @Override
     public void handle(ApplicationEvent event) {
+      event.joinContext();
       Application app =
           ContainerManagerImpl.this.context.getApplications().get(
               event.getApplicationID());
@@ -585,6 +587,7 @@ public class ContainerManagerImpl extends CompositeService implements
   @SuppressWarnings("unchecked")
   @Override
   public void handle(ContainerManagerEvent event) {
+    event.joinContext();
     switch (event.getType()) {
     case FINISH_APPS:
       CMgrCompletedAppsEvent appsFinishedEvent =

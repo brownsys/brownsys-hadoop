@@ -109,6 +109,7 @@ public class ContainersLauncher extends AbstractService
 
   @Override
   public void handle(ContainersLauncherEvent event) {
+    event.joinContext();
     // TODO: ContainersLauncher launches containers one by one!!
     Container container = event.getContainer();
     ContainerId containerId = container.getContainerID();

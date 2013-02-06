@@ -70,6 +70,8 @@ import org.apache.hadoop.yarn.util.FSDownload;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
+import edu.berkeley.xtrace.XTraceContext;
+
 public class ContainerLocalizer {
 
   static final Log LOG = LogFactory.getLog(ContainerLocalizer.class);
@@ -338,6 +340,7 @@ public class ContainerLocalizer {
     // MKDIR $x/$user/appcache/$appid/filecache
     // LOAD $x/$user/appcache/$appid/appTokens
     try {
+      XTraceContext.startTrace("ContainerLocalizer", "ContainerLocalizer launched...");
       String user = argv[0];
       String appId = argv[1];
       String locId = argv[2];
