@@ -19,6 +19,7 @@
 package org.apache.hadoop.mapreduce.jobhistory;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -55,6 +56,9 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.YarnException;
 import org.apache.hadoop.yarn.event.EventHandler;
 import org.apache.hadoop.yarn.service.AbstractService;
+
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
 
 /**
  * The job history events get routed to this class. This class writes the Job
@@ -133,6 +137,8 @@ public class JobHistoryEventHandler extends AbstractService
       LOG.error("Failed while getting the configured log directories", e);
       throw new YarnException(e);
     }
+    
+    XTraceContext.logEvent(JobHistoryEventHandler.class, "JobHistory", "Initializing Job History", "Staging Dir", stagingDirStr, "Done Dir", doneDirStr, "User Done Dir", userDoneDirStr);
 
     //Check for the existence of the history staging dir. Maybe create it. 
     try {
@@ -259,12 +265,15 @@ public class JobHistoryEventHandler extends AbstractService
             eventCounter++;
           }
 
+          XTraceContext.clearThreadContext();
           try {
             event = eventQueue.take();
           } catch (InterruptedException e) {
             LOG.info("EventQueue take interrupted. Returning");
             return;
           }
+          event.joinContext();
+          
           // If an event has been removed from the queue. Handle it.
           // The rest of the queue is handled via stop()
           // Clear the interrupt status if it's set before calling handleEvent
@@ -470,6 +479,7 @@ public class JobHistoryEventHandler extends AbstractService
   }
 
   protected void handleEvent(JobHistoryEvent event) {
+    event.joinContext();
     synchronized (lock) {
 
       // If this is JobSubmitted Event, setup the writer

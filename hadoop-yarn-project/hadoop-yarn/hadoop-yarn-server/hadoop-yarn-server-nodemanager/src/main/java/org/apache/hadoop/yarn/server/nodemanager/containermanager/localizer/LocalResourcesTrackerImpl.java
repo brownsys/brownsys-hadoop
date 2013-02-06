@@ -64,6 +64,7 @@ class LocalResourcesTrackerImpl implements LocalResourcesTracker {
 
   @Override
   public void handle(ResourceEvent event) {
+    event.joinContext();
     LocalResourceRequest req = event.getLocalResourceRequest();
     LocalizedResource rsrc = localrsrc.get(req);
     switch (event.getType()) {

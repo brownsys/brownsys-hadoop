@@ -403,6 +403,7 @@ public class LogAggregationService extends AbstractService implements
 
   @Override
   public void handle(LogHandlerEvent event) {
+    event.joinContext();
     switch (event.getType()) {
       case APPLICATION_STARTED:
         LogHandlerAppStartedEvent appStartEvent =

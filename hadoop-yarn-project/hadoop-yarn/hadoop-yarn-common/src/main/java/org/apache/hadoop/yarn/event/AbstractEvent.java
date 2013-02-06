@@ -38,6 +38,7 @@ public abstract class AbstractEvent<TYPE extends Enum<TYPE>>
     this.type = type;
     // We're not generating a real timestamp here.  It's too expensive.
     timestamp = -1L;
+    this.rememberContext();
   }
 
   // use this if you care about the timestamp
@@ -70,11 +71,8 @@ public abstract class AbstractEvent<TYPE extends Enum<TYPE>>
   }
 
   @Override
-  public void takeContext() {
-	  XTraceContext.clearThreadContext();
-	  if (this.xtraceContext!=null) {
-		  XTraceContext.setThreadContext(this.xtraceContext);
-	  }
+  public void joinContext() {
+    XTraceContext.joinContext(this.xtraceContext);
   }
   
 }

@@ -495,6 +495,7 @@ public class RMAppImpl implements RMApp, Recoverable {
 
   @Override
   public void handle(RMAppEvent event) {
+    event.joinContext();
 
     this.writeLock.lock();
 

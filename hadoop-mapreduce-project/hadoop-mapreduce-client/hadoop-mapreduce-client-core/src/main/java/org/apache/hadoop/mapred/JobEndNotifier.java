@@ -19,6 +19,7 @@
 package org.apache.hadoop.mapred;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.DelayQueue;
 import java.util.concurrent.Delayed;
@@ -33,6 +34,9 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
+
 @InterfaceAudience.Private
 @InterfaceStability.Unstable
 public class JobEndNotifier {
@@ -46,9 +50,11 @@ public class JobEndNotifier {
 
   public static void startNotifier() {
     running = true;
+    final Collection<XTraceMetadata> xtrace_context = XTraceContext.getThreadContext();
     thread = new Thread(
                         new Runnable() {
                           public void run() {
+                            XTraceContext.setThreadContext(xtrace_context);
                             try {
                               while (running) {
                                 sendNotification(queue.take());
