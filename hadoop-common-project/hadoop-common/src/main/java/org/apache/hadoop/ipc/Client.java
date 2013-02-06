@@ -563,7 +563,7 @@ public class Client {
       if (socket != null || shouldCloseConnection.get()) {
         return;
       } 
-      XTraceProcess connectProcess = XTraceContext.startProcess(RPC.class, "RPC Client", "Connecting to server " + server);
+      XTraceProcess connectProcess = XTraceContext.startProcess(Connection.class, "RPC Client", "Connecting to server " + server);
       try {
         if (LOG.isDebugEnabled()) {
           LOG.debug("Connecting to "+server);
