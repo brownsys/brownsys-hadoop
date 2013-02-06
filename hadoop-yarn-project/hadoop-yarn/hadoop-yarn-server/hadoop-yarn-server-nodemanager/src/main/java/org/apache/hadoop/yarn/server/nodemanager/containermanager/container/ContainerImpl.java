@@ -816,6 +816,7 @@ public class ContainerImpl implements Container {
 
   @Override
   public void handle(ContainerEvent event) {
+    event.joinContext();
     try {
       this.writeLock.lock();
 

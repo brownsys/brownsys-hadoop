@@ -21,6 +21,7 @@ package org.apache.hadoop.mapreduce.v2.app.rm;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.security.PrivilegedAction;
+import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -59,6 +60,8 @@ import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
 import org.apache.hadoop.yarn.ipc.YarnRPC;
 import org.apache.hadoop.yarn.service.AbstractService;
 
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
 /**
  * Registers/unregisters to RM and sends heartbeats to RM.
  */
@@ -223,9 +226,13 @@ public abstract class RMCommunicator extends AbstractService  {
   }
 
   protected void startAllocatorThread() {
+    final Collection<XTraceMetadata> xtrace_context = XTraceContext.getThreadContext();
     allocatorThread = new Thread(new Runnable() {
       @Override
       public void run() {
+        XTraceContext.setThreadContext(xtrace_context);
+        XTraceContext.logEvent(RMCommunicator.class, "Allocator Thread", "Allocator thread started");
+        XTraceContext.clearThreadContext();
         while (!stopped.get() && !Thread.currentThread().isInterrupted()) {
           try {
             Thread.sleep(rmPollInterval);
@@ -244,6 +251,7 @@ public abstract class RMCommunicator extends AbstractService  {
             }
             return;
           }
+          XTraceContext.clearThreadContext();
         }
       }
     });

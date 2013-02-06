@@ -24,6 +24,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -237,7 +238,7 @@ public class MRAppMaster extends CompositeService {
     
     /* This will either generate a new task id, or pick up from an existing one 
      * if we had one passed to us or the xtrace environment variable was set */
-    XTraceContext.startTrace("MRAppMaster", "Starting job " + jobId );
+    XTraceContext.logEvent(MRAppMaster.class, "MRAppMaster", "Starting job " + jobId );
     
     int numReduceTasks = conf.getInt(MRJobConfig.NUM_REDUCES, 0);
     if ((numReduceTasks > 0 && 
@@ -470,6 +471,7 @@ public class MRAppMaster extends CompositeService {
         
         @Override
         public void run() {
+          event.joinContext();
           shutDownJob();
         }
       }.start();
@@ -703,6 +705,7 @@ public class MRAppMaster extends CompositeService {
 
     @Override
     public void handle(ContainerAllocatorEvent event) {
+      event.joinContext();
       this.containerAllocator.handle(event);
     }
 
@@ -744,6 +747,7 @@ public class MRAppMaster extends CompositeService {
 
     @Override
     public void handle(ContainerLauncherEvent event) {
+      event.joinContext();
         this.containerLauncher.handle(event);
     }
 
@@ -978,6 +982,7 @@ public class MRAppMaster extends CompositeService {
     @SuppressWarnings("unchecked")
     @Override
     public void handle(JobEvent event) {
+      event.joinContext();
       ((EventHandler<JobEvent>)context.getJob(event.getJobId())).handle(event);
     }
   }
@@ -986,6 +991,7 @@ public class MRAppMaster extends CompositeService {
     @SuppressWarnings("unchecked")
     @Override
     public void handle(TaskEvent event) {
+      event.joinContext();
       Task task = context.getJob(event.getTaskID().getJobId()).getTask(
           event.getTaskID());
       ((EventHandler<TaskEvent>)task).handle(event);
@@ -997,6 +1003,7 @@ public class MRAppMaster extends CompositeService {
     @SuppressWarnings("unchecked")
     @Override
     public void handle(TaskAttemptEvent event) {
+      event.joinContext();
       Job job = context.getJob(event.getTaskAttemptID().getTaskId().getJobId());
       Task task = job.getTask(event.getTaskAttemptID().getTaskId());
       TaskAttempt attempt = task.getAttempt(event.getTaskAttemptID());
@@ -1013,6 +1020,7 @@ public class MRAppMaster extends CompositeService {
     }
     @Override
     public void handle(SpeculatorEvent event) {
+      event.joinContext();
       if (disabled) {
         return;
       }
@@ -1061,6 +1069,8 @@ public class MRAppMaster extends CompositeService {
   public static void main(String[] args) {
     try {
       Thread.setDefaultUncaughtExceptionHandler(new YarnUncaughtExceptionHandler());
+      XTraceContext.startTrace("MRAppMaster", "Application Master Launching");
+    	
       String containerIdStr =
           System.getenv(ApplicationConstants.AM_CONTAINER_ID_ENV);
       String nodeHostString = System.getenv(ApplicationConstants.NM_HOST_ENV);
@@ -1110,10 +1120,13 @@ public class MRAppMaster extends CompositeService {
   // close of the JVM.
   static class MRAppMasterShutdownHook implements Runnable {
     MRAppMaster appMaster;
+    private Collection<XTraceMetadata> xtrace_context;
     MRAppMasterShutdownHook(MRAppMaster appMaster) {
       this.appMaster = appMaster;
+      xtrace_context = XTraceContext.getThreadContext();
     }
     public void run() {
+      XTraceContext.setThreadContext(xtrace_context);
       LOG.info("MRAppMaster received a signal. Signaling RMCommunicator and "
         + "JobHistoryEventHandler.");
 
@@ -1131,6 +1144,7 @@ public class MRAppMaster extends CompositeService {
           .setForcejobCompletion(appMaster.isLastAMRetry);
       }
       appMaster.stop();
+      XTraceContext.clearThreadContext();
     }
   }
 

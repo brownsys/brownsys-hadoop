@@ -71,6 +71,8 @@ import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
 import org.apache.hadoop.yarn.util.RackResolver;
 
+import edu.berkeley.xtrace.XTraceContext;
+
 /**
  * Allocates the container from the ResourceManager scheduler.
  */
@@ -183,6 +185,7 @@ public class RMContainerAllocator extends RMContainerRequestor
         ContainerAllocatorEvent event;
 
         while (!stopped.get() && !Thread.currentThread().isInterrupted()) {
+          XTraceContext.clearThreadContext();
           try {
             event = RMContainerAllocator.this.eventQueue.take();
           } catch (InterruptedException e) {
@@ -191,6 +194,7 @@ public class RMContainerAllocator extends RMContainerRequestor
             }
             return;
           }
+          event.joinContext();
 
           try {
             handleEvent(event);
@@ -278,6 +282,7 @@ public class RMContainerAllocator extends RMContainerRequestor
 
   @SuppressWarnings({ "unchecked" })
   protected synchronized void handleEvent(ContainerAllocatorEvent event) {
+    event.joinContext();
     recalculateReduceSchedule = true;
     if (event.getType() == ContainerAllocator.EventType.CONTAINER_REQ) {
       ContainerRequestEvent reqEvent = (ContainerRequestEvent) event;

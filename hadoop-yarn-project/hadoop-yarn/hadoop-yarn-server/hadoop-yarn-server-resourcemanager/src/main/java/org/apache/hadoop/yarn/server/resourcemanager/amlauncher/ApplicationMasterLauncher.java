@@ -108,6 +108,7 @@ public class ApplicationMasterLauncher extends AbstractService implements
   
   @Override
   public synchronized void  handle(AMLauncherEvent appEvent) {
+    appEvent.joinContext();
     AMLauncherEventType event = appEvent.getType();
     RMAppAttempt application = appEvent.getAppAttempt();
     switch (event) {

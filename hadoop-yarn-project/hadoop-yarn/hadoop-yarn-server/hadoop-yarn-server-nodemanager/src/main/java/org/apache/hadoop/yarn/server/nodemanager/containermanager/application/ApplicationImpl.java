@@ -393,6 +393,7 @@ public class ApplicationImpl implements Application {
 
   @Override
   public void handle(ApplicationEvent event) {
+    event.joinContext();
 
     this.writeLock.lock();
 

@@ -20,6 +20,7 @@ package org.apache.hadoop.yarn.server.nodemanager;
 
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -59,6 +60,10 @@ import org.apache.hadoop.yarn.server.api.records.RegistrationResponse;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.container.Container;
 import org.apache.hadoop.yarn.server.nodemanager.metrics.NodeManagerMetrics;
 import org.apache.hadoop.yarn.service.AbstractService;
+
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
+
 
 public class NodeStatusUpdaterImpl extends AbstractService implements
     NodeStatusUpdater {
@@ -309,11 +314,15 @@ public class NodeStatusUpdaterImpl extends AbstractService implements
   }
 
   protected void startStatusUpdater() {
+    
+    final Collection<XTraceMetadata> xtrace_context = XTraceContext.getThreadContext();
 
     new Thread("Node Status Updater") {
       @Override
       @SuppressWarnings("unchecked")
       public void run() {
+        XTraceContext.setThreadContext(xtrace_context);
+        XTraceContext.logEvent(NodeStatusUpdater.class, "Node Status Updater Thread", "Node Status Updater Thread started");
         int lastHeartBeatID = 0;
         while (!isStopped) {
           // Send heartbeat
