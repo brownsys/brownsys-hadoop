@@ -763,6 +763,7 @@ public class ResourceLocalizationService extends CompositeService
           continue;
         }
         if (nRsrc.tryAcquire()) {
+          evt.joinContext();
           LocalResourceRequest nextRsrc = nRsrc.getRequest();
           LocalResource next =
             recordFactory.newRecordInstance(LocalResource.class);
@@ -783,6 +784,7 @@ public class ResourceLocalizationService extends CompositeService
     @SuppressWarnings("unchecked") // dispatcher not typed
     LocalizerHeartbeatResponse update(
         List<LocalResourceStatus> remoteResourceStatuses) {
+      XTraceContext.joinContext(xtrace_context);
       LocalizerHeartbeatResponse response =
         recordFactory.newRecordInstance(LocalizerHeartbeatResponse.class);
 
@@ -816,9 +818,11 @@ public class ResourceLocalizationService extends CompositeService
           LOG.error("Unknown resource reported: " + req);
           continue;
         }
+        assoc.joinContext();
         switch (stat.getStatus()) {
           case FETCH_SUCCESS:
             // notify resource
+            Collection<XTraceMetadata> before = XTraceContext.getThreadContext();
             try {
               assoc.getResource().handle(
                   new ResourceLocalizedEvent(req,
@@ -830,6 +834,7 @@ public class ResourceLocalizationService extends CompositeService
               response.setLocalizerAction(LocalizerAction.DIE);
               break;
             }
+            XTraceContext.setThreadContext(before);
             response.setLocalizerAction(LocalizerAction.LIVE);
             LocalResource next = findNextResource();
             if (next != null) {
@@ -866,6 +871,7 @@ public class ResourceLocalizationService extends CompositeService
     public void run() {
       XTraceContext.joinContext(xtrace_context);
       XTraceContext.logEvent(LocalizerRunner.class, "Localizer Runner Thread", "Localizer Runner Thread started");
+      this.xtrace_context = XTraceContext.getThreadContext();
       Path nmPrivateCTokensPath = null;
       try {
         // Get nmPrivateDir
