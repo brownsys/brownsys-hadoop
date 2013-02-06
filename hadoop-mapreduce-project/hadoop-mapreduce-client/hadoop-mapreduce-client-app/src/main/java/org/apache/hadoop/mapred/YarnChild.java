@@ -61,6 +61,8 @@ import org.apache.hadoop.yarn.YarnUncaughtExceptionHandler;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.log4j.LogManager;
 
+import edu.berkeley.xtrace.XTraceContext;
+
 /**
  * The main() for MapReduce task processes.
  */
@@ -73,6 +75,8 @@ class YarnChild {
   public static void main(String[] args) throws Throwable {
     Thread.setDefaultUncaughtExceptionHandler(new YarnUncaughtExceptionHandler());
     LOG.debug("Child starting");
+    
+    XTraceContext.logEvent(YarnChild.class, "YarnChild", "YarnChild starting");
 
     final JobConf defaultConf = new JobConf();
     defaultConf.addResource(MRJobConfig.JOB_CONF_FILE);
