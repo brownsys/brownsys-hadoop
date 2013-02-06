@@ -235,6 +235,7 @@ public class ContainerLocalizer {
       CompletionService<Path> cs, UserGroupInformation ugi)
       throws IOException {
     while (true) {
+      XTraceContext.clearThreadContext();
       try {
         LocalizerStatus status = createStatus();
         LocalizerHeartbeatResponse response = nodemanager.heartbeat(status);
