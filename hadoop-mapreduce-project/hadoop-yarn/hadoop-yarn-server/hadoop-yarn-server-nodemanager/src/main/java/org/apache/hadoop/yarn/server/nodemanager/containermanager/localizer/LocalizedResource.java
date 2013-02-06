@@ -178,6 +178,7 @@ public class LocalizedResource implements EventHandler<ResourceEvent> {
   @Override
   public void handle(ResourceEvent event) {
     try {
+      event.joinContext();
       this.writeLock.lock();
 
       Path resourcePath = event.getLocalResourceRequest().getPath();

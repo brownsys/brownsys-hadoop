@@ -463,6 +463,7 @@ public class RMAppAttemptImpl implements RMAppAttempt {
 
   @Override
   public void handle(RMAppAttemptEvent event) {
+    event.joinContext();
 
     this.writeLock.lock();
 

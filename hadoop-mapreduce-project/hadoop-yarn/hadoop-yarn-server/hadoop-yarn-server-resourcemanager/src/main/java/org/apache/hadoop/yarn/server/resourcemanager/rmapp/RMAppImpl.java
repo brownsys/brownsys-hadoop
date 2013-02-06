@@ -456,6 +456,7 @@ public class RMAppImpl implements RMApp {
 
   @Override
   public void handle(RMAppEvent event) {
+    event.joinContext();
 
     this.writeLock.lock();
 

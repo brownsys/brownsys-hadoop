@@ -18,6 +18,7 @@
 
 package org.apache.hadoop.mapreduce.v2.app.taskclean;
 
+import java.util.Collection;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
@@ -33,6 +34,9 @@ import org.apache.hadoop.yarn.YarnException;
 import org.apache.hadoop.yarn.service.AbstractService;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
 
 public class TaskCleanerImpl extends AbstractService implements TaskCleaner {
 
@@ -60,12 +64,14 @@ public class TaskCleanerImpl extends AbstractService implements TaskCleaner {
       public void run() {
         TaskCleanupEvent event = null;
         while (!Thread.currentThread().isInterrupted()) {
+          XTraceContext.clearThreadContext();
           try {
             event = eventQueue.take();
           } catch (InterruptedException e) {
             LOG.error("Returning, interrupted : " + e);
             return;
           }
+          event.joinContext();
           // the events from the queue are handled in parallel
           // using a thread pool
           launcherPool.execute(new EventProcessor(event));        }
@@ -84,13 +90,16 @@ public class TaskCleanerImpl extends AbstractService implements TaskCleaner {
 
   private class EventProcessor implements Runnable {
     private TaskCleanupEvent event;
+    private Collection<XTraceMetadata> xtrace_context;
 
     EventProcessor(TaskCleanupEvent event) {
       this.event = event;
+      this.xtrace_context = XTraceContext.getThreadContext();
     }
 
     @Override
     public void run() {
+      XTraceContext.setThreadContext(xtrace_context);
       LOG.info("Processing the event " + event.toString());
       try {
         event.getCommitter().abortTask(event.getAttemptContext());
@@ -100,6 +109,7 @@ public class TaskCleanerImpl extends AbstractService implements TaskCleaner {
       context.getEventHandler().handle(
           new TaskAttemptEvent(event.getAttemptID(), 
               TaskAttemptEventType.TA_CLEANUP_DONE));
+      XTraceContext.clearThreadContext();
     }
   }
 

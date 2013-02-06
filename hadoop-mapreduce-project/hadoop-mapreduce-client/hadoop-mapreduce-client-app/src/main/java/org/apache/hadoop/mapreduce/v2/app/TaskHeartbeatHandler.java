@@ -18,6 +18,7 @@
 
 package org.apache.hadoop.mapreduce.v2.app;
 
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -34,6 +35,9 @@ import org.apache.hadoop.mapreduce.v2.app.job.event.TaskAttemptEventType;
 import org.apache.hadoop.yarn.Clock;
 import org.apache.hadoop.yarn.event.EventHandler;
 import org.apache.hadoop.yarn.service.AbstractService;
+
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
 
 
 /**
@@ -145,9 +149,17 @@ public class TaskHeartbeatHandler extends AbstractService {
   }
 
   private class PingChecker implements Runnable {
+    
+    private Collection<XTraceMetadata> xtrace_context;
+
+    public PingChecker() {
+      this.xtrace_context = XTraceContext.getThreadContext();
+    }
 
     @Override
     public void run() {
+      XTraceContext.setThreadContext(xtrace_context);
+      XTraceContext.logEvent(PingChecker.class, "Ping Checker", "Ping checker thread started");
       while (!stopped && !Thread.currentThread().isInterrupted()) {
         Iterator<Map.Entry<TaskAttemptId, ReportTime>> iterator =
             runningAttempts.entrySet().iterator();

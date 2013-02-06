@@ -20,6 +20,7 @@ package org.apache.hadoop.mapreduce.v2.app.speculate;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -51,6 +52,9 @@ import org.apache.hadoop.yarn.Clock;
 import org.apache.hadoop.yarn.YarnException;
 import org.apache.hadoop.yarn.event.EventHandler;
 import org.apache.hadoop.yarn.service.AbstractService;
+
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
 
 
 public class DefaultSpeculator extends AbstractService implements
@@ -166,10 +170,13 @@ public class DefaultSpeculator extends AbstractService implements
 
   @Override
   public void start() {
+    final Collection<XTraceMetadata> xtrace_context = XTraceContext.getThreadContext();
     Runnable speculationBackgroundCore
         = new Runnable() {
             @Override
             public void run() {
+              XTraceContext.joinContext(xtrace_context);
+              XTraceContext.logEvent(DefaultSpeculator.class, "Speculation Background Thread", "Speculation background thread started");
               while (!Thread.currentThread().isInterrupted()) {
                 long backgroundRunStartTime = clock.getTime();
                 try {
@@ -425,6 +432,7 @@ public class DefaultSpeculator extends AbstractService implements
 
   @Override
   public void handle(SpeculatorEvent event) {
+    event.joinContext();
     processSpeculatorEvent(event);
   }
 

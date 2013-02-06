@@ -17,6 +17,7 @@
  */
 package org.apache.hadoop.yarn.server.nodemanager.containermanager.loghandler;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -41,6 +42,9 @@ import org.apache.hadoop.yarn.server.nodemanager.containermanager.loghandler.eve
 import org.apache.hadoop.yarn.service.AbstractService;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
 
 /**
  * Log Handler which schedules deletion of log files based on the configured log
@@ -95,6 +99,7 @@ public class NonAggregatingLogHandler extends AbstractService implements
 
   @Override
   public void handle(LogHandlerEvent event) {
+    event.joinContext();
     switch (event.getType()) {
       case APPLICATION_STARTED:
         LogHandlerAppStartedEvent appStartedEvent =
@@ -136,15 +141,18 @@ public class NonAggregatingLogHandler extends AbstractService implements
   class LogDeleterRunnable implements Runnable {
     private String user;
     private ApplicationId applicationId;
+    private Collection<XTraceMetadata> xtrace_context;
 
     public LogDeleterRunnable(String user, ApplicationId applicationId) {
       this.user = user;
       this.applicationId = applicationId;
+      this.xtrace_context = XTraceContext.getThreadContext();
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public void run() {
+      XTraceContext.setThreadContext(xtrace_context);
       List<String> rootLogDirs =
           NonAggregatingLogHandler.this.dirsHandler.getLogDirs();
       Path[] localAppLogDirs = new Path[rootLogDirs.size()];
@@ -160,6 +168,7 @@ public class NonAggregatingLogHandler extends AbstractService implements
               ApplicationEventType.APPLICATION_LOG_HANDLING_FINISHED));
       NonAggregatingLogHandler.this.delService.delete(user, null,
           localAppLogDirs);
+      XTraceContext.clearThreadContext();
     }
 
     @Override

@@ -192,6 +192,7 @@ public class RMContainerImpl implements RMContainer {
   
   @Override
   public void handle(RMContainerEvent event) {
+    event.joinContext();
     LOG.debug("Processing " + event.getContainerId() + " of type " + event.getType());
     try {
       writeLock.lock();

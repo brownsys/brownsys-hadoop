@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.security.PrivilegedAction;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
@@ -62,6 +63,9 @@ import org.apache.hadoop.yarn.util.ProtoUtils;
 import org.apache.hadoop.yarn.util.Records;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
 
 /**
  * This class is responsible for launching of containers.
@@ -118,6 +122,7 @@ public class ContainerLauncherImpl extends AbstractService implements
     
     @SuppressWarnings("unchecked")
     public synchronized void launch(ContainerRemoteLaunchEvent event) {
+      event.joinContext();
       TaskAttemptId taskAttemptID = event.getTaskAttemptID();
       LOG.info("Launching " + taskAttemptID);
       if(this.state == ContainerState.KILLED_BEFORE_LAUNCH) {
@@ -182,6 +187,7 @@ public class ContainerLauncherImpl extends AbstractService implements
     
     @SuppressWarnings("unchecked")
     public synchronized void kill(ContainerLauncherEvent event) {
+      event.joinContext();
       if(this.state == ContainerState.PREP) {
         this.state = ContainerState.KILLED_BEFORE_LAUNCH;
       } else {
@@ -265,12 +271,14 @@ public class ContainerLauncherImpl extends AbstractService implements
       public void run() {
         ContainerLauncherEvent event = null;
         while (!Thread.currentThread().isInterrupted()) {
+          XTraceContext.clearThreadContext();
           try {
             event = eventQueue.take();
           } catch (InterruptedException e) {
             LOG.error("Returning, interrupted : " + e);
             return;
           }
+          event.joinContext();
           int poolSize = launcherPool.getCorePoolSize();
 
           // See if we need up the pool size only if haven't reached the
@@ -351,13 +359,16 @@ public class ContainerLauncherImpl extends AbstractService implements
    */
   class EventProcessor implements Runnable {
     private ContainerLauncherEvent event;
+    private Collection<XTraceMetadata> xtrace_context;
 
     EventProcessor(ContainerLauncherEvent event) {
       this.event = event;
+      this.xtrace_context = XTraceContext.getThreadContext();
     }
 
     @Override
     public void run() {
+      XTraceContext.setThreadContext(xtrace_context);
       LOG.info("Processing the event " + event.toString());
 
       // Load ContainerManager tokens before creating a connection.
@@ -378,6 +389,7 @@ public class ContainerLauncherImpl extends AbstractService implements
         break;
       }
       removeContainerIfDone(containerID);
+      XTraceContext.clearThreadContext();
     }
   }
 

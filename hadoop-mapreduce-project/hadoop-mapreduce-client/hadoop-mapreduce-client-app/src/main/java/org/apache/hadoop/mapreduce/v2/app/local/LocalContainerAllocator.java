@@ -136,6 +136,7 @@ public class LocalContainerAllocator extends RMCommunicator
   @SuppressWarnings("unchecked")
   @Override
   public void handle(ContainerAllocatorEvent event) {
+    event.joinContext();
     if (event.getType() == ContainerAllocator.EventType.CONTAINER_REQ) {
       LOG.info("Processing the event " + event.toString());
       ContainerId cID = recordFactory.newRecordInstance(ContainerId.class);

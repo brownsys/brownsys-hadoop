@@ -619,6 +619,7 @@ implements ResourceScheduler, CapacitySchedulerContext, Configurable {
 
   @Override
   public void handle(SchedulerEvent event) {
+    event.joinContext();
     switch(event.getType()) {
     case NODE_ADDED:
     {

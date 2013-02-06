@@ -87,7 +87,7 @@ public class AMLauncher implements Runnable {
   @SuppressWarnings("rawtypes")
   private final EventHandler handler;
 
-  private Collection<XTraceMetadata> xtrace;
+  private Collection<XTraceMetadata> xtrace_context;
   
   public AMLauncher(RMContext rmContext, RMAppAttempt application,
       AMLauncherEventType eventType,
@@ -98,7 +98,7 @@ public class AMLauncher implements Runnable {
     this.eventType = eventType;
     this.rmContext = rmContext;
     this.handler = rmContext.getDispatcher().getEventHandler();
-    this.xtrace = XTraceContext.getThreadContext();
+    this.xtrace_context = XTraceContext.getThreadContext();
   }
   
   private void connect() throws IOException {
@@ -260,13 +260,13 @@ public class AMLauncher implements Runnable {
   
   @SuppressWarnings("unchecked")
   public void run() {
-	Collection<XTraceMetadata> prior_context = XTraceContext.getThreadContext();
-	XTraceContext.setThreadContext(this.xtrace);
+	XTraceContext.setThreadContext(this.xtrace_context);
 	
     switch (eventType) {
     case LAUNCH:
       try {
         LOG.info("Launching master" + application.getAppAttemptId());
+        XTraceContext.logEvent(AMLauncher.class, "AMLauncher", "Launching master"+application.getAppAttemptId());
         launch();
         handler.handle(new RMAppAttemptEvent(application.getAppAttemptId(),
             RMAppAttemptEventType.LAUNCHED));
@@ -281,6 +281,7 @@ public class AMLauncher implements Runnable {
     case CLEANUP:
       try {
         LOG.info("Cleaning master " + application.getAppAttemptId());
+        XTraceContext.logEvent(AMLauncher.class, "AMLauncher", "Cleaning master"+application.getAppAttemptId());
         cleanup();
       } catch(IOException ie) {
         LOG.info("Error cleaning master ", ie);
@@ -291,6 +292,6 @@ public class AMLauncher implements Runnable {
       break;
     }
     
-    XTraceContext.setThreadContext(prior_context);
+    XTraceContext.clearThreadContext();
   }
 }

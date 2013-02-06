@@ -130,6 +130,7 @@ public class NodesListManager extends AbstractService implements
 
   @Override
   public void handle(NodesListManagerEvent event) {
+    event.joinContext();
     RMNode eventNode = event.getNode();
     switch (event.getType()) {
     case NODE_UNUSABLE:

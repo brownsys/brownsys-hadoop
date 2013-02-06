@@ -316,6 +316,7 @@ public class RMAppManager implements EventHandler<RMAppManagerEvent> {
 
   @Override
   public void handle(RMAppManagerEvent event) {
+    event.joinContext();
     ApplicationId applicationId = event.getApplicationId();
     LOG.debug("RMAppManager processing event for " 
         + applicationId + " of type " + event.getType());
