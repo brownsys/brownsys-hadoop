@@ -1738,6 +1738,7 @@ public abstract class Server {
       ByteArrayOutputStream buf = 
         new ByteArrayOutputStream(INITIAL_RESP_BUF_SIZE);
       while (running) {
+        XTraceContext.clearThreadContext();
         try {
           final Call call = callQueue.take(); // pop the queue; maybe blocked here
           if (call.xtrace != null) {
