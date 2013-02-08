@@ -35,6 +35,7 @@ message LocalResourceStatusProto {
   optional URLProto localPath = 3;
   optional int64 localSize = 4;
   optional YarnRemoteExceptionProto exception = 5;
+  optional bytes xtrace = 6; // X-Trace metadata
 }
 
 message LocalizerStatusProto {

@@ -17,7 +17,7 @@
 */
 package org.apache.hadoop.yarn.api.records.impl.pb;
 
-
+import com.google.protobuf.ByteString;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
@@ -29,6 +29,9 @@ import org.apache.hadoop.yarn.proto.YarnProtos.LocalResourceTypeProto;
 import org.apache.hadoop.yarn.proto.YarnProtos.LocalResourceVisibilityProto;
 import org.apache.hadoop.yarn.proto.YarnProtos.URLProto;
 import org.apache.hadoop.yarn.util.ProtoUtils;
+
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
 
 
     
@@ -169,6 +172,27 @@ public class LocalResourcePBImpl extends ProtoBase<LocalResourceProto>
       return;
     }
     builder.setPattern(pattern);
+  }
+
+  @Override
+  public void rememberContext() {
+    maybeInitBuilder();
+    XTraceMetadata ctx = XTraceContext.logMerge();
+    if (ctx!=null && ctx.isValid()) {
+      builder.setXtrace(ByteString.copyFrom(ctx.pack()));
+    }
+  }
+
+  @Override
+  public void joinContext() {
+    LocalResourceProtoOrBuilder p = viaProto ? proto : builder;
+    if (p.hasXtrace()) {
+      ByteString xbs = p.getXtrace();
+      XTraceMetadata xmd = XTraceMetadata.createFromBytes(xbs.toByteArray(), 0, xbs.size());
+      if (xmd.isValid()) {
+        XTraceContext.joinContext(xmd);
+      }
+    }
   }
 
   private LocalResourceTypeProto convertToProtoFormat(LocalResourceType e) {
