@@ -581,7 +581,6 @@ public class ResourceLocalizationService extends CompositeService
     final Map<Future<Path>,LocalizerResourceRequestEvent> pending;
     // TODO hack to work around broken signaling
     final Map<LocalResourceRequest,List<LocalizerResourceRequestEvent>> attempts;
-    private Collection<XTraceMetadata> xtrace_context;
 
     PublicLocalizer(Configuration conf) {
       this(conf, getLocalFileContext(conf),
@@ -618,7 +617,6 @@ public class ResourceLocalizationService extends CompositeService
 
       this.threadPool = threadPool;
       this.queue = new ExecutorCompletionService<Path>(threadPool);
-      this.xtrace_context = XTraceContext.getThreadContext();
     }
 
     public void addResource(LocalizerResourceRequestEvent request) {
@@ -650,16 +648,16 @@ public class ResourceLocalizationService extends CompositeService
     @Override
     @SuppressWarnings("unchecked") // dispatcher not typed
     public void run() {
-      XTraceContext.joinContext(xtrace_context);
-      XTraceContext.logEvent(PublicLocalizer.class, "Localizer Thread", "Localizer Thread started");
       try {
         // TODO shutdown, better error handling esp. DU
         while (!Thread.currentThread().isInterrupted()) {
+          XTraceContext.clearThreadContext();
           try {
             Future<Path> completed = queue.take();
             LocalizerResourceRequestEvent assoc = pending.remove(completed);
             try {
               Path local = completed.get();
+              XTraceContext.joinObject(local);
               if (null == assoc) {
                 LOG.error("Localized unkonwn resource to " + completed);
                 // TODO delete
@@ -730,7 +728,6 @@ public class ResourceLocalizationService extends CompositeService
     // TODO: threadsafe, use outer?
     private final RecordFactory recordFactory =
       RecordFactoryProvider.getRecordFactory(getConfig());
-    private Collection<XTraceMetadata> xtrace_context;
 
     LocalizerRunner(LocalizerContext context, String localizerId) {
       super("LocalizerRunner for " + localizerId);
@@ -739,7 +736,6 @@ public class ResourceLocalizationService extends CompositeService
       this.pending = new ArrayList<LocalizerResourceRequestEvent>();
       this.scheduled =
           new HashMap<LocalResourceRequest, LocalizerResourceRequestEvent>();
-      this.xtrace_context = XTraceContext.getThreadContext();
     }
 
     public void addResource(LocalizerResourceRequestEvent request) {
@@ -754,6 +750,7 @@ public class ResourceLocalizationService extends CompositeService
      */
     private LocalResource findNextResource() {
       // TODO: Synchronization
+      XTraceContext.clearThreadContext();
       for (Iterator<LocalizerResourceRequestEvent> i = pending.iterator();
            i.hasNext();) {
         LocalizerResourceRequestEvent evt = i.next();
@@ -773,7 +770,9 @@ public class ResourceLocalizationService extends CompositeService
           next.setType(nextRsrc.getType());
           next.setVisibility(evt.getVisibility());
           next.setPattern(evt.getPattern());
+          next.rememberContext();
           scheduled.put(nextRsrc, evt);
+          XTraceContext.clearThreadContext();
           return next;
         }
       }
@@ -784,7 +783,6 @@ public class ResourceLocalizationService extends CompositeService
     @SuppressWarnings("unchecked") // dispatcher not typed
     LocalizerHeartbeatResponse update(
         List<LocalResourceStatus> remoteResourceStatuses) {
-      XTraceContext.joinContext(xtrace_context);
       LocalizerHeartbeatResponse response =
         recordFactory.newRecordInstance(LocalizerHeartbeatResponse.class);
 
@@ -805,6 +803,7 @@ public class ResourceLocalizationService extends CompositeService
       }
 
       for (LocalResourceStatus stat : remoteResourceStatuses) {
+        stat.joinContext();
         LocalResource rsrc = stat.getResource();
         LocalResourceRequest req = null;
         try {
@@ -822,7 +821,6 @@ public class ResourceLocalizationService extends CompositeService
         switch (stat.getStatus()) {
           case FETCH_SUCCESS:
             // notify resource
-            Collection<XTraceMetadata> before = XTraceContext.getThreadContext();
             try {
               assoc.getResource().handle(
                   new ResourceLocalizedEvent(req,
@@ -834,7 +832,6 @@ public class ResourceLocalizationService extends CompositeService
               response.setLocalizerAction(LocalizerAction.DIE);
               break;
             }
-            XTraceContext.setThreadContext(before);
             response.setLocalizerAction(LocalizerAction.LIVE);
             LocalResource next = findNextResource();
             if (next != null) {
@@ -862,6 +859,7 @@ public class ResourceLocalizationService extends CompositeService
                   req, stat.getException()));
             break;
         }
+        XTraceContext.clearThreadContext();
       }
       return response;
     }
@@ -869,9 +867,6 @@ public class ResourceLocalizationService extends CompositeService
     @Override
     @SuppressWarnings("unchecked") // dispatcher not typed
     public void run() {
-      XTraceContext.joinContext(xtrace_context);
-      XTraceContext.logEvent(LocalizerRunner.class, "Localizer Runner Thread", "Localizer Runner Thread started");
-      this.xtrace_context = XTraceContext.getThreadContext();
       Path nmPrivateCTokensPath = null;
       try {
         // Get nmPrivateDir

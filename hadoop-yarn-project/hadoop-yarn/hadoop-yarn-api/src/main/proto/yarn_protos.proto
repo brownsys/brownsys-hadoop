@@ -145,6 +145,7 @@ message LocalResourceProto {
   optional LocalResourceTypeProto type = 4;
   optional LocalResourceVisibilityProto visibility = 5;
   optional string pattern = 6;
+  optional bytes xtrace = 7; // X-Trace metadata
 }
 
 message ApplicationResourceUsageReportProto {

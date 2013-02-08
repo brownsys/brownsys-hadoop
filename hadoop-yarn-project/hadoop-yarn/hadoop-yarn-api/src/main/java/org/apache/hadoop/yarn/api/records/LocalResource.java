@@ -122,4 +122,15 @@ public interface LocalResource {
    * from the archive.
    */
   public void setPattern(String pattern);
+  
+  /**
+   * XTrace - attach an xtrace context to this resource, will be serialized and sent over the wire
+   */
+  public void rememberContext();
+  
+  /**
+   * XTrace - join any contexts that are part of this message
+   */
+  public void joinContext();
+  
 }

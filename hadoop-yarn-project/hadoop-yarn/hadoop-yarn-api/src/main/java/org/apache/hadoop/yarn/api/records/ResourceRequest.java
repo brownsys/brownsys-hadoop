@@ -18,9 +18,14 @@
 
 package org.apache.hadoop.yarn.api.records;
 
+import java.util.Collection;
+
 import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.hadoop.classification.InterfaceStability.Stable;
 import org.apache.hadoop.yarn.api.AMRMProtocol;
+
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
 
 /**
  * <p><code>ResourceRequest</code> represents the request made by an
@@ -49,6 +54,21 @@ import org.apache.hadoop.yarn.api.AMRMProtocol;
 @Public
 @Stable
 public abstract class ResourceRequest implements Comparable<ResourceRequest> {
+//  
+//  Collection<XTraceMetadata> ctxs = null;
+//  
+//  public void rememberContext() {
+//    if (ctxs == null) {
+//      ctxs = XTraceContext.getThreadContext();
+//    } else {
+//      ctxs.addAll(XTraceContext.getThreadContext());
+//    }
+//  }
+//  
+//  public void joinContext() {
+//    XTraceContext.joinContext(ctxs);
+//  }
+  
   /**
    * Get the <code>Priority</code> of the request.
    * @return <code>Priority</code> of the request

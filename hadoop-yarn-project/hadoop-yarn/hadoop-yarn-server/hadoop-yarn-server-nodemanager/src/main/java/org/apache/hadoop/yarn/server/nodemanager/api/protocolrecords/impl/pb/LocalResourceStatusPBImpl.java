@@ -17,6 +17,11 @@
 */
 package org.apache.hadoop.yarn.server.nodemanager.api.protocolrecords.impl.pb;
 
+import com.google.protobuf.ByteString;
+
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
+
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.ProtoBase;
 import org.apache.hadoop.yarn.api.records.URL;
@@ -219,6 +224,27 @@ public class LocalResourceStatusPBImpl
 
   private YarnRemoteExceptionProto convertToProtoFormat(YarnRemoteException t) {
     return ((YarnRemoteExceptionPBImpl)t).getProto();
+  }
+
+  @Override
+  public void rememberContext() {
+    maybeInitBuilder();
+    XTraceMetadata ctx = XTraceContext.logMerge();
+    if (ctx!=null && ctx.isValid()) {
+      builder.setXtrace(ByteString.copyFrom(ctx.pack()));
+    }
+  }
+
+  @Override
+  public void joinContext() {
+    LocalResourceStatusProtoOrBuilder p = viaProto ? proto : builder;
+    if (p.hasXtrace()) {
+      ByteString xbs = p.getXtrace();
+      XTraceMetadata xmd = XTraceMetadata.createFromBytes(xbs.toByteArray(), 0, xbs.size());
+      if (xmd.isValid()) {
+        XTraceContext.joinContext(xmd);
+      }
+    }
   }
 
 }
