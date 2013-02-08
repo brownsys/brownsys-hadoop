@@ -24,6 +24,7 @@ import java.net.InetSocketAddress;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -69,6 +70,7 @@ import org.apache.hadoop.yarn.util.FSDownload;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
 
 public class ContainerLocalizer {
 
@@ -226,6 +228,7 @@ public class ContainerLocalizer {
         case LIVE:
           List<LocalResource> newResources = response.getAllResources();
           for (LocalResource r : newResources) {
+            r.joinContext();
             if (!pendingResources.containsKey(r)) {
               final LocalDirAllocator lda;
               switch (r.getVisibility()) {
@@ -244,6 +247,7 @@ public class ContainerLocalizer {
               // TODO: Synchronization??
               pendingResources.put(r, cs.submit(download(lda, r, ugi)));
             }
+            XTraceContext.clearThreadContext();
           }
           break;
         case DIE:
@@ -289,6 +293,8 @@ public class ContainerLocalizer {
       if (fPath.isDone()) {
         try {
           Path localPath = fPath.get();
+          XTraceContext.joinObject(localPath);
+          stat.rememberContext();
           stat.setLocalPath(
               ConverterUtils.getYarnUrlFromPath(localPath));
           stat.setLocalSize(
@@ -307,6 +313,7 @@ public class ContainerLocalizer {
         stat.setStatus(ResourceStatusType.FETCH_PENDING);
       }
       currentResources.add(stat);
+      XTraceContext.clearThreadContext();
     }
     LocalizerStatus status =
       recordFactory.newRecordInstance(LocalizerStatus.class);

@@ -155,4 +155,12 @@ public class LocalResourceRequest
     sb.append(getType()).append(" }");
     return sb.toString();
   }
+
+  @Override
+  public void rememberContext() {
+  }
+
+  @Override
+  public void joinContext() {
+  }
 }

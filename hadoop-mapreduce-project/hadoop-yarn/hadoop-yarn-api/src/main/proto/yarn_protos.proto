@@ -142,6 +142,7 @@ message LocalResourceProto {
   optional int64 timestamp = 3;
   optional LocalResourceTypeProto type = 4;
   optional LocalResourceVisibilityProto visibility= 5;
+  optional bytes xtrace = 6; // X-Trace metadata
 }
 
 message ApplicationResourceUsageReportProto {

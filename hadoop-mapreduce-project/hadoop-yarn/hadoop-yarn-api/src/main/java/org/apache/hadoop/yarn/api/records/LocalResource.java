@@ -106,4 +106,15 @@ public interface LocalResource {
    *                   localized
    */
   public void setVisibility(LocalResourceVisibility visibility);
+  
+  /**
+   * XTrace - attach an xtrace context to this resource, will be serialized and sent over the wire
+   */
+  public void rememberContext();
+  
+  /**
+   * XTrace - join any contexts that are part of this message
+   */
+  public void joinContext();
+  
 }

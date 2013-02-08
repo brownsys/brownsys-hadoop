@@ -33,4 +33,7 @@ public interface LocalResourceStatus {
   public void setLocalPath(URL localPath);
   public void setLocalSize(long size);
   public void setException(YarnRemoteException exception);
+
+  public void rememberContext();
+  public void joinContext();
 }
