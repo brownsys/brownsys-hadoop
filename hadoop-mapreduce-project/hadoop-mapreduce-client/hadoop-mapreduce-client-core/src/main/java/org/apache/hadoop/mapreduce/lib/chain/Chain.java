@@ -19,6 +19,7 @@ package org.apache.hadoop.mapreduce.lib.chain;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -40,6 +41,9 @@ import org.apache.hadoop.mapreduce.TaskInputOutputContext;
 import org.apache.hadoop.mapreduce.lib.map.WrappedMapper;
 import org.apache.hadoop.mapreduce.lib.reduce.WrappedReducer;
 import org.apache.hadoop.util.ReflectionUtils;
+
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
 
 /**
  * The Chain class provides all the common functionality for the
@@ -301,6 +305,7 @@ public class Chain {
     private Mapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT>.Context chainContext;
     private RecordReader<KEYIN, VALUEIN> rr;
     private RecordWriter<KEYOUT, VALUEOUT> rw;
+    private Collection<XTraceMetadata> xtrace_context;
 
     public MapRunner(Mapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT> mapper,
         Mapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT>.Context mapperContext,
@@ -310,10 +315,12 @@ public class Chain {
       this.rr = rr;
       this.rw = rw;
       this.chainContext = mapperContext;
+      this.xtrace_context = XTraceContext.getThreadContext();
     }
 
     @Override
     public void run() {
+      XTraceContext.joinContext(xtrace_context);
       if (getThrowable() != null) {
         return;
       }
@@ -333,6 +340,7 @@ public class Chain {
     private Reducer<KEYIN, VALUEIN, KEYOUT, VALUEOUT> reducer;
     private Reducer<KEYIN, VALUEIN, KEYOUT, VALUEOUT>.Context chainContext;
     private RecordWriter<KEYOUT, VALUEOUT> rw;
+    private Collection<XTraceMetadata> xtrace_context;
 
     ReduceRunner(Reducer<KEYIN, VALUEIN, KEYOUT, VALUEOUT>.Context context,
         Reducer<KEYIN, VALUEIN, KEYOUT, VALUEOUT> reducer,
@@ -341,10 +349,12 @@ public class Chain {
       this.reducer = reducer;
       this.chainContext = context;
       this.rw = rw;
+      this.xtrace_context = XTraceContext.getThreadContext();
     }
 
     @Override
     public void run() {
+      XTraceContext.joinContext(xtrace_context);
       try {
         reducer.run(chainContext);
         rw.close(chainContext);
