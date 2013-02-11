@@ -30,7 +30,6 @@ import java.util.Stack;
 import org.apache.hadoop.yarn.util.Graph;
 
 import edu.berkeley.xtrace.XTraceContext;
-import edu.berkeley.xtrace.XTraceEvent;
 import edu.berkeley.xtrace.XTraceMetadata;
 
 /**
@@ -57,6 +56,8 @@ final public class StateMachineFactory
   private STATE defaultInitialState;
 
   private final boolean optimized;
+  
+  private int xtrace_id_seed = 1;
 
   /**
    * Constructor
@@ -423,7 +424,11 @@ final public class StateMachineFactory
    *                
    */
   public StateMachine<STATE, EVENTTYPE, EVENT> make(OPERAND operand) {
-    return new InternalStateMachine(operand, defaultInitialState);
+    return new InternalStateMachine(operand, defaultInitialState, xtrace_id_seed++);
+  }
+  
+  private String xtraceStateName(STATE state) {
+    return state.getDeclaringClass().getSimpleName() + "." + state.name();
   }
 
   private class InternalStateMachine
@@ -431,14 +436,17 @@ final public class StateMachineFactory
     private final OPERAND operand;
     private STATE currentState;
     private Collection<XTraceMetadata> lifecycle_context;
+    private String xtrace_agent;
 
-    InternalStateMachine(OPERAND operand, STATE initialState) {
+    InternalStateMachine(OPERAND operand, STATE initialState, int xtrace_id_seed) {
       this.operand = operand;
       this.currentState = initialState;
       if (!optimized) {
         maybeMakeStateMachineTable();
       }
       this.lifecycle_context = XTraceContext.getThreadContext();
+      this.xtrace_agent = operand.getClass().getSimpleName()+"-"+xtrace_id_seed;
+      XTraceContext.logEvent(operand.getClass(), xtrace_agent, "StateMachine initialized", "StartState", xtraceStateName(currentState));
     }
 
     @Override
@@ -451,36 +459,24 @@ final public class StateMachineFactory
          throws InvalidStateTransitonException  {
     	/* Coming into a transition, there can be two valid contexts - the current thread context,
     	 * and the thread context left over from the previous lifecycle transition. */
-    	boolean restoreThreadContext = XTraceContext.isValid();
-    	boolean restoreLifecycleContext = this.lifecycle_context!=null;
-	  
-		try {
-			XTraceContext.joinContext(this.lifecycle_context);
-			XTraceContext.logEvent(operand.getClass(), operand.getClass().getSimpleName(), 
-					currentState.getDeclaringClass().getSimpleName() + "." + currentState.name()
-					+ " transitioning with event " + event.toString());
-			
-			Collection<XTraceMetadata> transition_start = XTraceContext.getThreadContext();
-			try {
-				currentState = StateMachineFactory.this.doTransition(operand, currentState, eventType, event);
-			} catch (InvalidStateTransitonException e) {
-				XTraceContext.joinContext(transition_start);
-				XTraceContext.logEvent(operand.getClass(), operand.getClass().getSimpleName(), e.getMessage());
-				throw e;
-			}
-
-			XTraceContext.joinContext(transition_start);
-			if (!XTraceContext.is(transition_start)) {
-				XTraceContext.logEvent(operand.getClass(), operand.getClass().getSimpleName(),
-					"Successfully transitioned to " + currentState.getDeclaringClass()
-					.getSimpleName() + "." + currentState.name());
-			}
-			
-			return currentState;
-		} finally {
-			this.lifecycle_context = restoreLifecycleContext ? XTraceContext.getThreadContext() : null;
-			if (!restoreThreadContext) { XTraceContext.clearThreadContext(); }
-		}
+      boolean restoreThreadContext = XTraceContext.isValid();
+      boolean restoreLifecycleContext = this.lifecycle_context!=null;
+    
+    try {
+        XTraceContext.joinContext(this.lifecycle_context);
+  			XTraceContext.logEvent(operand.getClass(), xtrace_agent, event.toString(), "StartState", xtraceStateName(currentState));
+  			
+  			try {
+  				currentState = StateMachineFactory.this.doTransition(operand, currentState, eventType, event);
+  			} catch (InvalidStateTransitonException e) {
+  				throw e;
+  			}
+  			
+  			return currentState;
+  		} finally {
+  			this.lifecycle_context = restoreLifecycleContext ? XTraceContext.getThreadContext() : null;
+  			if (!restoreThreadContext) { XTraceContext.clearThreadContext(); }
+  		}
     }
   }
 
