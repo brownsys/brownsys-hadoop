@@ -221,13 +221,9 @@ public abstract class RMCommunicator extends AbstractService  {
   }
 
   protected void startAllocatorThread() {
-    final Collection<XTraceMetadata> xtrace_context = XTraceContext.getThreadContext();
     allocatorThread = new Thread(new Runnable() {
       @Override
       public void run() {
-        XTraceContext.setThreadContext(xtrace_context);
-        XTraceContext.logEvent(RMCommunicator.class, "Allocator Thread", "Allocator thread started");
-        XTraceContext.clearThreadContext();
         while (!stopped.get() && !Thread.currentThread().isInterrupted()) {
           try {
             Thread.sleep(rmPollInterval);

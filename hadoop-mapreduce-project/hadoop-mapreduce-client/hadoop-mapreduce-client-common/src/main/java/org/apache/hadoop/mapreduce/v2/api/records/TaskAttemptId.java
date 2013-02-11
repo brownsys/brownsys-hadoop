@@ -18,6 +18,11 @@
 
 package org.apache.hadoop.mapreduce.v2.api.records;
 
+import java.util.Collection;
+
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
+
 /**
  * <p>
  * <code>TaskAttemptId</code> represents the unique identifier for a task
@@ -32,6 +37,17 @@ package org.apache.hadoop.mapreduce.v2.api.records;
  * </p>
  */
 public abstract class TaskAttemptId implements Comparable<TaskAttemptId> {
+  
+  private Collection<XTraceMetadata> xtrace_context;
+
+  public void rememberContext() {
+    this.xtrace_context = XTraceContext.getThreadContext();
+  }
+  
+  public void joinContext() {
+    XTraceContext.joinContext(this.xtrace_context);
+  }
+  
   /**
    * @return the associated TaskId.
    */

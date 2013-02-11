@@ -36,8 +36,12 @@ import org.apache.hadoop.mapreduce.task.MapContextImpl;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
+
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -251,6 +255,7 @@ public class MultithreadedMapper<K1, V1, K2, V2>
     private Context subcontext;
     private Throwable throwable;
     private RecordReader<K1,V1> reader = new SubMapRecordReader();
+    private Collection<XTraceMetadata> xtrace_context;
 
     MapRunner(Context context) throws IOException, InterruptedException {
       mapper = ReflectionUtils.newInstance(mapClass, 
@@ -265,10 +270,12 @@ public class MultithreadedMapper<K1, V1, K2, V2>
                                            outer.getInputSplit());
       subcontext = new WrappedMapper<K1, V1, K2, V2>().getMapContext(mapContext);
       reader.initialize(context.getInputSplit(), context);
+      this.xtrace_context = XTraceContext.getThreadContext();
     }
 
     @Override
     public void run() {
+      XTraceContext.joinContext(xtrace_context);
       try {
         mapper.run(subcontext);
         reader.close();

@@ -19,6 +19,7 @@
 package org.apache.hadoop.yarn.server.nodemanager;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
@@ -37,6 +38,9 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
 
 public class DeletionService extends AbstractService {
   static final Log LOG = LogFactory.getLog(DeletionService.class);
@@ -119,13 +123,16 @@ public class DeletionService extends AbstractService {
     final String user;
     final Path subDir;
     final Path[] baseDirs;
+    private Collection<XTraceMetadata> xtrace_context;
     FileDeletion(String user, Path subDir, Path[] baseDirs) {
       this.user = user;
       this.subDir = subDir;
       this.baseDirs = baseDirs;
+      this.xtrace_context = XTraceContext.getThreadContext();
     }
     @Override
     public void run() {
+      XTraceContext.joinContext(xtrace_context);
       if (null == user) {
         if (baseDirs == null || baseDirs.length == 0) {
           LOG.debug("NM deleting absolute path : " + subDir);
@@ -155,6 +162,7 @@ public class DeletionService extends AbstractService {
           LOG.warn("Failed to delete as user " + user, e);
         }
       }
+      XTraceContext.clearThreadContext();
     }
   }
 }
