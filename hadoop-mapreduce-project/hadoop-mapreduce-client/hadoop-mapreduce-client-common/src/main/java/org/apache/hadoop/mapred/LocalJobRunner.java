@@ -130,6 +130,7 @@ public class LocalJobRunner implements ClientProtocol {
     boolean killed = false;
     
     private LocalDistributedCacheManager localDistributedCacheManager;
+    private Collection<XTraceMetadata> xtrace_context;
 
     public long getProtocolVersion(String protocol, long clientVersion) {
       return TaskUmbilicalProtocol.versionID;
@@ -180,6 +181,8 @@ public class LocalJobRunner implements ClientProtocol {
           profile.getURL().toString());
 
       jobs.put(id, this);
+      
+      this.xtrace_context = XTraceContext.getThreadContext();
 
       this.start();
     }
@@ -245,6 +248,7 @@ public class LocalJobRunner implements ClientProtocol {
         } catch (Throwable e) {
           this.storedException = e;
         }
+        this.xtrace_context = XTraceContext.getThreadContext();
         XTraceContext.clearThreadContext();
       }
     }
@@ -348,6 +352,8 @@ public class LocalJobRunner implements ClientProtocol {
 
     @Override
     public void run() {
+      XTraceContext.setThreadContext(xtrace_context);
+      
       JobID jobId = profile.getJobID();
       JobContext jContext = new JobContextImpl(job, jobId);
       
@@ -397,7 +403,13 @@ public class LocalJobRunner implements ClientProtocol {
           mapService.shutdownNow();
           throw ie;
         }
-
+        
+        XTraceContext.clearThreadContext();
+        for (MapTaskRunnable r : taskRunnables) {
+          XTraceContext.joinContext(r.xtrace_context);
+        }
+        
+        XTraceContext.logEvent(Job.class, "Job", "Map tasks complete");
         LOG.info("Map task executor complete.");
 
         // After waiting for the map tasks to complete, if any of these

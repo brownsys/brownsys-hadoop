@@ -117,11 +117,12 @@ public class TaskHeartbeatHandler extends AbstractService {
     ReportTime time = runningAttempts.get(attemptID);
     if(time != null) {
       time.setLastProgress(clock.getTime());
+      attemptID.rememberContext();
     }
   }
 
-  
   public void register(TaskAttemptId attemptID) {
+    attemptID.rememberContext();
     runningAttempts.put(attemptID, new ReportTime(clock.getTime()));
   }
 
@@ -130,17 +131,9 @@ public class TaskHeartbeatHandler extends AbstractService {
   }
 
   private class PingChecker implements Runnable {
-    
-    private Collection<XTraceMetadata> xtrace_context;
-
-    public PingChecker() {
-      this.xtrace_context = XTraceContext.getThreadContext();
-    }
 
     @Override
     public void run() {
-      XTraceContext.setThreadContext(xtrace_context);
-      XTraceContext.logEvent(PingChecker.class, "Ping Checker", "Ping checker thread started");
       while (!stopped && !Thread.currentThread().isInterrupted()) {
         Iterator<Map.Entry<TaskAttemptId, ReportTime>> iterator =
             runningAttempts.entrySet().iterator();
@@ -155,12 +148,14 @@ public class TaskHeartbeatHandler extends AbstractService {
            
           if(taskTimedOut) {
             // task is lost, remove from the list and raise lost event
+            entry.getKey().joinContext();
             iterator.remove();
             eventHandler.handle(new TaskAttemptDiagnosticsUpdateEvent(entry
                 .getKey(), "AttemptID:" + entry.getKey().toString()
                 + " Timed out after " + taskTimeOut / 1000 + " secs"));
             eventHandler.handle(new TaskAttemptEvent(entry.getKey(),
                 TaskAttemptEventType.TA_TIMED_OUT));
+            XTraceContext.clearThreadContext();
           }
         }
         try {
