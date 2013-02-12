@@ -26,9 +26,6 @@ import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 
-import edu.berkeley.xtrace.XTraceContext;
-import edu.berkeley.xtrace.hadoop.XTraceLevel;
-
 /** 
  * Manages ResourceManager audit logs. 
  *
@@ -97,8 +94,6 @@ public class RMAuditLogger {
    */
   public static void logSuccess(String user, String operation, String target, 
       ApplicationId appId, ContainerId containerId) {
-	XTraceContext.logEvent(RMAuditLogger.class, "RMAuditLogger", createSuccessLog(user, operation, target, appId, null, 
-	          containerId));
     if (LOG.isInfoEnabled()) {
       LOG.info(createSuccessLog(user, operation, target, appId, null, 
           containerId));
@@ -120,8 +115,6 @@ public class RMAuditLogger {
    */
   public static void logSuccess(String user, String operation, String target, 
       ApplicationId appId, ApplicationAttemptId attemptId) {
-	XTraceContext.logEvent(RMAuditLogger.class, "RMAuditLogger", createSuccessLog(user, operation, target, appId, attemptId,
-          null));
     if (LOG.isInfoEnabled()) {
       LOG.info(createSuccessLog(user, operation, target, appId, attemptId,
           null));
@@ -143,7 +136,6 @@ public class RMAuditLogger {
    */
   public static void logSuccess(String user, String operation, String target,
       ApplicationId appId) {
-		XTraceContext.logEvent(RMAuditLogger.class, "RMAuditLogger", createSuccessLog(user, operation, target, appId, null, null));
     if (LOG.isInfoEnabled()) {
       LOG.info(createSuccessLog(user, operation, target, appId, null, null));
     }
@@ -161,7 +153,6 @@ public class RMAuditLogger {
    * and hence the value fields should not contains tabs ('\t').
    */
   public static void logSuccess(String user, String operation, String target) {
-		XTraceContext.logEvent(RMAuditLogger.class, "RMAuditLogger", createSuccessLog(user, operation, target, null, null, null));
     if (LOG.isInfoEnabled()) {
       LOG.info(createSuccessLog(user, operation, target, null, null, null));
     }
@@ -212,7 +203,6 @@ public class RMAuditLogger {
   public static void logFailure(String user, String operation, String perm,
       String target, String description, ApplicationId appId, 
       ContainerId containerId) {
-	XTraceContext.logEvent(RMAuditLogger.class, "RMAuditLogger", createFailureLog(user, operation, perm, target, description, appId, null, containerId));
     if (LOG.isWarnEnabled()) {
       LOG.warn(createFailureLog(user, operation, perm, target, description,
           appId, null, containerId));
@@ -237,7 +227,6 @@ public class RMAuditLogger {
   public static void logFailure(String user, String operation, String perm,
       String target, String description, ApplicationId appId, 
       ApplicationAttemptId attemptId) {
-	XTraceContext.logEvent(RMAuditLogger.class, "RMAuditLogger", createFailureLog(user, operation, perm, target, description, appId, attemptId, null));
     if (LOG.isWarnEnabled()) {
       LOG.warn(createFailureLog(user, operation, perm, target, description,
           appId, attemptId, null));
@@ -262,7 +251,6 @@ public class RMAuditLogger {
    */
   public static void logFailure(String user, String operation, String perm,
       String target, String description, ApplicationId appId) {
-	XTraceContext.logEvent(RMAuditLogger.class, "RMAuditLogger", createFailureLog(user, operation, perm, target, description, appId, null, null));
     if (LOG.isWarnEnabled()) {
       LOG.warn(createFailureLog(user, operation, perm, target, description,
           appId, null, null));
@@ -285,7 +273,6 @@ public class RMAuditLogger {
    */
   public static void logFailure(String user, String operation, String perm,
       String target, String description) {
-	XTraceContext.logEvent(RMAuditLogger.class, "RMAuditLogger", createFailureLog(user, operation, perm, target, description, null, null, null));
     if (LOG.isWarnEnabled()) {
       LOG.warn(createFailureLog(user, operation, perm, target, description,
           null, null, null));

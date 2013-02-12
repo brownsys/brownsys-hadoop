@@ -135,8 +135,6 @@ public class JobHistoryEventHandler extends AbstractService
       throw new YarnException(e);
     }
     
-    XTraceContext.logEvent(JobHistoryEventHandler.class, "JobHistory", "Initializing Job History", "Staging Dir", stagingDirStr, "Done Dir", doneDirStr, "User Done Dir", userDoneDirStr);
-
     //Check for the existence of the history staging dir. Maybe create it. 
     try {
       stagingDirPath =
