@@ -409,7 +409,7 @@ final public class StateMachineFactory
    */
   public StateMachine<STATE, EVENTTYPE, EVENT>
         make(OPERAND operand, STATE initialState) {
-    return new InternalStateMachine(operand, initialState);
+    return new InternalStateMachine(operand, initialState, xtrace_id_seed++);
   }
 
   /* 
@@ -444,9 +444,11 @@ final public class StateMachineFactory
       if (!optimized) {
         maybeMakeStateMachineTable();
       }
-      this.lifecycle_context = XTraceContext.getThreadContext();
+      Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
       this.xtrace_agent = operand.getClass().getSimpleName()+"-"+xtrace_id_seed;
       XTraceContext.logEvent(operand.getClass(), xtrace_agent, "StateMachine initialized", "StartState", xtraceStateName(currentState));
+      this.lifecycle_context = XTraceContext.getThreadContext();
+      XTraceContext.setThreadContext(start_context);
     }
 
     @Override
@@ -459,10 +461,10 @@ final public class StateMachineFactory
          throws InvalidStateTransitonException  {
     	/* Coming into a transition, there can be two valid contexts - the current thread context,
     	 * and the thread context left over from the previous lifecycle transition. */
-      boolean restoreThreadContext = XTraceContext.isValid();
+      Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
       boolean restoreLifecycleContext = this.lifecycle_context!=null;
     
-    try {
+      try {
         XTraceContext.joinContext(this.lifecycle_context);
   			XTraceContext.logEvent(operand.getClass(), xtrace_agent, event.toString(), "StartState", xtraceStateName(currentState));
   			
@@ -475,7 +477,7 @@ final public class StateMachineFactory
   			return currentState;
   		} finally {
   			this.lifecycle_context = restoreLifecycleContext ? XTraceContext.getThreadContext() : null;
-  			if (!restoreThreadContext) { XTraceContext.clearThreadContext(); }
+  			XTraceContext.setThreadContext(start_context);
   		}
     }
   }
