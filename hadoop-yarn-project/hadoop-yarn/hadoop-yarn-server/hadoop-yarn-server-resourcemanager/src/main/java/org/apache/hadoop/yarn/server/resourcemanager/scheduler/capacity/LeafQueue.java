@@ -67,6 +67,8 @@ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.common.fica.FiCaS
 import org.apache.hadoop.yarn.server.resourcemanager.security.RMContainerTokenSecretManager;
 import org.apache.hadoop.yarn.util.BuilderUtils;
 
+import edu.berkeley.xtrace.XTraceContext;
+
 @Private
 @Unstable
 public class LeafQueue implements CSQueue {
@@ -1221,86 +1223,94 @@ public class LeafQueue implements CSQueue {
   private Resource assignContainer(Resource clusterResource, FiCaSchedulerNode node, 
       FiCaSchedulerApp application, Priority priority, 
       ResourceRequest request, NodeType type, RMContainer rmContainer) {
-    if (LOG.isDebugEnabled()) {
-      LOG.debug("assignContainers: node=" + node.getHostName()
-        + " application=" + application.getApplicationId().getId()
-        + " priority=" + priority.getPriority()
-        + " request=" + request + " type=" + type);
-    }
-    Resource capability = request.getCapability();
-
-    Resource available = node.getAvailableResource();
-
-    assert (available.getMemory() >  0);
-
-    // Create the container if necessary
-    Container container = 
-        getContainer(rmContainer, application, node, capability, priority);
+    Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
+    XTraceContext.clearThreadContext();
+    request.joinContext();
+    
+    try {
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("assignContainers: node=" + node.getHostName()
+          + " application=" + application.getApplicationId().getId()
+          + " priority=" + priority.getPriority()
+          + " request=" + request + " type=" + type);
+      }
+      Resource capability = request.getCapability();
   
-    // something went wrong getting/creating the container 
-    if (container == null) {
-      return Resources.none();
-    }
-
-    // Can we allocate a container on this node?
-    int availableContainers = 
-        available.getMemory() / capability.getMemory();         
-    if (availableContainers > 0) {
-      // Allocate...
-
-      // Did we previously reserve containers at this 'priority'?
-      if (rmContainer != null){
-        unreserve(application, priority, node, rmContainer);
-      }
-
-      // Create container tokens in secure-mode
-      if (UserGroupInformation.isSecurityEnabled()) {
-        ContainerToken containerToken = 
-            createContainerToken(application, container);
-        if (containerToken == null) {
-          // Something went wrong...
-          return Resources.none();
-        }
-        container.setContainerToken(containerToken);
-      }
-      
-      // Inform the application
-      RMContainer allocatedContainer = 
-          application.allocate(type, node, priority, request, container);
-      if (allocatedContainer == null) {
-        // Did the application need this resource?
+      Resource available = node.getAvailableResource();
+  
+      assert (available.getMemory() >  0);
+  
+      // Create the container if necessary
+      Container container = 
+          getContainer(rmContainer, application, node, capability, priority);
+    
+      // something went wrong getting/creating the container 
+      if (container == null) {
         return Resources.none();
       }
-
-      // Inform the node
-      node.allocateContainer(application.getApplicationId(), 
-          allocatedContainer);
-
-      LOG.info("assignedContainer" +
-          " application=" + application.getApplicationId() +
-          " container=" + container + 
-          " containerId=" + container.getId() + 
-          " queue=" + this + 
-          " usedCapacity=" + getUsedCapacity() +
-          " absoluteUsedCapacity=" + getAbsoluteUsedCapacity() +
-          " used=" + usedResources + 
-          " cluster=" + clusterResource);
-
-      return container.getResource();
-    } else {
-      // Reserve by 'charging' in advance...
-      reserve(application, priority, node, rmContainer, container);
-
-      LOG.info("Reserved container " + 
-          " application=" + application.getApplicationId() +
-          " resource=" + request.getCapability() + 
-          " queue=" + this.toString() + 
-          " usedCapacity=" + getUsedCapacity() +
-          " absoluteUsedCapacity=" + getAbsoluteUsedCapacity() +
-          " used=" + usedResources + 
-          " cluster=" + clusterResource);
-
-      return request.getCapability();
+  
+      // Can we allocate a container on this node?
+      int availableContainers = 
+          available.getMemory() / capability.getMemory();         
+      if (availableContainers > 0) {
+        // Allocate...
+  
+        // Did we previously reserve containers at this 'priority'?
+        if (rmContainer != null){
+          unreserve(application, priority, node, rmContainer);
+        }
+  
+        // Create container tokens in secure-mode
+        if (UserGroupInformation.isSecurityEnabled()) {
+          ContainerToken containerToken = 
+              createContainerToken(application, container);
+          if (containerToken == null) {
+            // Something went wrong...
+            return Resources.none();
+          }
+          container.setContainerToken(containerToken);
+        }
+        
+        // Inform the application
+        RMContainer allocatedContainer = 
+            application.allocate(type, node, priority, request, container);
+        if (allocatedContainer == null) {
+          // Did the application need this resource?
+          return Resources.none();
+        }
+  
+        // Inform the node
+        node.allocateContainer(application.getApplicationId(), 
+            allocatedContainer);
+  
+        LOG.info("assignedContainer" +
+            " application=" + application.getApplicationId() +
+            " container=" + container + 
+            " containerId=" + container.getId() + 
+            " queue=" + this + 
+            " usedCapacity=" + getUsedCapacity() +
+            " absoluteUsedCapacity=" + getAbsoluteUsedCapacity() +
+            " used=" + usedResources + 
+            " cluster=" + clusterResource);
+  
+        return container.getResource();
+      } else {
+        // Reserve by 'charging' in advance...
+        reserve(application, priority, node, rmContainer, container);
+  
+        LOG.info("Reserved container " + 
+            " application=" + application.getApplicationId() +
+            " resource=" + request.getCapability() + 
+            " queue=" + this.toString() + 
+            " usedCapacity=" + getUsedCapacity() +
+            " absoluteUsedCapacity=" + getAbsoluteUsedCapacity() +
+            " used=" + usedResources + 
+            " cluster=" + clusterResource);
+  
+        return request.getCapability();
+      }
+    } finally {
+      XTraceContext.setThreadContext(start_context);      
     }
   }
 
