@@ -314,6 +314,7 @@ public class YARNRunner implements ClientProtocol {
     rsrc.setTimestamp(rsrcStat.getModificationTime());
     rsrc.setType(type);
     rsrc.setVisibility(LocalResourceVisibility.APPLICATION);
+    rsrc.rememberContext();
     return rsrc;
   }
 
