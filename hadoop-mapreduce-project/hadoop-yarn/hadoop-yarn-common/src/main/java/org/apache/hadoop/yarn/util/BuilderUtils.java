@@ -117,6 +117,7 @@ public class BuilderUtils {
     resource.setVisibility(visibility);
     resource.setSize(size);
     resource.setTimestamp(timestamp);
+    resource.rememberContext();
     return resource;
   }
 
@@ -175,6 +176,7 @@ public class BuilderUtils {
     ContainerId id = recordFactory.newRecordInstance(ContainerId.class);
     id.setId(containerId);
     id.setApplicationAttemptId(appAttemptId);
+    id.rememberContext();
     return id;
   }
 
@@ -193,6 +195,7 @@ public class BuilderUtils {
     ContainerId id = recordFactory.newRecordInstance(ContainerId.class);
     id.setId(containerId);
     id.setApplicationAttemptId(appAttemptId);
+    id.rememberContext();
     return id;
   }
 
@@ -202,6 +205,7 @@ public class BuilderUtils {
     ContainerId id = recordFactory.newRecordInstance(ContainerId.class);
     id.setApplicationAttemptId(appAttemptId);
     id.setId(containerId);
+    id.rememberContext();
     return id;
   }
 
@@ -317,6 +321,7 @@ public class BuilderUtils {
     request.setHostName(hostName);
     request.setCapability(capability);
     request.setNumContainers(numContainers);
+    request.rememberContext();
     return request;
   }
 
@@ -327,6 +332,7 @@ public class BuilderUtils {
     request.setHostName(r.getHostName());
     request.setCapability(r.getCapability());
     request.setNumContainers(r.getNumContainers());
+    request.rememberContext();
     return request;
   }
 

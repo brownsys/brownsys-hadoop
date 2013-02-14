@@ -433,6 +433,7 @@ public class Client {
     fs.copyFromLocalFile(false, true, src, dst);
     FileStatus destStatus = fs.getFileStatus(dst);
     LocalResource amJarRsrc = Records.newRecord(LocalResource.class);
+    amJarRsrc.rememberContext();
 
     // Set the type of resource - file or archive
     // archives are untarred at destination

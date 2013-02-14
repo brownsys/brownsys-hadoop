@@ -672,6 +672,7 @@ public class ApplicationMaster {
         }
         shellRsrc.setTimestamp(shellScriptPathTimestamp);
         shellRsrc.setSize(shellScriptPathLen);
+        shellRsrc.rememberContext();
         localResources.put(ExecShellStringPath, shellRsrc);
       }
       ctx.setLocalResources(localResources);

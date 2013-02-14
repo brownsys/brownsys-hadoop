@@ -19,6 +19,7 @@
 package org.apache.hadoop.mapreduce.v2.app.rm;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -64,6 +65,8 @@ import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
 import org.apache.hadoop.yarn.util.RackResolver;
 
 import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
+import edu.berkeley.xtrace.XTraceMetadataCollection;
 
 /**
  * Allocates the container from the ResourceManager scheduler.
@@ -707,7 +710,11 @@ public class RMContainerAllocator extends RMContainerRequestor
       Iterator<Container> it = allocatedContainers.iterator();
       LOG.info("Got allocated containers " + allocatedContainers.size());
       containersAllocated += allocatedContainers.size();
+      
+      Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
+      Collection<XTraceMetadata> end_contexts = new XTraceMetadataCollection();
       while (it.hasNext()) {
+        XTraceContext.setThreadContext(start_context);
         Container allocated = it.next();
         if (LOG.isDebugEnabled()) {
           LOG.debug("Assigning container " + allocated.getId()
@@ -749,6 +756,7 @@ public class RMContainerAllocator extends RMContainerRequestor
         ContainerRequest assigned = null;
         
         ContainerId allocatedContainerId = allocated.getId();
+        allocatedContainerId.joinContext();
         if (isAssignable) {
           // do not assign if allocated container is on a  
           // blacklisted host
@@ -818,7 +826,9 @@ public class RMContainerAllocator extends RMContainerRequestor
           containersReleased++;
           release(allocatedContainerId);
         }
+        end_contexts = XTraceContext.getThreadContext(end_contexts);
       }
+      XTraceContext.joinContext(end_contexts);
     }
     
     private ContainerRequest assign(Container allocated) {
