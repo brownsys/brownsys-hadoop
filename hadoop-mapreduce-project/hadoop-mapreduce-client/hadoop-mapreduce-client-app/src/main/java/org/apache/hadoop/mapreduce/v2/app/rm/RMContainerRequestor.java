@@ -48,6 +48,7 @@ import org.apache.hadoop.yarn.factories.RecordFactory;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
 import org.apache.hadoop.yarn.util.BuilderUtils;
 
+import edu.berkeley.xtrace.XTraceContext;
 
 /**
  * Keeps the data structures to send container requests to RM.
@@ -234,6 +235,7 @@ public abstract class RMContainerRequestor extends RMCommunicator {
               // specified for the blacklisted host to be 0.
               ResourceRequest zeroedRequest = BuilderUtils.newResourceRequest(req);
               zeroedRequest.setNumContainers(0);
+              zeroedRequest.rememberContext();
               // to be sent to RM on next heartbeat
               ask.add(zeroedRequest);
             }
@@ -318,6 +320,7 @@ public abstract class RMContainerRequestor extends RMCommunicator {
       reqMap.put(capability, remoteRequest);
     }
     remoteRequest.setNumContainers(remoteRequest.getNumContainers() + 1);
+    remoteRequest.rememberContext();
 
     // Note this down for next interaction with ResourceManager
     ask.add(remoteRequest);
@@ -354,6 +357,7 @@ public abstract class RMContainerRequestor extends RMCommunicator {
     }
 
     remoteRequest.setNumContainers(remoteRequest.getNumContainers() -1);
+    remoteRequest.rememberContext();
     if (remoteRequest.getNumContainers() == 0) {
       reqMap.remove(capability);
       if (reqMap.size() == 0) {
@@ -378,6 +382,7 @@ public abstract class RMContainerRequestor extends RMCommunicator {
   }
 
   protected void release(ContainerId containerId) {
+    containerId.rememberContext();
     release.add(containerId);
   }
   

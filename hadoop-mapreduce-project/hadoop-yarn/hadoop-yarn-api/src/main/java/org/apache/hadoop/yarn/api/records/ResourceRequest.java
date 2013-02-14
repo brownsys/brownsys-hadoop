@@ -54,20 +54,6 @@ import edu.berkeley.xtrace.XTraceMetadata;
 @Public
 @Stable
 public abstract class ResourceRequest implements Comparable<ResourceRequest> {
-//  
-//  Collection<XTraceMetadata> ctxs = null;
-//  
-//  public void rememberContext() {
-//    if (ctxs == null) {
-//      ctxs = XTraceContext.getThreadContext();
-//    } else {
-//      ctxs.addAll(XTraceContext.getThreadContext());
-//    }
-//  }
-//  
-//  public void joinContext() {
-//    XTraceContext.joinContext(ctxs);
-//  }
   
   /**
    * Get the <code>Priority</code> of the request.
@@ -141,6 +127,10 @@ public abstract class ResourceRequest implements Comparable<ResourceRequest> {
   @Public
   @Stable
   public abstract void setNumContainers(int numContainers);
+
+  
+  public abstract void rememberContext();
+  public abstract void joinContext();
 
   @Override
   public int hashCode() {

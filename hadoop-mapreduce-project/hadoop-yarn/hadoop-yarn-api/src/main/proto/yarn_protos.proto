@@ -42,6 +42,7 @@ message ContainerIdProto {
   optional ApplicationIdProto app_id = 1;
   optional ApplicationAttemptIdProto app_attempt_id = 2;
   optional int32 id = 3;
+  optional bytes xtrace = 4; // X-Trace metadata
 }
 
 message ResourceProto {
@@ -213,6 +214,7 @@ message ResourceRequestProto {
   optional string host_name = 2;
   optional ResourceProto capability = 3;
   optional int32 num_containers = 4;
+  optional bytes xtrace = 5; // X-Trace metadata
 }
 
 message AMResponseProto {
