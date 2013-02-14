@@ -18,11 +18,15 @@
 
 package org.apache.hadoop.yarn.api.records.impl.pb;
 
+import com.google.protobuf.ByteString;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.proto.YarnProtos.ApplicationAttemptIdProto;
 import org.apache.hadoop.yarn.proto.YarnProtos.ContainerIdProto;
 import org.apache.hadoop.yarn.proto.YarnProtos.ContainerIdProtoOrBuilder;
+
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
 
     
 public class ContainerIdPBImpl extends ContainerId {
@@ -104,6 +108,27 @@ public class ContainerIdPBImpl extends ContainerId {
     if (atId == null) 
       builder.clearAppAttemptId();
     this.applicationAttemptId = atId;
+  }
+
+  @Override
+  public void rememberContext() {
+    maybeInitBuilder();
+    XTraceMetadata ctx = XTraceContext.logMerge();
+    if (ctx!=null && ctx.isValid()) {
+      builder.setXtrace(ByteString.copyFrom(ctx.pack()));
+    }    
+  }
+  
+  @Override
+  public void joinContext() {
+    ContainerIdProtoOrBuilder p = viaProto ? proto : builder;
+    if (p.hasXtrace()) {
+      ByteString xbs = p.getXtrace();
+      XTraceMetadata xmd = XTraceMetadata.createFromBytes(xbs.toByteArray(), 0, xbs.size());
+      if (xmd.isValid()) {
+        XTraceContext.joinContext(xmd);
+      }
+    }    
   }
 
   private ApplicationAttemptIdPBImpl convertFromProtoFormat(

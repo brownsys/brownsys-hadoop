@@ -19,6 +19,7 @@
 package org.apache.hadoop.yarn.api.records.impl.pb;
 
 
+import com.google.protobuf.ByteString;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.api.records.ResourceRequest;
@@ -26,6 +27,9 @@ import org.apache.hadoop.yarn.proto.YarnProtos.PriorityProto;
 import org.apache.hadoop.yarn.proto.YarnProtos.ResourceProto;
 import org.apache.hadoop.yarn.proto.YarnProtos.ResourceRequestProto;
 import org.apache.hadoop.yarn.proto.YarnProtos.ResourceRequestProtoOrBuilder;
+
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
 
 public class ResourceRequestPBImpl extends  ResourceRequest {
   ResourceRequestProto proto = ResourceRequestProto.getDefaultInstance();
@@ -145,6 +149,27 @@ public class ResourceRequestPBImpl extends  ResourceRequest {
   public void setNumContainers(int numContainers) {
     maybeInitBuilder();
     builder.setNumContainers((numContainers));
+  }
+
+  @Override
+  public void rememberContext() {
+    maybeInitBuilder();
+    XTraceMetadata ctx = XTraceContext.logMerge();
+    if (ctx!=null && ctx.isValid()) {
+      builder.setXtrace(ByteString.copyFrom(ctx.pack()));
+    }    
+  }
+  
+  @Override
+  public void joinContext() {
+    ResourceRequestProtoOrBuilder p = viaProto ? proto : builder;
+    if (p.hasXtrace()) {
+      ByteString xbs = p.getXtrace();
+      XTraceMetadata xmd = XTraceMetadata.createFromBytes(xbs.toByteArray(), 0, xbs.size());
+      if (xmd.isValid()) {
+        XTraceContext.joinContext(xmd);
+      }
+    }    
   }
 
   private PriorityPBImpl convertFromProtoFormat(PriorityProto p) {
