@@ -34,6 +34,7 @@ import org.apache.hadoop.yarn.service.AbstractService;
 
 import edu.berkeley.xtrace.XTraceContext;
 import edu.berkeley.xtrace.XTraceMetadata;
+import edu.berkeley.xtrace.XTraceMetadataCollection;
 
 /**
  * Dispatches events in a separate thread. Currently only single thread does
@@ -206,12 +207,12 @@ public class AsyncDispatcher extends AbstractService implements Dispatcher {
     @Override
     public void handle(Event event) {
       Collection<XTraceMetadata> start_xtrace_context = XTraceContext.getThreadContext();
-      Collection<XTraceMetadata> result_xtrace_contexts = new ArrayList<XTraceMetadata>();
+      Collection<XTraceMetadata> result_xtrace_contexts = new XTraceMetadataCollection();
       for (EventHandler<Event> handler: listofHandlers) {
+        XTraceContext.setThreadContext(start_xtrace_context);
         event.joinContext();
         handler.handle(event);
-        result_xtrace_contexts.addAll(XTraceContext.getThreadContext());
-        XTraceContext.setThreadContext(start_xtrace_context);
+        result_xtrace_contexts = XTraceContext.getThreadContext(result_xtrace_contexts);
       }
       XTraceContext.setThreadContext(result_xtrace_contexts);
     }
