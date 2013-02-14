@@ -349,8 +349,7 @@ public class ResourceLocalizationService extends CompositeService
       for (LocalResourceRequest req : e.getValue()) {
     	  XTraceContext.setThreadContext(startCtx);
         tracker.handle(new ResourceRequestEvent(req, e.getKey(), ctxt));
-        endCtxs.addAll(XTraceContext.getThreadContext());
-        XTraceContext.clearThreadContext();
+        endCtxs = XTraceContext.getThreadContext(endCtxs);
       }
     }
     XTraceContext.joinContext(endCtxs);
