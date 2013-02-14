@@ -238,7 +238,6 @@ public abstract class RMContainerRequestor extends RMCommunicator {
               // specified for the blacklisted host to be 0.
               ResourceRequest zeroedRequest = BuilderUtils.newResourceRequest(req);
               zeroedRequest.setNumContainers(0);
-              zeroedRequest.rememberContext();
               // to be sent to RM on next heartbeat
               addResourceRequestToAsk(zeroedRequest);
             }

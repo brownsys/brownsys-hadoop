@@ -91,6 +91,7 @@ import org.apache.hadoop.yarn.util.BuilderUtils;
 
 import edu.berkeley.xtrace.XTraceContext;
 import edu.berkeley.xtrace.XTraceMetadata;
+import edu.berkeley.xtrace.XTraceMetadataCollection;
 
 @LimitedPrivate("yarn")
 @Evolving
@@ -239,8 +240,10 @@ public class FifoScheduler implements ResourceScheduler, Configurable {
         clusterResource, minimumAllocation);
 
     // Release containers
-    XTraceContext.clearThreadContext();
+    Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
+    Collection<XTraceMetadata> end_context = new XTraceMetadataCollection();
     for (ContainerId releasedContainer : release) {
+      XTraceContext.setThreadContext(start_context);
       releasedContainer.joinContext();
       RMContainer rmContainer = getRMContainer(releasedContainer);
       if (rmContainer == null) {
@@ -255,8 +258,10 @@ public class FifoScheduler implements ResourceScheduler, Configurable {
               releasedContainer, 
               SchedulerUtils.RELEASED_CONTAINER),
           RMContainerEventType.RELEASED);
+      end_context = XTraceContext.getThreadContext(end_context);
       XTraceContext.clearThreadContext();
     }
+    XTraceContext.joinContext(end_context);
 
     synchronized (application) {
       if (!ask.isEmpty()) {

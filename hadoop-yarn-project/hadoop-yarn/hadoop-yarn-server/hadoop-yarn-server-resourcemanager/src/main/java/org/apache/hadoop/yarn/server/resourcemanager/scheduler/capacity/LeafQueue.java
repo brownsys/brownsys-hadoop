@@ -20,6 +20,7 @@ package org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -68,6 +69,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.security.RMContainerTokenSe
 import org.apache.hadoop.yarn.util.BuilderUtils;
 
 import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
 
 @Private
 @Unstable
@@ -1257,6 +1259,7 @@ public class LeafQueue implements CSQueue {
   private Resource assignContainer(Resource clusterResource, FiCaSchedulerNode node, 
       FiCaSchedulerApp application, Priority priority, 
       ResourceRequest request, NodeType type, RMContainer rmContainer) {
+    Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
     XTraceContext.clearThreadContext();
     request.joinContext();
     
@@ -1347,7 +1350,7 @@ public class LeafQueue implements CSQueue {
         return request.getCapability();
       }
     } finally {
-      XTraceContext.clearThreadContext();
+      XTraceContext.setThreadContext(start_context);
     }
   }
 
