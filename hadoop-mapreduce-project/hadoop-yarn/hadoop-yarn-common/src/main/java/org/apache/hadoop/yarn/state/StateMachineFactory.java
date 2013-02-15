@@ -436,6 +436,7 @@ final public class StateMachineFactory
     private STATE currentState;
     private Collection<XTraceMetadata> lifecycle_context;
     private String xtrace_agent;
+    private Collection<XTraceMetadata> xtrace_context_before_previous_transition;
 
     InternalStateMachine(OPERAND operand, STATE initialState, int xtrace_id_seed) {
       this.operand = operand;
@@ -445,6 +446,7 @@ final public class StateMachineFactory
       }
       Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
       this.xtrace_agent = operand.getClass().getSimpleName()+"-"+xtrace_id_seed;
+      this.xtrace_context_before_previous_transition = XTraceContext.getThreadContext();
       XTraceContext.logEvent(operand.getClass(), xtrace_agent, "StateMachine initialized", "StartState", xtraceStateName(currentState));
       this.lifecycle_context = XTraceContext.getThreadContext();
       XTraceContext.setThreadContext(start_context);
@@ -464,7 +466,12 @@ final public class StateMachineFactory
       boolean restoreLifecycleContext = this.lifecycle_context!=null;
     
       try {
-        XTraceContext.joinContext(this.lifecycle_context);
+        if (XTraceContext.is(this.xtrace_context_before_previous_transition)) {
+          XTraceContext.setThreadContext(this.lifecycle_context);          
+        } else {
+          XTraceContext.joinContext(this.lifecycle_context);
+        }
+        
   			XTraceContext.logEvent(operand.getClass(), xtrace_agent, event.toString(), "StartState", xtraceStateName(currentState));
   			
   			try {
@@ -475,6 +482,7 @@ final public class StateMachineFactory
   			
   			return currentState;
   		} finally {
+  		  this.xtrace_context_before_previous_transition = restoreLifecycleContext ? start_context : null;
   			this.lifecycle_context = restoreLifecycleContext ? XTraceContext.getThreadContext() : null;
   			XTraceContext.setThreadContext(start_context);
   		}
