@@ -176,7 +176,6 @@ public class DefaultSpeculator extends AbstractService implements
             @Override
             public void run() {
               XTraceContext.joinContext(xtrace_context);
-              XTraceContext.logEvent(DefaultSpeculator.class, "Speculation Background Thread", "Speculation background thread started");
               while (!Thread.currentThread().isInterrupted()) {
                 long backgroundRunStartTime = clock.getTime();
                 try {
