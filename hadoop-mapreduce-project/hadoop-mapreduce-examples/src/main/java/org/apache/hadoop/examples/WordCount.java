@@ -31,6 +31,8 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.util.GenericOptionsParser;
 
+import edu.berkeley.xtrace.XTraceContext;
+
 public class WordCount {
 
   public static class TokenizerMapper 
@@ -42,6 +44,7 @@ public class WordCount {
     public void map(Object key, Text value, Context context
                     ) throws IOException, InterruptedException {
       StringTokenizer itr = new StringTokenizer(value.toString());
+      XTraceContext.logEvent(WordCount.class, "Map", "Map", "Key", key, "Value", value);
       while (itr.hasMoreTokens()) {
         word.set(itr.nextToken());
         context.write(word, one);
@@ -61,6 +64,24 @@ public class WordCount {
         sum += val.get();
       }
       result.set(sum);
+      XTraceContext.logEvent(WordCount.class, "Reduce", "Reduce", "Key", key, "Result", sum);
+      context.write(key, result);
+    }
+  }
+  
+  public static class IntSumCombiner 
+       extends Reducer<Text,IntWritable,Text,IntWritable> {
+    private IntWritable result = new IntWritable();
+
+    public void reduce(Text key, Iterable<IntWritable> values, 
+                       Context context
+                       ) throws IOException, InterruptedException {
+      int sum = 0;
+      for (IntWritable val : values) {
+        sum += val.get();
+      }
+      result.set(sum);
+      XTraceContext.logEvent(WordCount.class, "Combine", "Combine", "Key", key, "Result", sum);
       context.write(key, result);
     }
   }
@@ -75,7 +96,7 @@ public class WordCount {
     Job job = new Job(conf, "word count");
     job.setJarByClass(WordCount.class);
     job.setMapperClass(TokenizerMapper.class);
-    job.setCombinerClass(IntSumReducer.class);
+    job.setCombinerClass(IntSumCombiner.class);
     job.setReducerClass(IntSumReducer.class);
     job.setOutputKeyClass(Text.class);
     job.setOutputValueClass(IntWritable.class);
