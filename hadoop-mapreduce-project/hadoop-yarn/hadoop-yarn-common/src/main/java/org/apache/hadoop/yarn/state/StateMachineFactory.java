@@ -31,6 +31,7 @@ import org.apache.hadoop.io.compress.bzip2.CBZip2InputStream.STATE;
 import org.apache.hadoop.yarn.util.Graph;
 
 import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceEvent;
 import edu.berkeley.xtrace.XTraceMetadata;
 
 /**
@@ -434,9 +435,14 @@ final public class StateMachineFactory
         implements StateMachine<STATE, EVENTTYPE, EVENT> {
     private final OPERAND operand;
     private STATE currentState;
-    private Collection<XTraceMetadata> lifecycle_context;
+    
     private String xtrace_agent;
+    
+    private Collection<XTraceMetadata> lifecycle_context;
     private Collection<XTraceMetadata> xtrace_context_before_previous_transition;
+    
+    private EVENTTYPE previous_event_type;
+    private XTraceEvent previous_xtrace_event;
 
     InternalStateMachine(OPERAND operand, STATE initialState, int xtrace_id_seed) {
       this.operand = operand;
@@ -464,26 +470,37 @@ final public class StateMachineFactory
     	 * and the thread context left over from the previous lifecycle transition. */
       Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
       boolean restoreLifecycleContext = this.lifecycle_context!=null;
-    
-      try {
+      
+      if (eventType.equals(previous_event_type)) {
+        previous_xtrace_event.addEdges(start_context);
+        previous_xtrace_event.sendReport();
+        XTraceContext.setThreadContext(this.lifecycle_context);
+      } else {
         if (XTraceContext.is(this.xtrace_context_before_previous_transition)) {
           XTraceContext.setThreadContext(this.lifecycle_context);          
         } else {
           XTraceContext.joinContext(this.lifecycle_context);
         }
-        
-  			XTraceContext.logEvent(operand.getClass(), xtrace_agent, event.toString(), "StartState", xtraceStateName(currentState));
-  			
+        if (XTraceContext.isValid()) {
+          previous_xtrace_event = XTraceContext.createEvent(operand.getClass(), xtrace_agent, event.toString());
+          previous_xtrace_event.put("StartState", xtraceStateName(currentState));
+          previous_xtrace_event.sendReport();
+        }
+      }
+
+      STATE start_state = currentState;
+      Collection<XTraceMetadata> pre_transition_xtrace = XTraceContext.getThreadContext();
+      try {
   			try {
   				currentState = StateMachineFactory.this.doTransition(operand, currentState, eventType, event);
   			} catch (InvalidStateTransitonException e) {
   				throw e;
   			}
-  			
   			return currentState;
   		} finally {
+  		  this.previous_event_type = (restoreLifecycleContext && currentState.equals(start_state) && XTraceContext.is(pre_transition_xtrace)) ? eventType : null;
   		  this.xtrace_context_before_previous_transition = restoreLifecycleContext ? start_context : null;
-  			this.lifecycle_context = restoreLifecycleContext ? XTraceContext.getThreadContext() : null;
+  			this.lifecycle_context = restoreLifecycleContext ? pre_transition_xtrace : null;
   			XTraceContext.setThreadContext(start_context);
   		}
     }
