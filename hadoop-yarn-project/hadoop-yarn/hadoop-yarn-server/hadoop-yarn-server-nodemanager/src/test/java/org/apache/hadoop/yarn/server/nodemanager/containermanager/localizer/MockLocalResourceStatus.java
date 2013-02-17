@@ -79,4 +79,9 @@ public class MockLocalResourceStatus implements LocalResourceStatus {
   public int hashCode() {
     return 4344;
   }
+  @Override
+  public void rememberContext(){}
+  @Override
+  public void joinContext(){};
 }
+
