@@ -28,6 +28,10 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.yarn.YarnException;
 
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
+import edu.berkeley.xtrace.XTraceMetadataCollection;
+
 /**
  * Composition of services.
  */
@@ -85,22 +89,34 @@ public class CompositeService extends AbstractService {
       // The base composite-service is already stopped, don't do anything again.
       return;
     }
+    XTraceContext.logEvent(CompositeService.class, "Composite Service", "Stopping all services");
     if (serviceList.size() > 0) {
       stop(serviceList.size() - 1);
     }
+    XTraceContext.logEvent(CompositeService.class, "Composite Service", "All services stopped.  Stopping "+this.getName());
     super.stop();
+    XTraceContext.logEvent(CompositeService.class, "Composite Service", "Composite service is stopped");
   }
 
   private synchronized void stop(int numOfServicesStarted) {
     // stop in reserve order of start
+    Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
+    Collection<XTraceMetadata> end_context = new XTraceMetadataCollection();
     for (int i = numOfServicesStarted; i >= 0; i--) {
+      XTraceContext.setThreadContext(start_context);
       Service service = serviceList.get(i);
+      XTraceContext.logEvent(service.getClass(), service.getName(), "Stopping service "+i);
       try {
         service.stop();
+        XTraceContext.logEvent(service.getClass(), service.getName(), "Service is stopped.");
       } catch (Throwable t) {
         LOG.info("Error stopping " + service.getName(), t);
+        XTraceContext.logEvent(service.getClass(), service.getName(), "Error stopping service " + t.toString());
       }
+      XTraceContext.getThreadContext(end_context);
+      XTraceContext.clearThreadContext();
     }
+    XTraceContext.joinContext(end_context);
   }
 
   /**

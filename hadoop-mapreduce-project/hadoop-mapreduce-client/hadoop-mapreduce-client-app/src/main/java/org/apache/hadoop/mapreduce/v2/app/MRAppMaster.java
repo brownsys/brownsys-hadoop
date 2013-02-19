@@ -401,6 +401,7 @@ public class MRAppMaster extends CompositeService {
     @Override
     public void handle(JobFinishEvent event) {
       event.joinContext();
+      XTraceContext.logEvent(JobFinishEvent.class, "JobFinish", "Handling Job Finished Event");
       // job has finished
       // this is the only job, so shut down the Appmaster
       // note in a workflow scenario, this may lead to creation of a new
@@ -431,15 +432,18 @@ public class MRAppMaster extends CompositeService {
         // Stop all services
         // This will also send the final report to the ResourceManager
         LOG.info("Calling stop for all the services");
+        XTraceContext.logEvent(MRAppMaster.class, "MRAppMaster", "Calling stop for all MRAppMaster services");
         stop();
 
       } catch (Throwable t) {
         LOG.warn("Graceful stop failed ", t);
+        XTraceContext.logEvent(MRAppMaster.class, "MRAppMaster", "Graceful stop failed "+t.toString());
       }
 
       //Bring the process down by force.
       //Not needed after HADOOP-7140
       LOG.info("Exiting MR AppMaster..GoodBye!");
+      XTraceContext.logEvent(MRAppMaster.class, "MRAppMaster", "Exiting MR AppMaster..GoodBye!");
       sysexit();
     }
   }
