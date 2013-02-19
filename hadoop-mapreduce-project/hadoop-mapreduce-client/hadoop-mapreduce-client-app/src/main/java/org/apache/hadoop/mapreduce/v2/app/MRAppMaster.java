@@ -519,6 +519,7 @@ public class MRAppMaster extends CompositeService {
     // note in a workflow scenario, this may lead to creation of a new
     // job (FIXME?)
     // Send job-end notification
+    XTraceContext.logEvent(JobFinishEvent.class, "JobFinish", "Handling Job Finished Event");
     if (getConfig().get(MRJobConfig.MR_JOB_END_NOTIFICATION_URL) != null) {
       try {
         LOG.info("Job end notification started for jobID : "
