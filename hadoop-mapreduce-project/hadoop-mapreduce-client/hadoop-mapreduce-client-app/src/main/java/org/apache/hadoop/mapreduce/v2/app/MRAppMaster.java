@@ -561,7 +561,7 @@ public class MRAppMaster extends CompositeService {
  
   private class JobFinishEventHandler implements EventHandler<JobFinishEvent> {
     @Override
-    public void handle(JobFinishEvent event) {
+    public void handle(final JobFinishEvent event) {
       // Create a new thread to shutdown the AM. We should not do it in-line
       // to avoid blocking the dispatcher itself.
       new Thread() {

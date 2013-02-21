@@ -31,6 +31,7 @@ import org.apache.hadoop.yarn.util.Graph;
 
 import edu.berkeley.xtrace.XTraceContext;
 import edu.berkeley.xtrace.XTraceMetadata;
+import edu.berkeley.xtrace.XTraceEvent;
 
 /**
  * State machine topology.
