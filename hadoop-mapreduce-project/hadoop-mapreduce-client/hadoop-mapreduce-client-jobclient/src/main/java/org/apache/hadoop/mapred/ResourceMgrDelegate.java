@@ -63,6 +63,11 @@ public class ResourceMgrDelegate extends YarnClientImpl {
     init(conf);
     start();
   }
+  
+  public void cancelDelegationToken(Token<DelegationTokenIdentifier> arg0)
+      throws IOException, InterruptedException {
+    return;
+  }
 
   public TaskTrackerInfo[] getActiveTrackers() throws IOException,
       InterruptedException {
