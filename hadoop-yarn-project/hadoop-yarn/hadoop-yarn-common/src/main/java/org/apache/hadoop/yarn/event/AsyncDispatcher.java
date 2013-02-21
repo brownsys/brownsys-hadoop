@@ -133,7 +133,6 @@ public class AsyncDispatcher extends AbstractService implements Dispatcher {
     Class<? extends Enum> type = event.getType().getDeclaringClass();
 
     try{
-      event.takeContext();
       eventDispatchers.get(type).handle(event);
     }
     catch (Throwable t) {

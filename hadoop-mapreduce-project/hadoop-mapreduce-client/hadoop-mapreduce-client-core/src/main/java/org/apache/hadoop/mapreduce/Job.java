@@ -19,6 +19,7 @@
 package org.apache.hadoop.mapreduce;
 
 import java.io.IOException;
+import java.io.StringWriter;
 import java.net.URI;
 import java.security.PrivilegedExceptionAction;
 
