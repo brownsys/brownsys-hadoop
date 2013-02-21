@@ -62,31 +62,6 @@ public class ResourceMgrDelegate extends YarnClientImpl {
     init(conf);
     start();
   }
-  
-  /**
-   * Used for injecting applicationsManager, mostly for testing.
-   * @param conf the configuration object
-   * @param applicationsManager the handle to talk the resource managers 
-   *                            {@link ClientRMProtocol}.
-   */
-  public ResourceMgrDelegate(YarnConfiguration conf, 
-      ClientRMProtocol applicationsManager) {
-    this.conf = conf;
-    this.applicationsManager = applicationsManager;
-    this.rmAddress = getRmAddress(conf);
-  }
-  
-  private static InetSocketAddress getRmAddress(YarnConfiguration conf) {
-    return conf.getSocketAddr(YarnConfiguration.RM_ADDRESS,
-                              YarnConfiguration.DEFAULT_RM_ADDRESS,
-                              YarnConfiguration.DEFAULT_RM_PORT);
-  }
-  
-  public void cancelDelegationToken(Token<DelegationTokenIdentifier> arg0)
-      throws IOException, InterruptedException {
-    return;
->>>>>>> 2254c55... Removed some unnecessary trace calls.
-  }
 
   public TaskTrackerInfo[] getActiveTrackers() throws IOException,
       InterruptedException {
