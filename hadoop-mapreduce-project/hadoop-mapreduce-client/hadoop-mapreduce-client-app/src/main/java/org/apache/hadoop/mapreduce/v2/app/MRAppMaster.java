@@ -1263,6 +1263,7 @@ public class MRAppMaster extends CompositeService {
       XTraceContext.setThreadContext(xtrace_context);
       LOG.info("MRAppMaster received a signal. Signaling RMCommunicator and "
         + "JobHistoryEventHandler.");
+      XTraceContext.logEvent(MRAppMasterShutdownHook.class, "MRAppMasterShutdownHook", "MRAppMaster received a signal. Signaling RMCommunicator and JobHistoryEventHandler.");
 
       // Notify the JHEH and RMCommunicator that a SIGTERM has been received so
       // that they don't take too long in shutting down
