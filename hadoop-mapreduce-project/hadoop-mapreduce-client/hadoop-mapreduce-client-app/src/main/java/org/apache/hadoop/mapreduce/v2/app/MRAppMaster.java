@@ -1200,8 +1200,8 @@ public class MRAppMaster extends CompositeService {
 
   public static void main(String[] args) {
     try {
-      Thread.setDefaultUncaughtExceptionHandler(new YarnUncaughtExceptionHandler());
       XTraceContext.startTrace("MRAppMaster", "Application Master Launching");
+      Thread.setDefaultUncaughtExceptionHandler(new YarnUncaughtExceptionHandler());
     	
       String containerIdStr =
           System.getenv(ApplicationConstants.AM_CONTAINER_ID_ENV);

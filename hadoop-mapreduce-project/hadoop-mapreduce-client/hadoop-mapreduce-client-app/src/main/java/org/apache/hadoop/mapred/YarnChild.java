@@ -73,10 +73,10 @@ class YarnChild {
   static volatile TaskAttemptID taskid = null;
 
   public static void main(String[] args) throws Throwable {
+    XTraceContext.logEvent(YarnChild.class, "YarnChild", "YarnChild starting");
     Thread.setDefaultUncaughtExceptionHandler(new YarnUncaughtExceptionHandler());
     LOG.debug("Child starting");
     
-    XTraceContext.logEvent(YarnChild.class, "YarnChild", "YarnChild starting");
 
     final JobConf defaultConf = new JobConf();
     defaultConf.addResource(MRJobConfig.JOB_CONF_FILE);

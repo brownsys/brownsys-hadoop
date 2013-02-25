@@ -24,6 +24,8 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.util.ShutdownHookManager;
 
+import edu.berkeley.xtrace.XTraceContext;
+
 /**
  * This class is intended to be installed by calling 
  * {@link Thread#setDefaultUncaughtExceptionHandler(UncaughtExceptionHandler)}
@@ -44,6 +46,7 @@ public class YarnUncaughtExceptionHandler implements UncaughtExceptionHandler {
     } else if(e instanceof Error) {
       try {
         LOG.fatal("Thread " + t + " threw an Error.  Shutting down now...", e);
+        XTraceContext.logEvent(UncaughtExceptionHandler.class, "UncaughtError", "Thread " + t + " threw an Error.  Shutting down now... " + e.toString());
       } catch (Throwable err) {
         //We don't want to not exit because of an issue with logging
       }
@@ -61,6 +64,7 @@ public class YarnUncaughtExceptionHandler implements UncaughtExceptionHandler {
       }
     } else {
       LOG.error("Thread " + t + " threw an Exception.", e);
+      XTraceContext.logEvent(UncaughtExceptionHandler.class, "UncaughtException", "Thread " + t + " threw an Exception. " + e.toString());
     }
   }
 }
