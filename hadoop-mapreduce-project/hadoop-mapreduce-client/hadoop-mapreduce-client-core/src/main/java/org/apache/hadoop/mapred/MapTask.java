@@ -73,6 +73,8 @@ import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.hadoop.util.StringInterner;
 import org.apache.hadoop.util.StringUtils;
 
+import edu.berkeley.xtrace.XTraceContext;
+
 /** A Map task. */
 @InterfaceAudience.LimitedPrivate({"MapReduce"})
 @InterfaceStability.Unstable
@@ -725,6 +727,7 @@ public class MapTask extends Task {
     split = getSplitDetails(new Path(splitIndex.getSplitLocation()),
         splitIndex.getStartOffset());
     LOG.info("Processing split: " + split);
+    XTraceContext.logEvent(MapTask.class, "NewMapper", "Processing split: " + split);
 
     org.apache.hadoop.mapreduce.RecordReader<INKEY,INVALUE> input =
       new NewTrackingRecordReader<INKEY,INVALUE>
@@ -754,6 +757,7 @@ public class MapTask extends Task {
               mapContext);
 
     input.initialize(split, mapperContext);
+    XTraceContext.logEvent(MapTask.class, "NewMapper", "Running map");
     mapper.run(mapperContext);
     mapPhase.complete();
     setPhase(TaskStatus.Phase.SORT);
