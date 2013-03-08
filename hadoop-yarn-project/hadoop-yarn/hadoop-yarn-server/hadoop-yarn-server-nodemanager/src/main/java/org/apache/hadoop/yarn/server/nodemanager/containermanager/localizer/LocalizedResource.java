@@ -71,7 +71,7 @@ public class LocalizedResource implements EventHandler<ResourceEvent> {
   private static final StateMachineFactory<LocalizedResource,ResourceState,
       ResourceEventType,ResourceEvent> stateMachineFactory =
         new StateMachineFactory<LocalizedResource,ResourceState,
-          ResourceEventType,ResourceEvent>(ResourceState.INIT)
+          ResourceEventType,ResourceEvent>(ResourceState.INIT, false)
 
     // From INIT (ref == 0, awaiting req)
     .addTransition(ResourceState.INIT, ResourceState.DOWNLOADING,
@@ -85,7 +85,7 @@ public class LocalizedResource implements EventHandler<ResourceEvent> {
     .addTransition(ResourceState.DOWNLOADING, ResourceState.DOWNLOADING,
         ResourceEventType.REQUEST, new FetchResourceTransition()) // TODO: Duplicate addition!!
     .addTransition(ResourceState.DOWNLOADING, ResourceState.LOCALIZED,
-        ResourceEventType.LOCALIZED, new FetchSuccessTransition())
+        ResourceEventType.LOCALIZED, new FetchSuccessTransition(), true)
     .addTransition(ResourceState.DOWNLOADING,
         EnumSet.of(ResourceState.DOWNLOADING, ResourceState.INIT),
         ResourceEventType.RELEASE, new ReleasePendingTransition())
