@@ -55,6 +55,8 @@ import org.apache.hadoop.util.StringInterner;
 import org.apache.hadoop.yarn.YarnException;
 import org.apache.hadoop.yarn.service.CompositeService;
 
+import edu.berkeley.xtrace.XTraceContext;
+
 /**
  * This class is responsible for talking to the task umblical.
  * It also converts all the old data structures
@@ -429,8 +431,10 @@ public class TaskAttemptListenerImpl extends CompositeService
         // longer pending, and further request should ask it to exit.
         org.apache.hadoop.mapred.Task task =
             jvmIDToActiveAttemptMap.remove(wJvmID);
+        task.joinContext();
         launchedJVMs.remove(wJvmID);
         LOG.info("JVM with ID: " + jvmId + " given task: " + task.getTaskID());
+        XTraceContext.logEvent(TaskAttemptListenerImpl.class, "TaskUmbilical getTask", "Sending task " + task.getTaskID() + " to JVM with ID: " + jvmId);
         jvmTask = new JvmTask(task, false);
       }
     }
@@ -444,7 +448,9 @@ public class TaskAttemptListenerImpl extends CompositeService
     // when the jvm comes back to ask for Task.
 
     // A JVM not present in this map is an illegal task/JVM.
+    task.rememberContext();
     jvmIDToActiveAttemptMap.put(jvmID, task);
+    XTraceContext.logEvent(TaskAttemptListenerImpl.class, "TaskUmbilical getTask", "Task "+task.getTaskID()+" registered for JVM with ID: " + jvmID);    
   }
 
   @Override
