@@ -68,6 +68,10 @@ import org.apache.hadoop.yarn.state.StateMachineFactory;
 import org.apache.hadoop.yarn.util.BuilderUtils;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
+import edu.berkeley.xtrace.XTraceMetadataCollection;
+
 public class ContainerImpl implements Container {
 
   private final Lock readLock;
@@ -94,6 +98,8 @@ public class ContainerImpl implements Container {
     new ArrayList<LocalResourceRequest>();
   private final List<LocalResourceRequest> appRsrcs =
     new ArrayList<LocalResourceRequest>();
+  
+  private Collection<XTraceMetadata> xtrace_localizedresources = new XTraceMetadataCollection();
 
   public ContainerImpl(Configuration conf,
       Dispatcher dispatcher,
@@ -577,9 +583,11 @@ public class ContainerImpl implements Container {
         return ContainerState.LOCALIZING;
       }
       container.localizedResources.put(rsrcEvent.getLocation(), syms);
+      container.xtrace_localizedresources = XTraceContext.getThreadContext(container.xtrace_localizedresources);
       if (!container.pendingResources.isEmpty()) {
         return ContainerState.LOCALIZING;
       }
+      XTraceContext.setThreadContext(container.xtrace_localizedresources);
       container.dispatcher.getEventHandler().handle(
           new ContainersLauncherEvent(container,
               ContainersLauncherEventType.LAUNCH_CONTAINER));
