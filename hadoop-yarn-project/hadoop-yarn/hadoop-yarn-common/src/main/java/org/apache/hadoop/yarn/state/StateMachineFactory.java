@@ -621,7 +621,7 @@ final public class StateMachineFactory
       }
       
       // Create an event for the transition
-      XTraceContext.logEvent(operand.getClass(), xtrace_agent, event.toString());
+      XTraceContext.logEvent(operand.getClass(), xtrace_agent, event.toString(), "StartState", xtraceStateName(currentState));
       STATE startState = currentState;
       
       // Do the transition
@@ -632,7 +632,7 @@ final public class StateMachineFactory
       }
 
       // Save the xtrace context in case the next transition is to be an xtrace process too, but only if the state changed
-      if (!currentState.equals(startState)) {
+      if (!StateMachineFactory.this.logTransitionAsXTraceProcess(currentState, eventType) && !currentState.equals(startState)) {
         this.previous_transition_context = XTraceContext.getThreadContext();
       }
       
