@@ -381,16 +381,15 @@ public class ContainerLauncherImpl extends AbstractService implements
    */
   class EventProcessor implements Runnable {
     private ContainerLauncherEvent event;
-    private Collection<XTraceMetadata> xtrace_context;
 
     EventProcessor(ContainerLauncherEvent event) {
       this.event = event;
-      this.xtrace_context = XTraceContext.getThreadContext();
     }
 
     @Override
     public void run() {
-      XTraceContext.setThreadContext(xtrace_context);
+      XTraceContext.clearThreadContext();
+      event.joinContext();
       LOG.info("Processing the event " + event.toString());
 
       // Load ContainerManager tokens before creating a connection.
