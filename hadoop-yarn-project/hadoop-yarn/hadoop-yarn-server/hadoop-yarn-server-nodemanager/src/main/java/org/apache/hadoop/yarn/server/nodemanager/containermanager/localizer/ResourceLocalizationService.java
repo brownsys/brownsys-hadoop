@@ -371,14 +371,19 @@ public class ResourceLocalizationService extends CompositeService
     Container c = rsrcCleanup.getContainer();
     Map<LocalResourceVisibility, Collection<LocalResourceRequest>> rsrcs =
       rsrcCleanup.getResources();
+    Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
+    Collection<XTraceMetadata> end_context = new XTraceMetadataCollection();
     for (Map.Entry<LocalResourceVisibility, Collection<LocalResourceRequest>> e :
          rsrcs.entrySet()) {
       LocalResourcesTracker tracker = getLocalResourcesTracker(e.getKey(), c.getUser(), 
           c.getContainerID().getApplicationAttemptId().getApplicationId());
       for (LocalResourceRequest req : e.getValue()) {
+        XTraceContext.setThreadContext(start_context);
         tracker.handle(new ResourceReleaseEvent(req, c.getContainerID()));
+        end_context = XTraceContext.getThreadContext(end_context);
       }
     }
+    XTraceContext.setThreadContext(end_context);
     String locId = ConverterUtils.toString(c.getContainerID());
     localizerTracker.cleanupPrivLocalizers(locId);
     
