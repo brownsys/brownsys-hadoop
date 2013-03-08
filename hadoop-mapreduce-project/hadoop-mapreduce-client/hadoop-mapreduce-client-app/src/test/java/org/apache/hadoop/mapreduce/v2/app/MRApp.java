@@ -471,6 +471,7 @@ public class MRApp extends MRAppMaster {
 
     @Override
     public void handle(ContainerLauncherEvent event) {
+      event.joinContext();
       switch (event.getType()) {
       case CONTAINER_REMOTE_LAUNCH:
         getContext().getEventHandler().handle(
