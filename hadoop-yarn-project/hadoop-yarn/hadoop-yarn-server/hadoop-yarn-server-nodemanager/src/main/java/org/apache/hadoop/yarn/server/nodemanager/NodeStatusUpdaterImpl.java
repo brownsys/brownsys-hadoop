@@ -324,16 +324,13 @@ public class NodeStatusUpdaterImpl extends AbstractService implements
 
   protected void startStatusUpdater() {
     
-    final Collection<XTraceMetadata> xtrace_context = XTraceContext.getThreadContext();
-
     new Thread("Node Status Updater") {
       @Override
       @SuppressWarnings("unchecked")
       public void run() {
-        XTraceContext.setThreadContext(xtrace_context);
-        XTraceContext.logEvent(NodeStatusUpdater.class, "Node Status Updater Thread", "Node Status Updater Thread started");
         int lastHeartBeatID = 0;
         while (!isStopped) {
+          XTraceContext.clearThreadContext();
           // Send heartbeat
           try {
             synchronized (heartbeatMonitor) {

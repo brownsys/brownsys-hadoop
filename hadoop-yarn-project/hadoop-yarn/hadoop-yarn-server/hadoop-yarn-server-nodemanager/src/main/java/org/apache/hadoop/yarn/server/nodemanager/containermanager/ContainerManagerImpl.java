@@ -432,6 +432,7 @@ public class ContainerManagerImpl extends CompositeService implements
         launchContext, credentials, metrics);
     ApplicationId applicationID = 
         containerID.getApplicationAttemptId().getApplicationId();
+    containerID.rememberContext();
     if (context.getContainers().putIfAbsent(containerID, container) != null) {
       NMAuditLogger.logFailure(launchContext.getUser(), 
           AuditConstants.START_CONTAINER, "ContainerManagerImpl",
@@ -498,6 +499,7 @@ public class ContainerManagerImpl extends CompositeService implements
         recordFactory.newRecordInstance(StopContainerResponse.class);
 
     Container container = this.context.getContainers().get(containerID);
+    container.getContainerID().rememberContext();
     if (container == null) {
       LOG.warn("Trying to stop unknown container " + containerID);
       NMAuditLogger.logFailure("UnknownUser",
@@ -601,8 +603,10 @@ public class ContainerManagerImpl extends CompositeService implements
     case FINISH_CONTAINERS:
       CMgrCompletedContainersEvent containersFinishedEvent =
           (CMgrCompletedContainersEvent) event;
+      XTraceContext.clearThreadContext();
       for (ContainerId container : containersFinishedEvent
           .getContainersToCleanup()) {
+        container.joinContext();
         String diagnostic = "";
         if (containersFinishedEvent.getReason() == 
             CMgrCompletedContainersEvent.Reason.ON_SHUTDOWN) {

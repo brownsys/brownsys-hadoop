@@ -78,6 +78,8 @@ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.NodeUpdateS
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.SchedulerEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.security.RMContainerTokenSecretManager;
 
+import edu.berkeley.xtrace.XTraceContext;
+
 @LimitedPrivate("yarn")
 @Evolving
 @SuppressWarnings("unchecked")
@@ -585,9 +587,13 @@ implements ResourceScheduler, CapacitySchedulerContext, Configurable {
     // Process completed containers
     for (ContainerStatus completedContainer : completedContainers) {
       ContainerId containerId = completedContainer.getContainerId();
+      XTraceContext.clearThreadContext();
+      containerId.joinContext();
       LOG.debug("Container FINISHED: " + containerId);
+      XTraceContext.logEvent(CapacityScheduler.class, "Container Finished", ""+containerId);
       completedContainer(getRMContainer(containerId), 
           completedContainer, RMContainerEventType.FINISHED);
+      XTraceContext.clearThreadContext();
     }
 
     // Now node data structures are upto date and ready for scheduling.
@@ -639,6 +645,9 @@ implements ResourceScheduler, CapacitySchedulerContext, Configurable {
   }
 
   private void containerLaunchedOnNode(ContainerId containerId, FiCaSchedulerNode node) {
+    XTraceContext.clearThreadContext();
+    containerId.joinContext();
+    
     // Get the application for the finished container
     ApplicationAttemptId applicationAttemptId = containerId.getApplicationAttemptId();
     FiCaSchedulerApp application = getApplication(applicationAttemptId);
@@ -652,6 +661,7 @@ implements ResourceScheduler, CapacitySchedulerContext, Configurable {
     }
     
     application.containerLaunchedOnNode(containerId, node.getNodeID());
+    XTraceContext.clearThreadContext();
   }
 
   @Override

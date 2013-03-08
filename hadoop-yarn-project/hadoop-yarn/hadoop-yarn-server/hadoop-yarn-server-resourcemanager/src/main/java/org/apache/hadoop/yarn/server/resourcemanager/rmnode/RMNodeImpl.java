@@ -62,6 +62,7 @@ import org.apache.hadoop.yarn.state.StateMachineFactory;
 import org.apache.hadoop.yarn.util.BuilderUtils.ContainerIdComparator;
 
 import com.google.common.annotations.VisibleForTesting;
+import edu.berkeley.xtrace.XTraceContext;
 
 /**
  * This class is used to keep track of all the applications/containers
@@ -466,8 +467,9 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
 
     @Override
     public void transition(RMNodeImpl rmNode, RMNodeEvent event) {
-      rmNode.containersToClean.add(((
-          RMNodeCleanContainerEvent) event).getContainerId());
+      ContainerId id = ((RMNodeCleanContainerEvent) event).getContainerId();
+      id.rememberContext();
+      rmNode.containersToClean.add(id);
     }
   }
 
@@ -537,17 +539,25 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
       for (ContainerStatus remoteContainer : statusEvent.getContainers()) {
         ContainerId containerId = remoteContainer.getContainerId();
         
+        XTraceContext.clearThreadContext();
+        containerId.joinContext();
+        
         // Don't bother with containers already scheduled for cleanup, or for
         // applications already killed. The scheduler doens't need to know any
         // more about this container
         if (rmNode.containersToClean.contains(containerId)) {
           LOG.info("Container " + containerId + " already scheduled for " +
           		"cleanup, no further processing");
+          XTraceContext.logEvent(RMNodeImpl.class, "Node cleanup", "Container " + containerId + " already scheduled for " +
+              "cleanup, no further processing");
           continue;
         }
         if (rmNode.finishedApplications.contains(containerId
             .getApplicationAttemptId().getApplicationId())) {
           LOG.info("Container " + containerId
+              + " belongs to an application that is already killed,"
+              + " no further processing");
+          XTraceContext.logEvent(RMNodeImpl.class, "Node cleanup", "Container " + containerId
               + " belongs to an application that is already killed,"
               + " no further processing");
           continue;

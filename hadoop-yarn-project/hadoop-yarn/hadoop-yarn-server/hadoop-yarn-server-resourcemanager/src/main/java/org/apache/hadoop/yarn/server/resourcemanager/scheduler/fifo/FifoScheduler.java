@@ -78,6 +78,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerAppReport;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerNodeReport;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerUtils;
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.CapacityScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.common.fica.FiCaSchedulerApp;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.common.fica.FiCaSchedulerNode;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.AppAddedSchedulerEvent;
@@ -611,9 +612,13 @@ public class FifoScheduler implements ResourceScheduler, Configurable {
     // Process completed containers
     for (ContainerStatus completedContainer : completedContainers) {
       ContainerId containerId = completedContainer.getContainerId();
+      XTraceContext.clearThreadContext();
+      containerId.joinContext();
       LOG.debug("Container FINISHED: " + containerId);
+      XTraceContext.logEvent(CapacityScheduler.class, "Container Finished", ""+containerId);
       containerCompleted(getRMContainer(containerId), 
           completedContainer, RMContainerEventType.FINISHED);
+      XTraceContext.clearThreadContext();
     }
 
     if (Resources.greaterThanOrEqual(resourceCalculator, clusterResource,
@@ -691,6 +696,9 @@ public class FifoScheduler implements ResourceScheduler, Configurable {
   }
 
   private void containerLaunchedOnNode(ContainerId containerId, FiCaSchedulerNode node) {
+    XTraceContext.clearThreadContext();
+    containerId.joinContext();
+    
     // Get the application for the finished container
     ApplicationAttemptId applicationAttemptId = containerId.getApplicationAttemptId();
     FiCaSchedulerApp application = getApplication(applicationAttemptId);
@@ -706,6 +714,7 @@ public class FifoScheduler implements ResourceScheduler, Configurable {
     }
     
     application.containerLaunchedOnNode(containerId, node.getNodeID());
+    XTraceContext.clearThreadContext();
   }
 
   @Lock(FifoScheduler.class)
