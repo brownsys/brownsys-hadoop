@@ -123,7 +123,7 @@ public class ContainerImpl implements Container {
   private static StateMachineFactory
            <ContainerImpl, ContainerState, ContainerEventType, ContainerEvent>
         stateMachineFactory =
-      new StateMachineFactory<ContainerImpl, ContainerState, ContainerEventType, ContainerEvent>(ContainerState.NEW)
+      new StateMachineFactory<ContainerImpl, ContainerState, ContainerEventType, ContainerEvent>(ContainerState.NEW, false)
     // From NEW State
     .addTransition(ContainerState.NEW,
         EnumSet.of(ContainerState.LOCALIZING, ContainerState.LOCALIZED,
@@ -189,19 +189,19 @@ public class ContainerImpl implements Container {
     .addTransition(ContainerState.RUNNING,
         ContainerState.EXITED_WITH_SUCCESS,
         ContainerEventType.CONTAINER_EXITED_WITH_SUCCESS,
-        new ExitedWithSuccessTransition(true))
+        new ExitedWithSuccessTransition(true), true)
     .addTransition(ContainerState.RUNNING,
         ContainerState.EXITED_WITH_FAILURE,
         ContainerEventType.CONTAINER_EXITED_WITH_FAILURE,
-        new ExitedWithFailureTransition(true))
+        new ExitedWithFailureTransition(true), true)
     .addTransition(ContainerState.RUNNING, ContainerState.RUNNING,
        ContainerEventType.UPDATE_DIAGNOSTICS_MSG,
-       UPDATE_DIAGNOSTICS_TRANSITION)
+       UPDATE_DIAGNOSTICS_TRANSITION, true)
     .addTransition(ContainerState.RUNNING, ContainerState.KILLING,
-        ContainerEventType.KILL_CONTAINER, new KillTransition())
+        ContainerEventType.KILL_CONTAINER, new KillTransition(), true)
     .addTransition(ContainerState.RUNNING, ContainerState.EXITED_WITH_FAILURE,
         ContainerEventType.CONTAINER_KILLED_ON_REQUEST,
-        new KilledExternallyTransition()) 
+        new KilledExternallyTransition(), true) 
 
     // From CONTAINER_EXITED_WITH_SUCCESS State
     .addTransition(ContainerState.EXITED_WITH_SUCCESS, ContainerState.DONE,
