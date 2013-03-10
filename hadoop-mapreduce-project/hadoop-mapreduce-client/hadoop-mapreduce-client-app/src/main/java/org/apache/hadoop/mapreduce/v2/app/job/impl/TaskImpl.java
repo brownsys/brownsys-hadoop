@@ -143,7 +143,7 @@ public abstract class TaskImpl implements Task, EventHandler<TaskEvent> {
                <TaskImpl, TaskStateInternal, TaskEventType, TaskEvent> 
             stateMachineFactory 
            = new StateMachineFactory<TaskImpl, TaskStateInternal, TaskEventType, TaskEvent>
-               (TaskStateInternal.NEW)
+               (TaskStateInternal.NEW, false)
 
     // define the state machine of Task
 
