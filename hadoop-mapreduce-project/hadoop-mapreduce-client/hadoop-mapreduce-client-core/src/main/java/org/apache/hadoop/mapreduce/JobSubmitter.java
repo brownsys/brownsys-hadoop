@@ -24,6 +24,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.UnknownHostException;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -58,6 +59,7 @@ import org.codehaus.jackson.map.ObjectMapper;
 
 import com.google.common.base.Charsets;
 import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
 import edu.berkeley.xtrace.XTraceProcess;
 
 @InterfaceAudience.Private
@@ -331,7 +333,8 @@ class JobSubmitter {
   JobStatus submitJobInternal(Job job, Cluster cluster) 
   throws ClassNotFoundException, InterruptedException, IOException {
 
-	XTraceProcess submitProcess = XTraceContext.startProcess("JobSubmitter", "Submitting Job");
+    XTraceContext.logEvent(JobSubmitter.class, "JobSubmitter", "Submitting Job");
+    Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
 	  
     //validate the jobs output specs
     checkSpecs(job);
@@ -409,7 +412,8 @@ class JobSubmitter {
 
       }
       
-      XTraceContext.endProcess(submitProcess, "Job submission complete");
+      XTraceContext.joinContext(start_context);
+      XTraceContext.logEvent(JobSubmitter.class, "JobSubmiter", "Job submission complete");
     }
   }
   
