@@ -57,6 +57,7 @@ import org.apache.hadoop.io.serializer.Deserializer;
 import org.apache.hadoop.io.serializer.SerializationFactory;
 import org.apache.hadoop.io.serializer.Serializer;
 import org.apache.hadoop.mapred.IFile.Writer;
+import org.apache.hadoop.mapred.MapTask.MapOutputBuffer.SpillThread;
 import org.apache.hadoop.mapred.Merger.Segment;
 import org.apache.hadoop.mapred.SortedRanges.SkipRangeIterator;
 import org.apache.hadoop.mapreduce.JobContext;
@@ -768,11 +769,11 @@ public class MapTask extends Task {
     XTraceContext.logEvent(MapTask.class, "NewMapper", "Running map start");
     mapper.run(mapperContext);
     mapPhase.complete();
-    XTraceContext.logEvent(MapTask.class, "NewMapper", "Running map end");
     setPhase(TaskStatus.Phase.SORT);
     statusUpdate(umbilical);
     input.close();
     output.close(mapperContext);
+    XTraceContext.logEvent(MapTask.class, "NewMapper", "Running map end");
   }
 
   class DirectMapOutputCollector<K, V>
@@ -1419,7 +1420,7 @@ public class MapTask extends Task {
                     reporter.progress();
                     spillDone.await();
                   }
-                  spillThread.joinSpillDoneContext();
+//                  spillThread.restoreDoneContext(); Actually, let this be asynchronous in the graph
                 } catch (InterruptedException e) {
                     throw new IOException(
                         "Buffer interrupted while waiting for the writer", e);
@@ -1447,6 +1448,7 @@ public class MapTask extends Task {
            InterruptedException {
       LOG.info("Starting flush of map output");
       XTraceContext.logEvent(MapOutputBuffer.class, "MapOutputBuffer flush", "Starting flush of map output");
+      Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
       spillLock.lock();
       try {
         while (spillInProgress) {
@@ -1479,6 +1481,7 @@ public class MapTask extends Task {
         throw new IOException("Interrupted while waiting for the writer", e);
       } finally {
         spillLock.unlock();
+        XTraceContext.setThreadContext(start_context);
       }
       assert !spillLock.isHeldByCurrentThread();
       // shut down spill thread and wait for it to exit. Since the preceding
@@ -1511,8 +1514,8 @@ public class MapTask extends Task {
         xtrace_spillstart_context = XTraceContext.getThreadContext();
       }
       
-      public void joinSpillDoneContext() {
-        XTraceContext.joinContext(xtrace_spilldone_context);
+      public void restoreDoneContext() {
+        XTraceContext.setThreadContext(xtrace_spilldone_context);
       }
 
       @Override
@@ -1832,7 +1835,6 @@ public class MapTask extends Task {
     private void mergeParts() throws IOException, InterruptedException, 
                                      ClassNotFoundException {
       
-      XTraceContext.logEvent(MapOutputBuffer.class, "MapOutputBuffer mergeParts", "Merging intermediate map outputs");
       // get the approximate size of the final output/index files
       long finalOutFileSize = 0;
       long finalIndexFileSize = 0;
@@ -1843,8 +1845,15 @@ public class MapTask extends Task {
         filename[i] = mapOutputFile.getSpillFile(i);
         finalOutFileSize += rfs.getFileStatus(filename[i]).getLen();
       }
+
+      // read in paged indices
+      for (int i = indexCacheList.size(); i < numSpills; ++i) {
+        Path indexFileName = mapOutputFile.getSpillIndexFile(i);
+        indexCacheList.add(new SpillRecord(indexFileName, job));
+      }
+      
       if (numSpills == 1) { //the spill is the final output
-        XTraceContext.logEvent(MapOutputBuffer.class, "MapOutputBuffer mergeParts", "Single spill, merge unnecessary");
+        
         sameVolRename(filename[0],
             mapOutputFile.getOutputFileForWriteInVolume(filename[0]));
         if (indexCacheList.size() == 0) {
@@ -1853,15 +1862,13 @@ public class MapTask extends Task {
         } else {
           indexCacheList.get(0).writeToFile(
             mapOutputFile.getOutputIndexFileForWriteInVolume(filename[0]), job);
+          for (int i = 0; i < partitions; i++) {
+            indexCacheList.get(0).getIndex(i).joinContext();
+          }
         }
+        XTraceContext.logEvent(MapOutputBuffer.class, "MapOutputBuffer mergeParts", "Single spill, merge unnecessary");
         sortPhase.complete();
         return;
-      }
-
-      // read in paged indices
-      for (int i = indexCacheList.size(); i < numSpills; ++i) {
-        Path indexFileName = mapOutputFile.getSpillIndexFile(i);
-        indexCacheList.add(new SpillRecord(indexFileName, job));
       }
 
       //make correction in the length to include the sequence file header
@@ -1907,7 +1914,7 @@ public class MapTask extends Task {
         Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
         Collection<XTraceMetadata> end_contexts = new XTraceMetadataCollection();
         for (int parts = 0; parts < partitions; parts++) {
-          XTraceContext.setThreadContext(start_context);
+          XTraceContext.clearThreadContext();
           //create the segments to be merged
           List<Segment<K,V>> segmentList =
             new ArrayList<Segment<K, V>>(numSpills);
