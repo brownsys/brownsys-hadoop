@@ -77,7 +77,6 @@ class YarnChild {
     Thread.setDefaultUncaughtExceptionHandler(new YarnUncaughtExceptionHandler());
     LOG.debug("Child starting");
     
-
     final JobConf defaultConf = new JobConf();
     defaultConf.addResource(MRJobConfig.JOB_CONF_FILE);
     UserGroupInformation.setConfiguration(defaultConf);
@@ -203,6 +202,8 @@ class YarnChild {
         umbilical.fatalError(taskid, cause);
       }
     } finally {
+      XTraceContext.logEvent(YarnChild.class,"YarnChild", "YarnChild exiting");
+      XTraceContext.joinParentProcess();
       RPC.stopProxy(umbilical);
       DefaultMetricsSystem.shutdown();
       // Shutting down log4j of the child-vm...

@@ -1279,6 +1279,8 @@ public class MRAppMaster extends CompositeService {
           .setForcejobCompletion(appMaster.isLastAMRetry);
       }
       appMaster.stop();
+      XTraceContext.logEvent(MRAppMaster.class,"MRAppMaster", "MRAppMaster stopping");
+      XTraceContext.joinParentProcess();
       XTraceContext.clearThreadContext();
     }
   }
