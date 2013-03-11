@@ -556,6 +556,8 @@ public class MRAppMaster extends CompositeService {
     //Bring the process down by force.
     //Not needed after HADOOP-7140
     LOG.info("Exiting MR AppMaster..GoodBye!");
+    XTraceContext.logEvent(MRAppMaster.class, "MRAppMaster", "Application Master exiting");
+    XTraceContext.joinParentProcess();
     sysexit();   
   }
  
@@ -1280,7 +1282,6 @@ public class MRAppMaster extends CompositeService {
       }
       appMaster.stop();
       XTraceContext.logEvent(MRAppMaster.class,"MRAppMaster", "MRAppMaster stopping");
-      XTraceContext.joinParentProcess();
       XTraceContext.clearThreadContext();
     }
   }
