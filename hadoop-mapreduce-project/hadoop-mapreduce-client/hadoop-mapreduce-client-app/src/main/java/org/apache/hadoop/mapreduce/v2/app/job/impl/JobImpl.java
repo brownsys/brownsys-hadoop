@@ -122,6 +122,10 @@ import org.apache.hadoop.yarn.state.SingleArcTransition;
 import org.apache.hadoop.yarn.state.StateMachine;
 import org.apache.hadoop.yarn.state.StateMachineFactory;
 
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
+import edu.berkeley.xtrace.XTraceMetadataCollection;
+
 /** Implementation of Job interface. Maintains the state machines of Job.
  * The read and write calls use ReadWriteLock for concurrency.
  */
@@ -227,7 +231,7 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
     StateMachineFactory<JobImpl, JobStateInternal, JobEventType, JobEvent> 
        stateMachineFactory
      = new StateMachineFactory<JobImpl, JobStateInternal, JobEventType, JobEvent>
-              (JobStateInternal.NEW)
+              (JobStateInternal.NEW, StateMachineFactory.Trace.KEEPALIVE)
 
           // Transitions from NEW state
           .addTransition(JobStateInternal.NEW, JobStateInternal.NEW,
@@ -1307,6 +1311,7 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
         // create the Tasks but don't start them yet
         createMapTasks(job, inputLength, taskSplitMetaInfo);
         createReduceTasks(job);
+        XTraceContext.logEvent(JobImpl.class, "JobImpl", "Created map and reduce tasks");
 
         job.metrics.endPreparingJob(job);
         return JobStateInternal.INITED;
@@ -1363,7 +1368,10 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
 
     private void createMapTasks(JobImpl job, long inputLength,
                                 TaskSplitMetaInfo[] splits) {
+      XTraceContext.logEvent(JobImpl.class, "JobImpl", "Input size for job " + job.jobId + " = " + inputLength + ". Number of splits = " + splits.length);
+      Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
       for (int i=0; i < job.numMapTasks; ++i) {
+        XTraceContext.setThreadContext(start_context);
         TaskImpl task =
             new MapTaskImpl(job.jobId, i,
                 job.eventHandler, 
@@ -1381,7 +1389,10 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
     }
 
     private void createReduceTasks(JobImpl job) {
+      XTraceContext.logEvent(JobImpl.class, "JobImpl", "Number of reduces for job " + job.jobId + " = " + job.numReduceTasks);
+      Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
       for (int i = 0; i < job.numReduceTasks; i++) {
+        XTraceContext.setThreadContext(start_context);
         TaskImpl task =
             new ReduceTaskImpl(job.jobId, i,
                 job.eventHandler, 
