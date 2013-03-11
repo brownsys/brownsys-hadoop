@@ -313,6 +313,8 @@ public class RMContainerAllocator extends RMContainerRequestor
           }
         }
         //set the rounded off memory
+        XTraceContext.logEvent(RMContainerAllocator.class, "ContainerAllocator", "Scheduling Map Container Request");
+        reqEvent.rememberContext();
         reqEvent.getCapability().setMemory(mapResourceReqt);
         scheduledRequests.addMap(reqEvent);//maps are immediately scheduled
       } else {
@@ -342,8 +344,12 @@ public class RMContainerAllocator extends RMContainerRequestor
         reqEvent.getCapability().setMemory(reduceResourceReqt);
         if (reqEvent.getEarlierAttemptFailed()) {
           //add to the front of queue for fail fast
+          XTraceContext.logEvent(RMContainerAllocator.class, "ContainerAllocator", "Scheduling Fail-Fast Reduce Container Request");
+          reqEvent.rememberContext();
           pendingReduces.addFirst(new ContainerRequest(reqEvent, PRIORITY_REDUCE));
         } else {
+          XTraceContext.logEvent(RMContainerAllocator.class, "ContainerAllocator", "Scheduling Reduce Container Request");
+          reqEvent.rememberContext();
           pendingReduces.add(new ContainerRequest(reqEvent, PRIORITY_REDUCE));
           //reduces are added to pending and are slowly ramped up
         }
@@ -764,11 +770,9 @@ public class RMContainerAllocator extends RMContainerRequestor
       LOG.info("Got allocated containers " + allocatedContainers.size());
       containersAllocated += allocatedContainers.size();
       
-      Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
-      Collection<XTraceMetadata> end_contexts = new XTraceMetadataCollection();
       while (it.hasNext()) {
-        XTraceContext.setThreadContext(start_context);
         Container allocated = it.next();
+        allocated.getId().joinContext();
         if (LOG.isDebugEnabled()) {
           LOG.debug("Assigning container " + allocated.getId()
               + " with priority " + allocated.getPriority() + " to NM "
@@ -817,7 +821,6 @@ public class RMContainerAllocator extends RMContainerRequestor
         }
         
         ContainerId allocatedContainerId = allocated.getId();
-        allocatedContainerId.joinContext();
         // do not assign if allocated container is on a  
         // blacklisted host
         String allocatedHost = allocated.getNodeId().getHost();
@@ -857,25 +860,24 @@ public class RMContainerAllocator extends RMContainerRequestor
           it.remove();
           continue;
         }
-        end_contexts = XTraceContext.getThreadContext(end_contexts);
+        
+        XTraceContext.clearThreadContext();
       }
 
-      XTraceContext.setThreadContext(start_context);
       assignContainers(allocatedContainers);
-      end_contexts = XTraceContext.getThreadContext(end_contexts);
        
       // release container if we could not assign it 
       it = allocatedContainers.iterator();
       while (it.hasNext()) {
-        XTraceContext.setThreadContext(start_context);
         Container allocated = it.next();
+        allocated.getId().joinContext();
         LOG.info("Releasing unassigned and invalid container " 
             + allocated + ". RM may have assignment issues");
         containerNotAssigned(allocated);
-        end_contexts = XTraceContext.getThreadContext(end_contexts);
+        XTraceContext.clearThreadContext();
       }
       
-      XTraceContext.setThreadContext(end_contexts);
+      XTraceContext.clearThreadContext();
     }
     
     @SuppressWarnings("unchecked")
@@ -909,11 +911,15 @@ public class RMContainerAllocator extends RMContainerRequestor
       if (PRIORITY_FAST_FAIL_MAP.equals(priority)) {
         LOG.info("Assigning container " + allocated + " to fast fail map");
         assigned = assignToFailedMap(allocated);
+        allocated.getId().joinContext();
+        XTraceContext.logEvent(RMContainerAllocator.class, "RMContainerAllocator", "Assigned container " + allocated + " to fast fail map");
       } else if (PRIORITY_REDUCE.equals(priority)) {
         if (LOG.isDebugEnabled()) {
           LOG.debug("Assigning container " + allocated + " to reduce");
         }
         assigned = assignToReduce(allocated);
+        allocated.getId().joinContext();
+        XTraceContext.logEvent(RMContainerAllocator.class, "RMContainerAllocator", "Assigned container " + allocated + " to reduce");
       }
         
       return assigned;
@@ -921,21 +927,19 @@ public class RMContainerAllocator extends RMContainerRequestor
         
     private void assignContainers(List<Container> allocatedContainers) {
       Iterator<Container> it = allocatedContainers.iterator();
-      Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
-      Collection<XTraceMetadata> end_context = new XTraceMetadataCollection();
       while (it.hasNext()) {
-        XTraceContext.setThreadContext(start_context);
+        XTraceContext.clearThreadContext();
         Container allocated = it.next();
         ContainerRequest assigned = assignWithoutLocality(allocated);
         if (assigned != null) {
           containerAssigned(allocated, assigned);
           it.remove();
         }
-        end_context = XTraceContext.getThreadContext(end_context);
       }
-      XTraceContext.joinContext(end_context);
+      XTraceContext.clearThreadContext();
 
       assignMapsWithLocality(allocatedContainers);
+      XTraceContext.clearThreadContext();
     }
     
     private ContainerRequest getContainerReqToReplace(Container allocated) {
@@ -984,6 +988,7 @@ public class RMContainerAllocator extends RMContainerRequestor
         TaskAttemptId tId = earlierFailedMaps.removeFirst();      
         if (maps.containsKey(tId)) {
           assigned = maps.remove(tId);
+          assigned.joinContext();
           JobCounterUpdateEvent jce =
             new JobCounterUpdateEvent(assigned.attemptID.getTaskId().getJobId());
           jce.addCounterUpdate(JobCounter.OTHER_LOCAL_MAPS, 1);
@@ -1001,6 +1006,7 @@ public class RMContainerAllocator extends RMContainerRequestor
       if (assigned == null && reduces.size() > 0) {
         TaskAttemptId tId = reduces.keySet().iterator().next();
         assigned = reduces.remove(tId);
+        assigned.joinContext();
         LOG.info("Assigned to reduce");
       }
       return assigned;
@@ -1010,11 +1016,10 @@ public class RMContainerAllocator extends RMContainerRequestor
     private void assignMapsWithLocality(List<Container> allocatedContainers) {
       // try to assign to all nodes first to match node local
       Iterator<Container> it = allocatedContainers.iterator();
-      Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
-      Collection<XTraceMetadata> end_context = new XTraceMetadataCollection();
       while(it.hasNext() && maps.size() > 0){
-        XTraceContext.setThreadContext(start_context);
-        Container allocated = it.next();        
+        XTraceContext.clearThreadContext();
+        Container allocated = it.next();   
+        allocated.getId().joinContext();
         Priority priority = allocated.getPriority();
         assert PRIORITY_MAP.equals(priority);
         // "if (maps.containsKey(tId))" below should be almost always true.
@@ -1029,6 +1034,8 @@ public class RMContainerAllocator extends RMContainerRequestor
           TaskAttemptId tId = list.removeFirst();
           if (maps.containsKey(tId)) {
             ContainerRequest assigned = maps.remove(tId);
+            assigned.joinContext();
+            XTraceContext.logEvent(RMContainerAllocator.class, "ContainerAllocator", "Assigned container based on host match " + host);
             containerAssigned(allocated, assigned);
             it.remove();
             JobCounterUpdateEvent jce =
@@ -1042,14 +1049,16 @@ public class RMContainerAllocator extends RMContainerRequestor
             break;
           }
         }
-        end_context = XTraceContext.getThreadContext(end_context);
+        XTraceContext.clearThreadContext();
       }
+      XTraceContext.clearThreadContext();
       
       // try to match all rack local
       it = allocatedContainers.iterator();
       while(it.hasNext() && maps.size() > 0){
-        XTraceContext.setThreadContext(start_context);
+        XTraceContext.clearThreadContext();
         Container allocated = it.next();
+        allocated.getId().joinContext();
         Priority priority = allocated.getPriority();
         assert PRIORITY_MAP.equals(priority);
         // "if (maps.containsKey(tId))" below should be almost always true.
@@ -1061,6 +1070,8 @@ public class RMContainerAllocator extends RMContainerRequestor
           TaskAttemptId tId = list.removeFirst();
           if (maps.containsKey(tId)) {
             ContainerRequest assigned = maps.remove(tId);
+            assigned.joinContext();
+            XTraceContext.logEvent(RMContainerAllocator.class, "ContainerAllocator", "Assigned container based on rack match " + rack);
             containerAssigned(allocated, assigned);
             it.remove();
             JobCounterUpdateEvent jce =
@@ -1074,18 +1085,22 @@ public class RMContainerAllocator extends RMContainerRequestor
             break;
           }
         }
-        end_context = XTraceContext.getThreadContext(end_context);
+        XTraceContext.clearThreadContext();
       }
+      XTraceContext.clearThreadContext();
       
       // assign remaining
       it = allocatedContainers.iterator();
       while(it.hasNext() && maps.size() > 0){
-        XTraceContext.setThreadContext(start_context);
+        XTraceContext.clearThreadContext();
         Container allocated = it.next();
+        allocated.getId().joinContext();
         Priority priority = allocated.getPriority();
         assert PRIORITY_MAP.equals(priority);
         TaskAttemptId tId = maps.keySet().iterator().next();
         ContainerRequest assigned = maps.remove(tId);
+        assigned.joinContext();
+        XTraceContext.logEvent(RMContainerAllocator.class, "ContainerAllocator", "Assigned container based on * match ");
         containerAssigned(allocated, assigned);
         it.remove();
         JobCounterUpdateEvent jce =
@@ -1095,9 +1110,8 @@ public class RMContainerAllocator extends RMContainerRequestor
         if (LOG.isDebugEnabled()) {
           LOG.debug("Assigned based on * match");
         }
-        end_context = XTraceContext.getThreadContext(end_context);
       }
-      XTraceContext.joinContext(end_context);
+      XTraceContext.clearThreadContext();
     }
   }
 

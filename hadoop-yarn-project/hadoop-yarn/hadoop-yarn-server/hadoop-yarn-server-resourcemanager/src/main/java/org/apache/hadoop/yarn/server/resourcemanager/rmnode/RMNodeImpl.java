@@ -544,6 +544,7 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
             rmNode.justLaunchedContainers.put(containerId, remoteContainer);
             newlyLaunchedContainers.add(remoteContainer);
           }
+          rmNode.justLaunchedContainers.get(containerId).getContainerId().rememberContext();
         } else {
           // A finished container
           rmNode.justLaunchedContainers.remove(containerId);

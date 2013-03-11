@@ -101,10 +101,12 @@ public abstract class RMContainerRequestor extends RMCommunicator {
     final String[] racks;
     //final boolean earlierAttemptFailed;
     final Priority priority;
+    private ContainerRequestEvent event;
     
     public ContainerRequest(ContainerRequestEvent event, Priority priority) {
       this(event.getAttemptID(), event.getCapability(), event.getHosts(),
           event.getRacks(), priority);
+      this.event = event;
     }
     
     public ContainerRequest(TaskAttemptId attemptID,
@@ -124,6 +126,13 @@ public abstract class RMContainerRequestor extends RMCommunicator {
       sb.append("Priority[").append(priority).append("]");
       return sb.toString();
     }
+    
+    public void joinContext() {
+      if (event!=null) {
+        event.joinContext();
+      }
+    }
+    
   }
 
   @Override
