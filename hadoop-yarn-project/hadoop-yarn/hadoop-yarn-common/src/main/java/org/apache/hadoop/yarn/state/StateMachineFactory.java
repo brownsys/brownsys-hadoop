@@ -634,7 +634,9 @@ final public class StateMachineFactory
         throw e;
       }
 
-      this.previous_transition_context = XTraceContext.getThreadContext();
+      if (XTraceContext.isValid()) {
+        this.previous_transition_context = XTraceContext.getThreadContext();
+      }
       
       return currentState;
     }
