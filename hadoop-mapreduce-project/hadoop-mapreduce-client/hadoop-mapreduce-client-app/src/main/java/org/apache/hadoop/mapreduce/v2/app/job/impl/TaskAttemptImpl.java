@@ -193,7 +193,7 @@ public abstract class TaskAttemptImpl implements
         stateMachineFactory
     = new StateMachineFactory
              <TaskAttemptImpl, TaskAttemptStateInternal, TaskAttemptEventType, TaskAttemptEvent>
-           (TaskAttemptStateInternal.NEW)
+           (TaskAttemptStateInternal.NEW, StateMachineFactory.Trace.KEEPALIVE)
 
      // Transitions from the NEW state.
      .addTransition(TaskAttemptStateInternal.NEW, TaskAttemptStateInternal.UNASSIGNED,
