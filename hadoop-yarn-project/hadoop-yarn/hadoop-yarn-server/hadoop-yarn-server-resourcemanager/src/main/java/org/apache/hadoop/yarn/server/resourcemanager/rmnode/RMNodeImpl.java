@@ -118,7 +118,7 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
                  = new StateMachineFactory<RMNodeImpl,
                                            NodeState,
                                            RMNodeEventType,
-                                           RMNodeEvent>(NodeState.NEW, StateMachineFactory.Trace.KEEPALIVE)
+                                           RMNodeEvent>(NodeState.NEW, StateMachineFactory.Trace.NEVER)
   
      //Transitions from NEW state
      .addTransition(NodeState.NEW, NodeState.RUNNING, 
