@@ -289,6 +289,7 @@ public class RMContainerAllocator extends RMContainerRequestor
     event.joinContext();
     recalculateReduceSchedule = true;
     if (event.getType() == ContainerAllocator.EventType.CONTAINER_REQ) {
+      XTraceContext.logEvent(RMContainerAllocator.class, "RMContainerAllocator", "Processing CONTAINER_REQ Event");
       ContainerRequestEvent reqEvent = (ContainerRequestEvent) event;
       JobId jobId = getJob().getID();
       int supportedMaxContainerCapability =
@@ -352,6 +353,7 @@ public class RMContainerAllocator extends RMContainerRequestor
       
     } else if (
         event.getType() == ContainerAllocator.EventType.CONTAINER_DEALLOCATE) {
+      XTraceContext.logEvent(RMContainerAllocator.class, "RMContainerAllocator", "Processing CONTAINER_DEALLOCATE Event");
   
       LOG.info("Processing the event " + event.toString());
 
@@ -373,6 +375,7 @@ public class RMContainerAllocator extends RMContainerRequestor
       }
     } else if (
         event.getType() == ContainerAllocator.EventType.CONTAINER_FAILED) {
+      XTraceContext.logEvent(RMContainerAllocator.class, "RMContainerAllocator", "Processing CONTAINER_FAILED Event");
       ContainerFailedEvent fEv = (ContainerFailedEvent) event;
       String host = getHost(fEv.getContMgrAddress());
       containerFailedOnHost(host);
