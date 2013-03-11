@@ -55,6 +55,8 @@ import org.apache.hadoop.util.Progress;
 import org.apache.hadoop.util.Progressable;
 import org.apache.hadoop.util.ReflectionUtils;
 
+import edu.berkeley.xtrace.XTraceContext;
+
 /** A Reduce task. */
 @InterfaceAudience.Private
 @InterfaceStability.Unstable
@@ -352,6 +354,7 @@ public class ReduceTask extends Task {
         || (framework != null && framework.equals(MRConfig.LOCAL_FRAMEWORK_NAME))) {
       isLocal = true;
     }
+    XTraceContext.logEvent(ReduceTask.class, "ReduceTask", "Reduce task is local: "+isLocal);
     
     if (!isLocal) {
       Class combinerClass = conf.getCombinerClass();

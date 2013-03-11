@@ -28,7 +28,10 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.IntBuffer;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -74,6 +77,8 @@ import org.apache.hadoop.util.StringInterner;
 import org.apache.hadoop.util.StringUtils;
 
 import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
+import edu.berkeley.xtrace.XTraceMetadataCollection;
 
 /** A Map task. */
 @InterfaceAudience.LimitedPrivate({"MapReduce"})
@@ -82,7 +87,7 @@ public class MapTask extends Task {
   /**
    * The size of each record in the index file for the map-outputs.
    */
-  public static final int MAP_OUTPUT_INDEX_RECORD_LENGTH = 24;
+  public static final int MAP_OUTPUT_INDEX_RECORD_LENGTH = 40;
 
   private TaskSplitIndex splitMetaInfo = new TaskSplitIndex();
   private final static int APPROX_HEADER_LENGTH = 150;
@@ -260,6 +265,9 @@ public class MapTask extends Task {
       boolean ret = moveToNext(key, value);
       long nextRecIndex = skipIt.next();
       long skip = 0;
+      if (recIndex<nextRecIndex && ret) {
+        XTraceContext.logEvent(SkippingRecordReader.class, "Skipping Records", "Skipping records from " + recIndex + " to " + nextRecIndex);
+      }
       while(recIndex<nextRecIndex && ret) {
         if(toWriteSkipRecs) {
           writeSkippedRec(key, value);
@@ -757,9 +765,10 @@ public class MapTask extends Task {
               mapContext);
 
     input.initialize(split, mapperContext);
-    XTraceContext.logEvent(MapTask.class, "NewMapper", "Running map");
+    XTraceContext.logEvent(MapTask.class, "NewMapper", "Running map start");
     mapper.run(mapperContext);
     mapPhase.complete();
+    XTraceContext.logEvent(MapTask.class, "NewMapper", "Running map end");
     setPhase(TaskStatus.Phase.SORT);
     statusUpdate(umbilical);
     input.close();
@@ -931,7 +940,7 @@ public class MapTask extends Task {
       spilledRecordsCounter = reporter.getCounter(TaskCounter.SPILLED_RECORDS);
       partitions = job.getNumReduceTasks();
       rfs = ((LocalFileSystem)FileSystem.getLocal(job)).getRaw();
-
+      
       //sanity checks
       final float spillper =
         job.getFloat(JobContext.MAP_SORT_SPILL_PERCENT, (float)0.8);
@@ -1150,6 +1159,7 @@ public class MapTask extends Task {
         kvindex = (kvindex - NMETA + kvmeta.capacity()) % kvmeta.capacity();
       } catch (MapBufferTooSmallException e) {
         LOG.info("Record too large for in-memory buffer: " + e.getMessage());
+        XTraceContext.logEvent(MapOutputBuffer.class, "MapTask Output Buffer Collect", "Record too large for in-memory buffer: " + e.getMessage());        
         spillSingleRecord(key, value, partition);
         mapOutputRecordCounter.increment(1);
         return;
@@ -1409,6 +1419,7 @@ public class MapTask extends Task {
                     reporter.progress();
                     spillDone.await();
                   }
+                  spillThread.joinSpillDoneContext();
                 } catch (InterruptedException e) {
                     throw new IOException(
                         "Buffer interrupted while waiting for the writer", e);
@@ -1435,6 +1446,7 @@ public class MapTask extends Task {
     public void flush() throws IOException, ClassNotFoundException,
            InterruptedException {
       LOG.info("Starting flush of map output");
+      XTraceContext.logEvent(MapOutputBuffer.class, "MapOutputBuffer flush", "Starting flush of map output");
       spillLock.lock();
       try {
         while (spillInProgress) {
@@ -1492,16 +1504,29 @@ public class MapTask extends Task {
 
     protected class SpillThread extends Thread {
 
+      private Collection<XTraceMetadata> xtrace_spillstart_context;
+      private Collection<XTraceMetadata> xtrace_spilldone_context;
+      
+      public void rememberSpillStartContext() {
+        xtrace_spillstart_context = XTraceContext.getThreadContext();
+      }
+      
+      public void joinSpillDoneContext() {
+        XTraceContext.joinContext(xtrace_spilldone_context);
+      }
+
       @Override
       public void run() {
         spillLock.lock();
         spillThreadRunning = true;
         try {
           while (true) {
+            XTraceContext.clearThreadContext();
             spillDone.signal();
             while (!spillInProgress) {
               spillReady.await();
             }
+            XTraceContext.joinContext(xtrace_spillstart_context);
             try {
               spillLock.unlock();
               sortAndSpill();
@@ -1516,6 +1541,7 @@ public class MapTask extends Task {
               bufstart = bufend;
               spillInProgress = false;
             }
+            xtrace_spilldone_context = XTraceContext.getThreadContext();
           }
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
@@ -1552,6 +1578,7 @@ public class MapTask extends Task {
                  "); length = " + (distanceTo(kvend, kvstart,
                        kvmeta.capacity()) + 1) + "/" + maxRec);
       }
+      spillThread.rememberSpillStartContext();
       spillReady.signal();
     }
 
@@ -1576,11 +1603,18 @@ public class MapTask extends Task {
           (kvstart >= kvend
           ? kvstart
           : kvmeta.capacity() + kvstart) / NMETA;
+        XTraceContext.logEvent(MapOutputBuffer.class, "MapOutputBuffer sort", "Sorting records");
         sorter.sort(MapOutputBuffer.this, mstart, mend, reporter);
         int spindex = mstart;
         final IndexRecord rec = new IndexRecord();
         final InMemValBytes value = new InMemValBytes();
+
+
+        XTraceContext.logEvent(MapOutputBuffer.class, "MapOutputBuffer spill", "Spilling records to " + filename, "NumPartitions", partitions);
+        Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
+        Collection<XTraceMetadata> end_context = new XTraceMetadataCollection();
         for (int i = 0; i < partitions; ++i) {
+          XTraceContext.setThreadContext(start_context);
           IFile.Writer<K, V> writer = null;
           try {
             long segmentStart = out.getPos();
@@ -1589,6 +1623,7 @@ public class MapTask extends Task {
             if (combinerRunner == null) {
               // spill directly
               DataInputBuffer key = new DataInputBuffer();
+              int spillcount = 0;
               while (spindex < mend &&
                   kvmeta.get(offsetFor(spindex % maxRec) + PARTITION) == i) {
                 final int kvoff = offsetFor(spindex % maxRec);
@@ -1598,6 +1633,11 @@ public class MapTask extends Task {
                 getVBytesForOffset(kvoff, value);
                 writer.append(key, value);
                 ++spindex;
+                ++spillcount;
+              }
+              if (spillcount > 0) {
+                XTraceContext.logEvent(MapOutputBuffer.class, "MapOutputBuffer spill", "Directly spilled "+spillcount+" records to partition "+i+" output file", "Partition", i, "SpillCount", spillcount, "Combiner", "false");
+                rec.rememberContext();
               }
             } else {
               int spstart = spindex;
@@ -1613,6 +1653,8 @@ public class MapTask extends Task {
                 RawKeyValueIterator kvIter =
                   new MRResultIterator(spstart, spindex);
                 combinerRunner.combine(kvIter, combineCollector);
+                XTraceContext.logEvent(MapOutputBuffer.class, "MapOutputBuffer spill", "Combined "+(spindex-spstart)+" records for partition "+i, "Partition", i, "SpillCount", (spindex-spstart), "Combiner", "true");
+                rec.rememberContext();
               }
             }
 
@@ -1628,8 +1670,10 @@ public class MapTask extends Task {
             writer = null;
           } finally {
             if (null != writer) writer.close();
+            end_context = XTraceContext.getThreadContext(end_context);
           }
         }
+        XTraceContext.joinContext(end_context);
 
         if (totalIndexCacheMemory >= indexCacheMemoryLimit) {
           // create spill index file
@@ -1688,6 +1732,7 @@ public class MapTask extends Task {
             rec.startOffset = segmentStart;
             rec.rawLength = writer.getRawLength();
             rec.partLength = writer.getCompressedLength();
+            rec.rememberContext();
             spillRec.putIndex(rec, i);
 
             writer = null;
@@ -1786,6 +1831,8 @@ public class MapTask extends Task {
 
     private void mergeParts() throws IOException, InterruptedException, 
                                      ClassNotFoundException {
+      
+      XTraceContext.logEvent(MapOutputBuffer.class, "MapOutputBuffer mergeParts", "Merging intermediate map outputs");
       // get the approximate size of the final output/index files
       long finalOutFileSize = 0;
       long finalIndexFileSize = 0;
@@ -1797,6 +1844,7 @@ public class MapTask extends Task {
         finalOutFileSize += rfs.getFileStatus(filename[i]).getLen();
       }
       if (numSpills == 1) { //the spill is the final output
+        XTraceContext.logEvent(MapOutputBuffer.class, "MapOutputBuffer mergeParts", "Single spill, merge unnecessary");
         sameVolRename(filename[0],
             mapOutputFile.getOutputFileForWriteInVolume(filename[0]));
         if (indexCacheList.size() == 0) {
@@ -1856,12 +1904,16 @@ public class MapTask extends Task {
         
         IndexRecord rec = new IndexRecord();
         final SpillRecord spillRec = new SpillRecord(partitions);
+        Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
+        Collection<XTraceMetadata> end_contexts = new XTraceMetadataCollection();
         for (int parts = 0; parts < partitions; parts++) {
+          XTraceContext.setThreadContext(start_context);
           //create the segments to be merged
           List<Segment<K,V>> segmentList =
             new ArrayList<Segment<K, V>>(numSpills);
           for(int i = 0; i < numSpills; i++) {
             IndexRecord indexRecord = indexCacheList.get(i).getIndex(parts);
+            indexRecord.joinContext();
 
             Segment<K,V> s =
               new Segment<K,V>(job, rfs, filename[i], indexRecord.startOffset,
@@ -1879,6 +1931,7 @@ public class MapTask extends Task {
           // sort the segments only if there are intermediate merges
           boolean sortSegments = segmentList.size() > mergeFactor;
           //merge
+          XTraceContext.logEvent(MapOutputBuffer.class, "MapOutputBuffer mergeParts", "Merging parts for partition "+parts);
           @SuppressWarnings("unchecked")
           RawKeyValueIterator kvIter = Merger.merge(job, rfs,
                          keyClass, valClass, codec,
@@ -1908,13 +1961,18 @@ public class MapTask extends Task {
           rec.startOffset = segmentStart;
           rec.rawLength = writer.getRawLength();
           rec.partLength = writer.getCompressedLength();
+          rec.rememberContext();
           spillRec.putIndex(rec, parts);
+          
+          end_contexts = XTraceContext.getThreadContext(end_contexts);
         }
+        XTraceContext.setThreadContext(end_contexts);
         spillRec.writeToFile(finalIndexFile, job);
         finalOut.close();
         for(int i = 0; i < numSpills; i++) {
           rfs.delete(filename[i],true);
         }
+        XTraceContext.logEvent(MapTask.class, "MapTask", "Final output written", "finalIndexFile", finalIndexFile.toString(), "finalOutputFile", finalOutputFile.toString());
       }
     }
     
