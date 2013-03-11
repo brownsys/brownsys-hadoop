@@ -449,8 +449,8 @@ public class TaskAttemptListenerImpl extends CompositeService
 
     // A JVM not present in this map is an illegal task/JVM.
     task.rememberContext();
-    jvmIDToActiveAttemptMap.put(jvmID, task);
-    XTraceContext.logEvent(TaskAttemptListenerImpl.class, "TaskUmbilical getTask", "Task "+task.getTaskID()+" registered for JVM with ID: " + jvmID);    
+    XTraceContext.logEvent(TaskAttemptListenerImpl.class, "TaskUmbilical registerPendingTask", "Task "+task.getTaskID()+" registered for JVM with ID: " + jvmID);
+    jvmIDToActiveAttemptMap.put(jvmID, task);    
   }
 
   @Override
