@@ -50,7 +50,7 @@ public class RMContainerImpl implements RMContainer {
                                            RMContainerEventType, RMContainerEvent> 
    stateMachineFactory = new StateMachineFactory<RMContainerImpl, 
        RMContainerState, RMContainerEventType, RMContainerEvent>(
-      RMContainerState.NEW)
+      RMContainerState.NEW, StateMachineFactory.Trace.KEEPALIVE)
 
     // Transitions from NEW state
     .addTransition(RMContainerState.NEW, RMContainerState.ALLOCATED,
