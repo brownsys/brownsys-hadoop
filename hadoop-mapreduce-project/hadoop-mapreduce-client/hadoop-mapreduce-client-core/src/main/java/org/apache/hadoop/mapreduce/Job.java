@@ -1245,7 +1245,7 @@ public class Job extends JobContextImpl implements JobContext {
                                    ) throws IOException, InterruptedException,
                                             ClassNotFoundException {
 	  
-	XTraceContext.startTrace("MapReduce Job", "Preparing Job");
+	  XTraceContext.startTrace("MapReduce Job", "Preparing Job");
     if (state == JobState.DEFINE) {
       submit();
     }
