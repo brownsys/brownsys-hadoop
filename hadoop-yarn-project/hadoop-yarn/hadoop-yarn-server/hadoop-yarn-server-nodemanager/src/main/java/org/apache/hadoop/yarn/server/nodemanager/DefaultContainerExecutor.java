@@ -196,6 +196,7 @@ public class DefaultContainerExecutor extends ContainerExecutor {
       }
       int exitCode = shExec.getExitCode();
       LOG.warn("Exit code from task is : " + exitCode);
+      XTraceContext.logEvent(ContainerExecutor.class, "DefaultContainerExecutor", "Subprocess finished with exit code "+exitCode);
       String message = shExec.getOutput();
       logOutput(message);
       container.handle(new ContainerDiagnosticsUpdateEvent(containerId,
