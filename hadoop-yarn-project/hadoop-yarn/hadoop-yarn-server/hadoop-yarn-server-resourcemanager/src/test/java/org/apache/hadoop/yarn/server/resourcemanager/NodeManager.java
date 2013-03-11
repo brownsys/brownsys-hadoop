@@ -58,6 +58,8 @@ import org.apache.hadoop.yarn.server.resourcemanager.resource.Resources;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.common.fica.FiCaSchedulerNode;
 import org.apache.hadoop.yarn.util.BuilderUtils;
 
+import edu.berkeley.xtrace.XTraceContext;
+
 @Private
 public class NodeManager implements ContainerManager {
   private static final Log LOG = LogFactory.getLog(NodeManager.class);
@@ -160,6 +162,8 @@ public class NodeManager implements ContainerManager {
   synchronized public StartContainerResponse startContainer(
       StartContainerRequest request) 
   throws YarnRemoteException {
+    XTraceContext.logEvent(NodeManager.class, "NodeManager startContainer", "Node manager starting container");
+    
     ContainerLaunchContext containerLaunchContext = 
         request.getContainerLaunchContext();
     
@@ -216,6 +220,7 @@ public class NodeManager implements ContainerManager {
   @Override
   synchronized public StopContainerResponse stopContainer(StopContainerRequest request) 
   throws YarnRemoteException {
+    XTraceContext.logEvent(NodeManager.class, "NodeManager stopContainer", "Node Manager Stopping Container");
     ContainerId containerID = request.getContainerId();
     String applicationId = String.valueOf(
         containerID.getApplicationAttemptId().getApplicationId().getId());
@@ -225,6 +230,7 @@ public class NodeManager implements ContainerManager {
     for (Container c : applicationContainers) {
       if (c.getId().compareTo(containerID) == 0) {
         c.setState(ContainerState.COMPLETE);
+        c.getId().rememberContext();
       }
     }
     
