@@ -157,7 +157,7 @@ public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
        stateMachineFactory  = new StateMachineFactory<RMAppAttemptImpl,
                                             RMAppAttemptState,
                                             RMAppAttemptEventType,
-                                     RMAppAttemptEvent>(RMAppAttemptState.NEW)
+                                     RMAppAttemptEvent>(RMAppAttemptState.NEW, StateMachineFactory.Trace.KEEPALIVE)
 
        // Transitions from NEW State
       .addTransition(RMAppAttemptState.NEW, RMAppAttemptState.SUBMITTED,

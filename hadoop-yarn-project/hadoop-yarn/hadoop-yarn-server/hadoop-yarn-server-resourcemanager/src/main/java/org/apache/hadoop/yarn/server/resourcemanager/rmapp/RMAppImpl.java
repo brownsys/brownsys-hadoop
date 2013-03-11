@@ -112,7 +112,7 @@ public class RMAppImpl implements RMApp, Recoverable {
                                = new StateMachineFactory<RMAppImpl,
                                            RMAppState,
                                            RMAppEventType,
-                                           RMAppEvent>(RMAppState.NEW)
+                                           RMAppEvent>(RMAppState.NEW, StateMachineFactory.Trace.KEEPALIVE)
 
 
      // Transitions from NEW state
@@ -151,15 +151,15 @@ public class RMAppImpl implements RMApp, Recoverable {
     .addTransition(RMAppState.RUNNING, RMAppState.RUNNING,
         RMAppEventType.NODE_UPDATE, new RMAppNodeUpdateTransition())
     .addTransition(RMAppState.RUNNING, RMAppState.FINISHING,
-        RMAppEventType.ATTEMPT_FINISHING, new RMAppFinishingTransition())
+        RMAppEventType.ATTEMPT_FINISHING, new RMAppFinishingTransition(), StateMachineFactory.Trace.ALWAYS)
     .addTransition(RMAppState.RUNNING, RMAppState.FINISHED,
-        RMAppEventType.ATTEMPT_FINISHED, FINISHED_TRANSITION)
+        RMAppEventType.ATTEMPT_FINISHED, FINISHED_TRANSITION, StateMachineFactory.Trace.ALWAYS)
     .addTransition(RMAppState.RUNNING,
         EnumSet.of(RMAppState.SUBMITTED, RMAppState.FAILED),
         RMAppEventType.ATTEMPT_FAILED,
-        new AttemptFailedTransition(RMAppState.SUBMITTED))
+        new AttemptFailedTransition(RMAppState.SUBMITTED), StateMachineFactory.Trace.ALWAYS)
     .addTransition(RMAppState.RUNNING, RMAppState.KILLED,
-        RMAppEventType.KILL, new KillAppAndAttemptTransition())
+        RMAppEventType.KILL, new KillAppAndAttemptTransition(), StateMachineFactory.Trace.ALWAYS)
 
      // Transitions from FINISHING state
     .addTransition(RMAppState.FINISHING, RMAppState.FINISHED,
