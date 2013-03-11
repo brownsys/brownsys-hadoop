@@ -175,21 +175,23 @@ public class DefaultContainerExecutor extends ContainerExecutor {
       String[] command = {"bash",
           wrapperScriptDst.toUri().getPath().toString()};
       LOG.info("launchContainer: " + Arrays.toString(command));
-      XTraceContext.logEvent(ContainerExecutor.class, "DefaultContainerExecutor", "Launching container", "args", Arrays.toString(command));
+      XTraceContext.logEvent(ContainerExecutor.class, "DefaultContainerExecutor", "Invoking command line", "args", Arrays.toString(command));
       shExec = new ShellCommandExecutor(
           command,
           new File(containerWorkDir.toUri().getPath()),
           container.getLaunchContext().getEnvironment());      // sanitized env
       if (isContainerActive(containerId)) {
         shExec.execute();
-      }
-      else {
+        XTraceContext.logEvent(ContainerExecutor.class, "DefaultContainerExecutor", "Subprocess finished");
+      } else {
         LOG.info("Container " + containerIdStr +
             " was marked as inactive. Returning terminated error");
+        XTraceContext.logEvent(ContainerExecutor.class, "DefaultContainerExecutor", "Container " + containerIdStr + " was marked as inactive. Returning terminated error");
         return ExitCode.TERMINATED.getExitCode();
       }
     } catch (IOException e) {
       if (null == shExec) {
+        XTraceContext.logEvent(ContainerExecutor.class, "DefaultContainerExecutor IOException", e.getMessage());
         return -1;
       }
       int exitCode = shExec.getExitCode();

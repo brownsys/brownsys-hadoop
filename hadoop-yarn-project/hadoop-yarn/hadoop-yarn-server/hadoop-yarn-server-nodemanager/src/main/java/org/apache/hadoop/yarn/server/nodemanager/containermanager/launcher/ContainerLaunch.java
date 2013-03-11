@@ -118,188 +118,182 @@ public class ContainerLaunch implements Callable<Integer> {
   @SuppressWarnings("unchecked") // dispatcher not typed
   public Integer call() {
     // Save any prior context and replace the context with this callable's context
-    Collection<XTraceMetadata> prior_xtrace = XTraceContext.getThreadContext();
     XTraceContext.setThreadContext(this.xtrace);
     
+    final ContainerLaunchContext launchContext = container.getLaunchContext();
+    final Map<Path,List<String>> localResources =
+        container.getLocalizedResources();
+    ContainerId containerID = container.getContainerID();
+    String containerIdStr = ConverterUtils.toString(containerID);
+    final String user = launchContext.getUser();
+    final List<String> command = launchContext.getCommands();
+    int ret = -1;
+  
     try {
-      final ContainerLaunchContext launchContext = container.getLaunchContext();
-      final Map<Path,List<String>> localResources =
-          container.getLocalizedResources();
-      ContainerId containerID = container.getContainerID();
-      String containerIdStr = ConverterUtils.toString(containerID);
-      final String user = launchContext.getUser();
-      final List<String> command = launchContext.getCommands();
-      int ret = -1;
-  
+      // /////////////////////////// Variable expansion
+      // Before the container script gets written out.
+      List<String> newCmds = new ArrayList<String>(command.size());
+      String appIdStr = app.getAppId().toString();
+      Path containerLogDir =
+          dirsHandler.getLogPathForWrite(ContainerLaunch
+              .getRelativeContainerLogDir(appIdStr, containerIdStr), false);
+      for (String str : command) {
+        // TODO: Should we instead work via symlinks without this grammar?
+        newCmds.add(str.replace(ApplicationConstants.LOG_DIR_EXPANSION_VAR,
+            containerLogDir.toUri().getPath()));
+      }
+      launchContext.setCommands(newCmds);
+
+      Map<String, String> environment = launchContext.getEnvironment();
+      // Make a copy of env to iterate & do variable expansion
+      for (Entry<String, String> entry : environment.entrySet()) {
+        String value = entry.getValue();
+        entry.setValue(
+            value.replace(
+                ApplicationConstants.LOG_DIR_EXPANSION_VAR,
+                containerLogDir.toUri().getPath())
+            );
+      }
+      // /////////////////////////// End of variable expansion
+
+      FileContext lfs = FileContext.getLocalFSFileContext();
+
+      Path nmPrivateContainerScriptPath =
+          dirsHandler.getLocalPathForWrite(
+              getContainerPrivateDir(appIdStr, containerIdStr) + Path.SEPARATOR
+                  + CONTAINER_SCRIPT);
+      Path nmPrivateTokensPath =
+          dirsHandler.getLocalPathForWrite(
+              getContainerPrivateDir(appIdStr, containerIdStr)
+                  + Path.SEPARATOR
+                  + String.format(ContainerLocalizer.TOKEN_FILE_NAME_FMT,
+                      containerIdStr));
+
+      DataOutputStream containerScriptOutStream = null;
+      DataOutputStream tokensOutStream = null;
+
+      // Select the working directory for the container
+      Path containerWorkDir =
+          dirsHandler.getLocalPathForWrite(ContainerLocalizer.USERCACHE
+              + Path.SEPARATOR + user + Path.SEPARATOR
+              + ContainerLocalizer.APPCACHE + Path.SEPARATOR + appIdStr
+              + Path.SEPARATOR + containerIdStr,
+              LocalDirAllocator.SIZE_UNKNOWN, false);
+
+      String pidFileSuffix = String.format(ContainerLaunch.PID_FILE_NAME_FMT,
+          containerIdStr);
+
+      // pid file should be in nm private dir so that it is not 
+      // accessible by users
+      pidFilePath = dirsHandler.getLocalPathForWrite(
+          ResourceLocalizationService.NM_PRIVATE_DIR + Path.SEPARATOR 
+          + pidFileSuffix);
+      List<String> localDirs = dirsHandler.getLocalDirs();
+      List<String> logDirs = dirsHandler.getLogDirs();
+
+      if (!dirsHandler.areDisksHealthy()) {
+        ret = YarnConfiguration.DISKS_FAILED;
+        throw new IOException("Most of the disks failed. "
+            + dirsHandler.getDisksHealthReport());
+      }
+
       try {
-        // /////////////////////////// Variable expansion
-        // Before the container script gets written out.
-        List<String> newCmds = new ArrayList<String>(command.size());
-        String appIdStr = app.getAppId().toString();
-        Path containerLogDir =
-            dirsHandler.getLogPathForWrite(ContainerLaunch
-                .getRelativeContainerLogDir(appIdStr, containerIdStr), false);
-        for (String str : command) {
-          // TODO: Should we instead work via symlinks without this grammar?
-          newCmds.add(str.replace(ApplicationConstants.LOG_DIR_EXPANSION_VAR,
-              containerLogDir.toUri().getPath()));
+        // /////////// Write out the container-script in the nmPrivate space.
+        List<Path> appDirs = new ArrayList<Path>(localDirs.size());
+        for (String localDir : localDirs) {
+          Path usersdir = new Path(localDir, ContainerLocalizer.USERCACHE);
+          Path userdir = new Path(usersdir, user);
+          Path appsdir = new Path(userdir, ContainerLocalizer.APPCACHE);
+          appDirs.add(new Path(appsdir, appIdStr));
         }
-        launchContext.setCommands(newCmds);
-  
-        Map<String, String> environment = launchContext.getEnvironment();
-        // Make a copy of env to iterate & do variable expansion
-        for (Entry<String, String> entry : environment.entrySet()) {
-          String value = entry.getValue();
-          entry.setValue(
-              value.replace(
-                  ApplicationConstants.LOG_DIR_EXPANSION_VAR,
-                  containerLogDir.toUri().getPath())
-              );
-        }
-        // /////////////////////////// End of variable expansion
-  
-        FileContext lfs = FileContext.getLocalFSFileContext();
-  
-        Path nmPrivateContainerScriptPath =
-            dirsHandler.getLocalPathForWrite(
-                getContainerPrivateDir(appIdStr, containerIdStr) + Path.SEPARATOR
-                    + CONTAINER_SCRIPT);
-        Path nmPrivateTokensPath =
-            dirsHandler.getLocalPathForWrite(
-                getContainerPrivateDir(appIdStr, containerIdStr)
-                    + Path.SEPARATOR
-                    + String.format(ContainerLocalizer.TOKEN_FILE_NAME_FMT,
-                        containerIdStr));
-  
-        DataOutputStream containerScriptOutStream = null;
-        DataOutputStream tokensOutStream = null;
-  
-        // Select the working directory for the container
-        Path containerWorkDir =
-            dirsHandler.getLocalPathForWrite(ContainerLocalizer.USERCACHE
-                + Path.SEPARATOR + user + Path.SEPARATOR
-                + ContainerLocalizer.APPCACHE + Path.SEPARATOR + appIdStr
-                + Path.SEPARATOR + containerIdStr,
-                LocalDirAllocator.SIZE_UNKNOWN, false);
-  
-        String pidFileSuffix = String.format(ContainerLaunch.PID_FILE_NAME_FMT,
-            containerIdStr);
-  
-        // pid file should be in nm private dir so that it is not 
-        // accessible by users
-        pidFilePath = dirsHandler.getLocalPathForWrite(
-            ResourceLocalizationService.NM_PRIVATE_DIR + Path.SEPARATOR 
-            + pidFileSuffix);
-        List<String> localDirs = dirsHandler.getLocalDirs();
-        List<String> logDirs = dirsHandler.getLogDirs();
-  
-        if (!dirsHandler.areDisksHealthy()) {
-          ret = YarnConfiguration.DISKS_FAILED;
-          throw new IOException("Most of the disks failed. "
-              + dirsHandler.getDisksHealthReport());
-        }
-  
-        try {
-          // /////////// Write out the container-script in the nmPrivate space.
-          List<Path> appDirs = new ArrayList<Path>(localDirs.size());
-          for (String localDir : localDirs) {
-            Path usersdir = new Path(localDir, ContainerLocalizer.USERCACHE);
-            Path userdir = new Path(usersdir, user);
-            Path appsdir = new Path(userdir, ContainerLocalizer.APPCACHE);
-            appDirs.add(new Path(appsdir, appIdStr));
-          }
-          containerScriptOutStream =
-            lfs.create(nmPrivateContainerScriptPath,
-                EnumSet.of(CREATE, OVERWRITE));
-  
-          // Set the token location too.
-          environment.put(
-              ApplicationConstants.CONTAINER_TOKEN_FILE_ENV_NAME, 
-              new Path(containerWorkDir, 
-                  FINAL_CONTAINER_TOKENS_FILE).toUri().getPath());
-  
-          // Sanitize the container's environment
-          sanitizeEnv(environment, containerWorkDir, appDirs);
-          
-          // Write out the environment
-          writeLaunchEnv(containerScriptOutStream, environment, localResources,
-              launchContext.getCommands());
-          
-          // /////////// End of writing out container-script
-  
-          // /////////// Write out the container-tokens in the nmPrivate space.
-          tokensOutStream =
-              lfs.create(nmPrivateTokensPath, EnumSet.of(CREATE, OVERWRITE));
-          Credentials creds = container.getCredentials();
-          creds.writeTokenStorageToStream(tokensOutStream);
-          // /////////// End of writing out container-tokens
-        } finally {
-          IOUtils.cleanup(LOG, containerScriptOutStream, tokensOutStream);
-        }
-  
-        // LaunchContainer is a blocking call. We are here almost means the
-        // container is launched, so send out the event.
-        dispatcher.getEventHandler().handle(new ContainerEvent(
-              containerID,
-              ContainerEventType.CONTAINER_LAUNCHED));
-  
-        // Check if the container is signalled to be killed.
-        if (!shouldLaunchContainer.compareAndSet(false, true)) {
-          LOG.info("Container " + containerIdStr + " not launched as "
-              + "cleanup already called");
-          ret = ExitCode.TERMINATED.getExitCode();
-        }
-        else {
-          exec.activateContainer(containerID, pidFilePath);
-          ret = exec.launchContainer(container, nmPrivateContainerScriptPath,
-                  nmPrivateTokensPath, user, appIdStr, containerWorkDir,
-                  localDirs, logDirs);
-        }
-      } catch (Throwable e) {
-        LOG.warn("Failed to launch container.", e);
-        dispatcher.getEventHandler().handle(new ContainerExitEvent(
+        containerScriptOutStream =
+          lfs.create(nmPrivateContainerScriptPath,
+              EnumSet.of(CREATE, OVERWRITE));
+
+        // Set the token location too.
+        environment.put(
+            ApplicationConstants.CONTAINER_TOKEN_FILE_ENV_NAME, 
+            new Path(containerWorkDir, 
+                FINAL_CONTAINER_TOKENS_FILE).toUri().getPath());
+
+        // Sanitize the container's environment
+        sanitizeEnv(environment, containerWorkDir, appDirs);
+        
+        // Write out the environment
+        writeLaunchEnv(containerScriptOutStream, environment, localResources,
+            launchContext.getCommands());
+        
+        // /////////// End of writing out container-script
+
+        // /////////// Write out the container-tokens in the nmPrivate space.
+        tokensOutStream =
+            lfs.create(nmPrivateTokensPath, EnumSet.of(CREATE, OVERWRITE));
+        Credentials creds = container.getCredentials();
+        creds.writeTokenStorageToStream(tokensOutStream);
+        // /////////// End of writing out container-tokens
+      } finally {
+        IOUtils.cleanup(LOG, containerScriptOutStream, tokensOutStream);
+      }
+
+      // LaunchContainer is a blocking call. We are here almost means the
+      // container is launched, so send out the event.
+      dispatcher.getEventHandler().handle(new ContainerEvent(
+            containerID,
+            ContainerEventType.CONTAINER_LAUNCHED));
+
+      // Check if the container is signalled to be killed.
+      if (!shouldLaunchContainer.compareAndSet(false, true)) {
+        LOG.info("Container " + containerIdStr + " not launched as "
+            + "cleanup already called");
+        ret = ExitCode.TERMINATED.getExitCode();
+      }
+      else {
+        exec.activateContainer(containerID, pidFilePath);
+        ret = exec.launchContainer(container, nmPrivateContainerScriptPath,
+                nmPrivateTokensPath, user, appIdStr, containerWorkDir,
+                localDirs, logDirs);
+      }
+    } catch (Throwable e) {
+      LOG.warn("Failed to launch container.", e);
+      dispatcher.getEventHandler().handle(new ContainerExitEvent(
+            launchContext.getContainerId(),
+            ContainerEventType.CONTAINER_EXITED_WITH_FAILURE, ret,
+            e.getMessage()));
+      return ret;
+    } finally {
+      completed.set(true);
+      exec.deactivateContainer(containerID);
+    }
+
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("Container " + containerIdStr + " completed with exit code "
+                + ret);
+    }
+    if (ret == ExitCode.FORCE_KILLED.getExitCode()
+        || ret == ExitCode.TERMINATED.getExitCode()) {
+      // If the process was killed, Send container_cleanedup_after_kill and
+      // just break out of this method.
+      dispatcher.getEventHandler().handle(
+            new ContainerExitEvent(launchContext.getContainerId(),
+                ContainerEventType.CONTAINER_KILLED_ON_REQUEST, ret,
+                "Container exited with a non-zero exit code " + ret));
+      return ret;
+    }
+
+    if (ret != 0) {
+      LOG.warn("Container exited with a non-zero exit code " + ret);
+      this.dispatcher.getEventHandler().handle(new ContainerExitEvent(
               launchContext.getContainerId(),
               ContainerEventType.CONTAINER_EXITED_WITH_FAILURE, ret,
-              e.getMessage()));
-        return ret;
-      } finally {
-        completed.set(true);
-        exec.deactivateContainer(containerID);
-      }
-  
-      if (LOG.isDebugEnabled()) {
-        LOG.debug("Container " + containerIdStr + " completed with exit code "
-                  + ret);
-      }
-      if (ret == ExitCode.FORCE_KILLED.getExitCode()
-          || ret == ExitCode.TERMINATED.getExitCode()) {
-        // If the process was killed, Send container_cleanedup_after_kill and
-        // just break out of this method.
-        dispatcher.getEventHandler().handle(
-              new ContainerExitEvent(launchContext.getContainerId(),
-                  ContainerEventType.CONTAINER_KILLED_ON_REQUEST, ret,
-                  "Container exited with a non-zero exit code " + ret));
-        return ret;
-      }
-  
-      if (ret != 0) {
-        LOG.warn("Container exited with a non-zero exit code " + ret);
-        this.dispatcher.getEventHandler().handle(new ContainerExitEvent(
-                launchContext.getContainerId(),
-                ContainerEventType.CONTAINER_EXITED_WITH_FAILURE, ret,
-                "Container exited with a non-zero exit code " + ret));
-        return ret;
-      }
-  
-      LOG.info("Container " + containerIdStr + " succeeded ");
-      dispatcher.getEventHandler().handle(
-          new ContainerEvent(launchContext.getContainerId(),
-              ContainerEventType.CONTAINER_EXITED_WITH_SUCCESS));
-      return 0;
-    } finally {
-      // Restore the prior xtrace context
-      XTraceContext.setThreadContext(prior_xtrace);           
+              "Container exited with a non-zero exit code " + ret));
+      return ret;
     }
+
+    LOG.info("Container " + containerIdStr + " succeeded ");
+    dispatcher.getEventHandler().handle(
+        new ContainerEvent(launchContext.getContainerId(),
+            ContainerEventType.CONTAINER_EXITED_WITH_SUCCESS));
+    return 0;
   }
   
   /**

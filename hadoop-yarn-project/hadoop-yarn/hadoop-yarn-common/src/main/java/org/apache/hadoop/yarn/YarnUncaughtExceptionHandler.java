@@ -55,11 +55,13 @@ public class YarnUncaughtExceptionHandler implements UncaughtExceptionHandler {
         //even try to clean up or we can get stuck on shutdown.
         try {
           System.err.println("Halting due to Out Of Memory Error...");
+          XTraceContext.joinParentProcess();
         } catch (Throwable err) {
           //Again we done want to exit because of logging issues.
         }
         Runtime.getRuntime().halt(-1);
       } else {
+        XTraceContext.joinParentProcess();
         System.exit(-1);
       }
     } else {
