@@ -130,7 +130,7 @@ public class ApplicationImpl implements Application {
   private static StateMachineFactory<ApplicationImpl, ApplicationState,
           ApplicationEventType, ApplicationEvent> stateMachineFactory =
       new StateMachineFactory<ApplicationImpl, ApplicationState,
-          ApplicationEventType, ApplicationEvent>(ApplicationState.NEW, StateMachineFactory.Trace.ALWAYS)
+          ApplicationEventType, ApplicationEvent>(ApplicationState.NEW, StateMachineFactory.Trace.KEEPALIVE)
 
            // Transitions from NEW state
            .addTransition(ApplicationState.NEW, ApplicationState.INITING,
