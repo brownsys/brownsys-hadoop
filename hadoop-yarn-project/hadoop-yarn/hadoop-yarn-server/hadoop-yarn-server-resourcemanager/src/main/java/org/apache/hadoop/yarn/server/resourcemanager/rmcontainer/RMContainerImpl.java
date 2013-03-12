@@ -205,6 +205,7 @@ public class RMContainerImpl implements RMContainer {
   
   @Override
   public void handle(RMContainerEvent event) {
+    // X-Trace: this handle method is only ever called synchronously (it seems)
     event.joinContext();
     LOG.debug("Processing " + event.getContainerId() + " of type " + event.getType());
     try {

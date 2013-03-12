@@ -738,6 +738,8 @@ public class RMContainerAllocator extends RMContainerRequestor
     }
     
     void addMap(ContainerRequestEvent event) {
+      event.joinContext();
+      
       ContainerRequest request = null;
       
       if (event.getEarlierAttemptFailed()) {
@@ -1064,7 +1066,6 @@ public class RMContainerAllocator extends RMContainerRequestor
             break;
           }
         }
-        XTraceContext.clearThreadContext();
       }
       XTraceContext.clearThreadContext();
       
@@ -1099,8 +1100,8 @@ public class RMContainerAllocator extends RMContainerRequestor
             }
             break;
           }
+          XTraceContext.clearThreadContext();
         }
-        XTraceContext.clearThreadContext();
       }
       XTraceContext.clearThreadContext();
       
@@ -1125,6 +1126,7 @@ public class RMContainerAllocator extends RMContainerRequestor
         if (LOG.isDebugEnabled()) {
           LOG.debug("Assigned based on * match");
         }
+        XTraceContext.clearThreadContext();
       }
       XTraceContext.clearThreadContext();
     }
@@ -1142,6 +1144,7 @@ public class RMContainerAllocator extends RMContainerRequestor
     
     void add(Container container, TaskAttemptId tId) {
       LOG.info("Assigned container " + container.getId().toString() + " to " + tId);
+      XTraceContext.logEvent(AssignedRequests.class, "AssignedRequests", "Assigned container " + container.getId().toString() + " to " + tId);
       containerToAttemptMap.put(container.getId(), tId);
       if (tId.getTaskId().getTaskType().equals(TaskType.MAP)) {
         maps.put(tId, container);

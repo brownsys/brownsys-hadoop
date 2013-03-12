@@ -62,6 +62,9 @@ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerApplicat
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
 
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
+
 /**
  * Represents an Application from the viewpoint of the scheduler.
  * Each running Application in the RM corresponds to one instance
@@ -276,10 +279,13 @@ public class FiCaSchedulerApp extends SchedulerApplication {
   synchronized public List<Container> pullNewlyAllocatedContainers() {
     List<Container> returnContainerList = new ArrayList<Container>(
         newlyAllocatedContainers.size());
+    Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
     for (RMContainer rmContainer : newlyAllocatedContainers) {
       rmContainer.handle(new RMContainerEvent(rmContainer.getContainerId(),
           RMContainerEventType.ACQUIRED));
       returnContainerList.add(rmContainer.getContainer());
+      rmContainer.getContainerId().rememberContext();
+      XTraceContext.setThreadContext(start_context);
     }
     newlyAllocatedContainers.clear();
     return returnContainerList;
