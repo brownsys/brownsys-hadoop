@@ -336,7 +336,7 @@ public class BuilderUtils {
     request.setHostName(r.getHostName());
     request.setCapability(r.getCapability());
     request.setNumContainers(r.getNumContainers());
-    request.rememberContext();
+    //request.rememberContext();
     return request;
   }
 

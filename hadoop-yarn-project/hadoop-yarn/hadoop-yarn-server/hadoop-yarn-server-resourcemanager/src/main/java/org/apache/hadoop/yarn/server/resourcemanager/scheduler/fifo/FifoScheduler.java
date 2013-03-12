@@ -241,7 +241,6 @@ public class FifoScheduler implements ResourceScheduler, Configurable {
 
     // Release containers
     Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
-    Collection<XTraceMetadata> end_context = new XTraceMetadataCollection();
     for (ContainerId releasedContainer : release) {
       XTraceContext.setThreadContext(start_context);
       releasedContainer.joinContext();
@@ -258,10 +257,8 @@ public class FifoScheduler implements ResourceScheduler, Configurable {
               releasedContainer, 
               SchedulerUtils.RELEASED_CONTAINER),
           RMContainerEventType.RELEASED);
-      end_context = XTraceContext.getThreadContext(end_context);
-      XTraceContext.clearThreadContext();
     }
-    XTraceContext.joinContext(end_context);
+    XTraceContext.setThreadContext(start_context);
 
     synchronized (application) {
       if (!ask.isEmpty()) {

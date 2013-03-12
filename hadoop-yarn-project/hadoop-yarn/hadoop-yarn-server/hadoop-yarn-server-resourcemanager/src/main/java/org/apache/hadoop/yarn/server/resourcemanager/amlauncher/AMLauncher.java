@@ -262,7 +262,7 @@ public class AMLauncher implements Runnable {
     switch (eventType) {
     case LAUNCH:
       try {
-        LOG.info("Launching master" + application.getAppAttemptId());
+        LOG.info("Launching master " + application.getAppAttemptId());
         XTraceContext.logEvent(AMLauncher.class, "AMLauncher", "Launching master"+application.getAppAttemptId());
         launch();
         handler.handle(new RMAppAttemptEvent(application.getAppAttemptId(),

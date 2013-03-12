@@ -19,6 +19,7 @@
 package org.apache.hadoop.mapreduce.v2.app.rm;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -39,7 +40,9 @@ import org.apache.hadoop.yarn.YarnException;
 import org.apache.hadoop.yarn.api.protocolrecords.AllocateRequest;
 import org.apache.hadoop.yarn.api.protocolrecords.AllocateResponse;
 import org.apache.hadoop.yarn.api.records.AMResponse;
+import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerId;
+import org.apache.hadoop.yarn.api.records.ContainerStatus;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.api.records.ResourceRequest;
@@ -49,6 +52,7 @@ import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
 import org.apache.hadoop.yarn.util.BuilderUtils;
 
 import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
 
 /**
  * Keeps the data structures to send container requests to RM.
@@ -157,10 +161,28 @@ public abstract class RMContainerRequestor extends RMCommunicator {
   }
 
   protected AMResponse makeRemoteRequest() throws YarnRemoteException {
+    
+    ArrayList<ResourceRequest> askrequests = new ArrayList<ResourceRequest>(ask);
+    ArrayList<ContainerId> releaserequests = new ArrayList<ContainerId>(release);
+    
+    for (ResourceRequest r : askrequests) {
+      XTraceContext.clearThreadContext();
+      r.joinContext();
+      XTraceContext.logEvent(RMContainerRequestor.class, "ContainerRequestor", "Requesting container from RM");
+      r.rememberContext();
+    }
+    
+    for (ContainerId i : releaserequests) {
+      XTraceContext.clearThreadContext();
+      i.joinContext();
+      XTraceContext.logEvent(RMContainerRequestor.class, "ContainerRequestor", "Requesting RM release container " + i);
+      i.rememberContext();
+    }
+    XTraceContext.clearThreadContext();
+    
     AllocateRequest allocateRequest = BuilderUtils.newAllocateRequest(
         applicationAttemptId, lastResponseID, super.getApplicationProgress(),
-        new ArrayList<ResourceRequest>(ask), new ArrayList<ContainerId>(
-            release));
+        askrequests, releaserequests);
     AllocateResponse allocateResponse = scheduler.allocate(allocateRequest);
     AMResponse response = allocateResponse.getAMResponse();
     lastResponseID = response.getResponseId();
@@ -176,6 +198,22 @@ public abstract class RMContainerRequestor extends RMCommunicator {
           + " resourcelimit=" + availableResources + " knownNMs="
           + clusterNmCount);
     }
+    
+    for (Container x : response.getAllocatedContainers()) {
+      XTraceContext.clearThreadContext();
+      x.getId().joinContext();
+      XTraceContext.logEvent(RMContainerRequestor.class, "ContainerRequestor", "Container allocated by RM");
+      x.getId().rememberContext();
+    }
+    
+    for (ContainerStatus x : response.getCompletedContainersStatuses()) {
+      XTraceContext.clearThreadContext();
+      x.getContainerId().joinContext();
+      XTraceContext.logEvent(RMContainerRequestor.class, "ContainerRequestor", "RM acknowledged completed container");
+      x.getContainerId().rememberContext();
+      
+    }
+    XTraceContext.clearThreadContext();
 
     ask.clear();
     release.clear();
@@ -328,10 +366,16 @@ public abstract class RMContainerRequestor extends RMCommunicator {
       remoteRequest.setHostName(resourceName);
       remoteRequest.setCapability(capability);
       remoteRequest.setNumContainers(0);
+//      remoteRequest.rememberContext();
       reqMap.put(capability, remoteRequest);
+    } else {
+      // XTrace - if multiple people request containers at once, this creates unwanted cross-products
+//      Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
+//      remoteRequest.joinContext();
+//      remoteRequest.rememberContext();
+//      XTraceContext.setThreadContext(start_context);
     }
     remoteRequest.setNumContainers(remoteRequest.getNumContainers() + 1);
-    remoteRequest.rememberContext();
 
     // Note this down for next interaction with ResourceManager
     addResourceRequestToAsk(remoteRequest);
@@ -372,7 +416,6 @@ public abstract class RMContainerRequestor extends RMCommunicator {
       // than requested. so guard for that.
       remoteRequest.setNumContainers(remoteRequest.getNumContainers() -1);
     }
-    remoteRequest.rememberContext();
     if (remoteRequest.getNumContainers() == 0) {
       reqMap.remove(capability);
       if (reqMap.size() == 0) {
