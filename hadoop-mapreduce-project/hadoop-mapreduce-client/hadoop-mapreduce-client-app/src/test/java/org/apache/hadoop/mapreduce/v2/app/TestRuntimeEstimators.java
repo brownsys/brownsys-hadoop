@@ -502,6 +502,16 @@ public class TestRuntimeEstimators {
     public Configuration loadConfFile() {
       throw new UnsupportedOperationException();
     }
+
+    @Override
+    public int getAndJoinCompletedMaps() {
+      return getCompletedMaps();
+    }
+
+    @Override
+    public int getAndJoinCompletedReduces() {
+      return getCompletedReduces();
+    }
   }
 
   /*

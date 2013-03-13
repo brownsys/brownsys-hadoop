@@ -190,4 +190,15 @@ public class PartialJob implements org.apache.hadoop.mapreduce.v2.app.job.Job {
     return null;
   }
 
+
+  @Override
+  public int getAndJoinCompletedMaps() {
+    return getCompletedMaps();
+  }
+
+  @Override
+  public int getAndJoinCompletedReduces() {
+    return getCompletedReduces();
+  }
+  
 }

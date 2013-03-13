@@ -648,7 +648,9 @@ public class ReduceTask extends Task {
                                                committer,
                                                reporter, comparator, keyClass,
                                                valueClass);
+    XTraceContext.logEvent(ReduceTask.class, "NewReducer", "Running reduce start");
     reducer.run(reducerContext);
     trackedRW.close(reducerContext);
+    XTraceContext.logEvent(ReduceTask.class, "NewReducer", "Running reduce end");
   }
 }
