@@ -225,8 +225,10 @@ public class RMContainerAllocator extends RMContainerRequestor
       scheduledRequests.assign(allocatedContainers);
     }
 
-    int completedMaps = getJob().getCompletedMaps();
-    int completedTasks = completedMaps + getJob().getCompletedReduces();
+    Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
+    
+    int completedMaps = getJob().getAndJoinCompletedMaps();
+    int completedTasks = completedMaps + getJob().getAndJoinCompletedReduces();
     if (lastCompletedTasks != completedTasks) {
       lastCompletedTasks = completedTasks;
       recalculateReduceSchedule = true;
@@ -243,6 +245,8 @@ public class RMContainerAllocator extends RMContainerRequestor
           maxReduceRampupLimit, reduceSlowStart);
       recalculateReduceSchedule = false;
     }
+    
+    XTraceContext.setThreadContext(start_context);
 
     scheduleStats.updateAndLogIfChanged("After Scheduling: ");
   }
@@ -534,18 +538,30 @@ public class RMContainerAllocator extends RMContainerRequestor
 
   @Private
   public void scheduleAllReduces() {
+    XTraceContext.logEvent(RMContainerAllocator.class, "RMContainerAllocator scheduleAllReduces", "Scheduling all reduces");
+    Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
     for (ContainerRequest req : pendingReduces) {
+      req.joinContext();
+      XTraceContext.logEvent(RMContainerAllocator.class, "RMContainerAllocator scheduleAllReduces", "Scheduling reduce");
+      req.rememberContext();
       scheduledRequests.addReduce(req);
+      XTraceContext.setThreadContext(start_context);
     }
     pendingReduces.clear();
   }
   
   @Private
   public void rampUpReduces(int rampUp) {
+    XTraceContext.logEvent(RMContainerAllocator.class, "RMContainerAllocator rampUpReduces", "Ramping up "+rampUp+" reduces");
     //more reduce to be scheduled
+    Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
     for (int i = 0; i < rampUp; i++) {
       ContainerRequest request = pendingReduces.removeFirst();
+      request.joinContext();
+      XTraceContext.logEvent(RMContainerAllocator.class, "RMContainerAllocator rampUpReduces", "Request ramping up");
+      request.rememberContext();
       scheduledRequests.addReduce(request);
+      XTraceContext.setThreadContext(start_context);
     }
   }
   

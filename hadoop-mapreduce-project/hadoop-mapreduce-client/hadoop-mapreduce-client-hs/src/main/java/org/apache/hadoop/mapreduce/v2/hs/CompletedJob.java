@@ -450,4 +450,16 @@ public class CompletedJob implements org.apache.hadoop.mapreduce.v2.app.job.Job 
     }
     return amInfos;
   }
+
+  @Override
+  public int getAndJoinCompletedMaps() {
+    // TODO Auto-generated method stub
+    return 0;
+  }
+
+  @Override
+  public int getAndJoinCompletedReduces() {
+    // TODO Auto-generated method stub
+    return 0;
+  }
 }

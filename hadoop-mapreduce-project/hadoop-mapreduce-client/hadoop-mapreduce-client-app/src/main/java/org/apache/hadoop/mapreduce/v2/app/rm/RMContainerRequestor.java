@@ -137,6 +137,12 @@ public abstract class RMContainerRequestor extends RMCommunicator {
       }
     }
     
+    public void rememberContext() {
+      if (event!=null) {
+        event.rememberContext();
+      }
+    }
+    
   }
 
   @Override

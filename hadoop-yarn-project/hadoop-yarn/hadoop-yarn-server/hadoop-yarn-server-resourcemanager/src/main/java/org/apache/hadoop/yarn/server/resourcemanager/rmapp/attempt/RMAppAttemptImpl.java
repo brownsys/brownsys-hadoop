@@ -96,6 +96,8 @@ import org.apache.hadoop.yarn.state.StateMachine;
 import org.apache.hadoop.yarn.state.StateMachineFactory;
 import org.apache.hadoop.yarn.util.BuilderUtils;
 
+import edu.berkeley.xtrace.XTraceContext;
+
 @SuppressWarnings({"unchecked", "rawtypes"})
 public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
 
@@ -740,6 +742,9 @@ public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
         ResourceRequest request = BuilderUtils.newResourceRequest(
             AM_CONTAINER_PRIORITY, "*", appAttempt.submissionContext
                 .getAMContainerSpec().getResource(), 1);
+        
+        XTraceContext.logEvent(RMAppAttemptImpl.class, "RMAppAttemptImpl", "Requesting container for ApplicationMaster");
+        request.rememberContext();
 
         Allocation amContainerAllocation = appAttempt.scheduler.allocate(
             appAttempt.applicationAttemptId,
