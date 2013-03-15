@@ -112,6 +112,9 @@ import org.jboss.netty.util.CharsetUtil;
 import com.google.common.base.Charsets;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
+
 public class ShuffleHandler extends AbstractService 
     implements AuxServices.AuxiliaryService {
 
@@ -429,6 +432,12 @@ public class ShuffleHandler extends AbstractService
           sendError(ctx, METHOD_NOT_ALLOWED);
           return;
       }
+      
+      String xtrace_context = request.getHeader("X-Trace");
+      if (xtrace_context!=null) {
+        XTraceContext.setThreadContext(XTraceMetadata.createFromString(xtrace_context));
+      }
+      
       final Map<String,List<String>> q =
         new QueryStringDecoder(request.getUri()).getParameters();
       final List<String> mapIds = splitMaps(q.get("map"));
@@ -440,6 +449,7 @@ public class ShuffleHandler extends AbstractService
             "\n  reduceId: " + reduceQ +
             "\n  jobId: " + jobQ);
       }
+      XTraceContext.logEvent(ShuffleHandler.class, "ShuffleHandler", "Received: " + request.getUri(), "mapId", mapIds, "reduceId", reduceQ, "jobId", jobQ);
 
       if (mapIds == null || reduceQ == null || jobQ == null) {
         sendError(ctx, "Required param job, map and reduce", BAD_REQUEST);

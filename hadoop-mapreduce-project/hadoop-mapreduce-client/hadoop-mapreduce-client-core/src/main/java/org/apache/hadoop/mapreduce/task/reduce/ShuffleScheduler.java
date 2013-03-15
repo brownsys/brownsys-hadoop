@@ -43,6 +43,8 @@ import org.apache.hadoop.mapreduce.TaskID;
 import org.apache.hadoop.mapreduce.task.reduce.MapHost.State;
 import org.apache.hadoop.util.Progress;
 
+import edu.berkeley.xtrace.XTraceContext;
+
 class ShuffleScheduler<K,V> {
   static ThreadLocal<Long> shuffleStart = new ThreadLocal<Long>() {
     protected Long initialValue() {
@@ -303,6 +305,7 @@ class ShuffleScheduler<K,V> {
 
   public synchronized MapHost getHost() throws InterruptedException {
       while(pendingHosts.isEmpty()) {
+        XTraceContext.logEvent(ShuffleScheduler.class, "ShuffleScheduler", "No pending hosts, waiting");
         wait();
       }
       
@@ -318,6 +321,7 @@ class ShuffleScheduler<K,V> {
       
       LOG.info("Assiging " + host + " with " + host.getNumKnownMapOutputs() + 
                " to " + Thread.currentThread().getName());
+      XTraceContext.logEvent(ShuffleScheduler.class, "ShuffleScheduler", "Shuffling from host "+host+" with "+host.getNumKnownMapOutputs()+" known map outputs");
       shuffleStart.set(System.currentTimeMillis());
       
       return host;

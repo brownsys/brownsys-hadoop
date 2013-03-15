@@ -26,6 +26,7 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.security.GeneralSecurityException;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -46,6 +47,10 @@ import org.apache.hadoop.mapreduce.security.SecureShuffleUtils;
 import org.apache.hadoop.security.ssl.SSLFactory;
 
 import com.google.common.annotations.VisibleForTesting;
+
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
+import edu.berkeley.xtrace.XTraceMetadataCollection;
 
 class Fetcher<K,V> extends Thread {
   
@@ -85,6 +90,8 @@ class Fetcher<K,V> extends Thread {
   private final SecretKey jobTokenSecret;
 
   private volatile boolean stopped = false;
+
+  private Collection<XTraceMetadata> initial_xtrace_context;
 
   private static boolean sslShuffle;
   private static SSLFactory sslFactory;
@@ -136,11 +143,14 @@ class Fetcher<K,V> extends Thread {
         }
       }
     }
+    
+    initial_xtrace_context = XTraceContext.getThreadContext();
   }
   
   public void run() {
     try {
       while (!stopped && !Thread.currentThread().isInterrupted()) {
+        XTraceContext.setThreadContext(initial_xtrace_context);
         MapHost host = null;
         try {
           // If merge is on, block
@@ -215,6 +225,7 @@ class Fetcher<K,V> extends Thread {
       LOG.debug("Fetcher " + id + " going to fetch from " + host + " for: "
         + maps);
     }
+    XTraceContext.logEvent(Fetcher.class, "Fetcher", "Fetching outputs from "+maps.size()+" maps on host "+host, "TaskAttemptIDs", maps);
     
     // List of maps to be fetched yet
     Set<TaskAttemptID> remaining = new HashSet<TaskAttemptID>(maps);
@@ -225,6 +236,7 @@ class Fetcher<K,V> extends Thread {
     
     try {
       URL url = getMapOutputURL(host, maps);
+      XTraceContext.logEvent(Fetcher.class, "Fetcher", "Connecting to "+url);
       HttpURLConnection connection = openConnection(url);
       
       // generate hash of the url
@@ -234,6 +246,7 @@ class Fetcher<K,V> extends Thread {
       // put url hash into http header
       connection.addRequestProperty(
           SecureShuffleUtils.HTTP_HEADER_URL_HASH, encHash);
+      connection.addRequestProperty("X-Trace", XTraceContext.logMerge().toString());
       // set the read timeout
       connection.setReadTimeout(readTimeout);
       connect(connection, connectionTimeout);
@@ -262,6 +275,7 @@ class Fetcher<K,V> extends Thread {
       ioErrs.increment(1);
       LOG.warn("Failed to connect to " + host + " with " + remaining.size() + 
                " map outputs", ie);
+      XTraceContext.logEvent(Fetcher.class, "Fetcher","Failed to connect to " + host + " with " + remaining.size() + " map outputs", "Exception", ie.toString());
 
       // If connect did not succeed, just mark all the maps as failed,
       // indirectly penalizing the host
@@ -291,12 +305,18 @@ class Fetcher<K,V> extends Thread {
       // after putting back the remaining maps to the 
       // yet_to_be_fetched list and marking the failed tasks.
       TaskAttemptID[] failedTasks = null;
+      Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
+      Collection<XTraceMetadata> end_context = new XTraceMetadataCollection();
       while (!remaining.isEmpty() && failedTasks == null) {
+        XTraceContext.setThreadContext(start_context);
         failedTasks = copyMapOutput(host, input, remaining);
+        end_context = XTraceContext.getThreadContext(end_context);
       }
+      XTraceContext.joinContext(end_context);
       
       if(failedTasks != null && failedTasks.length > 0) {
         LOG.warn("copyMapOutput failed for tasks "+Arrays.toString(failedTasks));
+        XTraceContext.logEvent(Fetcher.class, "Fetcher", "copyMapOutput failed for tasks "+Arrays.toString(failedTasks));
         for(TaskAttemptID left: failedTasks) {
           scheduler.copyFailed(left, host, true, false);
         }
