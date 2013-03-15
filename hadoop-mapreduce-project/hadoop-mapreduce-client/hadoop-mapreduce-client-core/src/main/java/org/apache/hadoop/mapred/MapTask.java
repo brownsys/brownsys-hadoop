@@ -313,6 +313,8 @@ public class MapTask extends Task {
   public void run(final JobConf job, final TaskUmbilicalProtocol umbilical)
     throws IOException, ClassNotFoundException, InterruptedException {
     this.umbilical = umbilical;
+    
+    XTraceContext.logEvent(MapTask.class, "MapTask", "MapTask running");
 
     if (isMapTask()) {
       // If there are no reducers then there won't be any sort. Hence the map 
