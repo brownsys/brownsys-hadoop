@@ -312,6 +312,9 @@ public class ReduceTask extends Task {
   @SuppressWarnings("unchecked")
   public void run(JobConf job, final TaskUmbilicalProtocol umbilical)
     throws IOException, InterruptedException, ClassNotFoundException {
+
+    XTraceContext.logEvent(ReduceTask.class, "ReduceTask", "ReduceTask running");
+    
     job.setBoolean(JobContext.SKIP_RECORDS, isSkipping());
 
     if (isMapOrReduce()) {
@@ -354,7 +357,6 @@ public class ReduceTask extends Task {
         || (framework != null && framework.equals(MRConfig.LOCAL_FRAMEWORK_NAME))) {
       isLocal = true;
     }
-    XTraceContext.logEvent(ReduceTask.class, "ReduceTask", "Reduce task is local: "+isLocal);
     
     if (!isLocal) {
       Class combinerClass = conf.getCombinerClass();

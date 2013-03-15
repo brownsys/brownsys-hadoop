@@ -32,6 +32,8 @@ import org.apache.hadoop.mapreduce.MRJobConfig;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.util.Progress;
 
+import edu.berkeley.xtrace.XTraceContext;
+
 @InterfaceAudience.LimitedPrivate({"MapReduce"})
 @InterfaceStability.Unstable
 @SuppressWarnings({"unchecked", "rawtypes"})
@@ -89,6 +91,8 @@ public class Shuffle<K, V> implements ShuffleConsumerPlugin<K, V>, ExceptionRepo
 
   @Override
   public RawKeyValueIterator run() throws IOException, InterruptedException {
+    XTraceContext.logEvent(Shuffle.class, "Shuffle", "Running shuffle");
+    
     // Scale the maximum events we fetch per RPC call to mitigate OOM issues
     // on the ApplicationMaster when a thundering herd of reducers fetch events
     // TODO: This should not be necessary after HADOOP-8942
