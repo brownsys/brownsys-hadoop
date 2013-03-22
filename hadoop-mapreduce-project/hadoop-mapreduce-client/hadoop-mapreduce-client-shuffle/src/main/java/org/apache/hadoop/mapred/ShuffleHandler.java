@@ -455,7 +455,8 @@ public class ShuffleHandler extends AbstractService
       XTraceContext.logEvent(ShuffleHandler.class, "ShuffleHandler", 
           "Handling map output retrieval request", "URI", request.getUri(), "Map IDs", mapIds,
           "Reduce ID", reduceQ, "Job ID", jobQ);
-      XTraceContext.logEvent(ShuffleHandler.class, "<trace-tag> ShuffleHandler.messageReceived", "remote-ip", evt.getRemoteAddress().toString()); 
+      
+      XTraceContext.logEvent(ShuffleHandler.class, "ShuffleHandler.messageReceived", "<trace-tag>", "remote-ip", evt.getRemoteAddress().toString()); 
 
       if (mapIds == null || reduceQ == null || jobQ == null) {
         sendError(ctx, "Required param job, map and reduce", BAD_REQUEST);
@@ -625,7 +626,7 @@ public class ShuffleHandler extends AbstractService
       
       SocketAddress local = ch.getLocalAddress();
       SocketAddress remote = ch.getRemoteAddress();
-      XTraceContext.logEvent(ShuffleHandler.class, "<trace-tag> ShuffleHandler.sendMapOutput", 
+      XTraceContext.logEvent(ShuffleHandler.class, "ShuffleHandler.sendMapOutput", "<trace-tag>",
     		  "jid", jobID.toString(), "remote-ip", remote.toString(), "source-ip", local.toString());  
 
       return writeFuture;
