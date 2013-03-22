@@ -1669,9 +1669,9 @@ abstract public class Task implements Writable, Configurable {
                                                 committer,
                                                 reporter, comparator, keyClass,
                                                 valueClass);
-      XTraceContext.logEvent(NewCombinerRunner.class, "Combiner", "Combining map outputs", "CombinerClass", reducer.getClass().getName());
+      XTraceContext.logEvent(NewCombinerRunner.class, "Combiner start", "Combining map outputs", "Combiner", reducer.getClass().getName(), "KeyClass", keyClass, "ValClass", valueClass);
       reducer.run(reducerContext);
-      XTraceContext.logEvent(NewCombinerRunner.class, "Combiner", "Combine complete");
+      XTraceContext.logEvent(NewCombinerRunner.class, "Combiner end", "Combine complete");
     } 
   }
 

@@ -71,8 +71,16 @@ public class IndexRecord {
     m = XTraceContext.logMerge();
   }
   
+  public void clearContext() {
+    m = null;
+  }
+  
   public void joinContext() {
     XTraceContext.joinContext(m);
+  }
+  
+  public boolean hasContext() {
+    return m!=null;
   }
   
 }

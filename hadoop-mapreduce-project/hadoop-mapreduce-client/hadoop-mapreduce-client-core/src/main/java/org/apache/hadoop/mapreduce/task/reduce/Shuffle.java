@@ -18,6 +18,7 @@
 package org.apache.hadoop.mapreduce.task.reduce;
 
 import java.io.IOException;
+import java.util.Collection;
 
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
@@ -33,6 +34,7 @@ import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.util.Progress;
 
 import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
 
 @InterfaceAudience.LimitedPrivate({"MapReduce"})
 @InterfaceStability.Unstable
@@ -55,6 +57,7 @@ public class Shuffle<K, V> implements ShuffleConsumerPlugin<K, V>, ExceptionRepo
   private MergeManager<K, V> merger;
   private Throwable throwable = null;
   private String throwingThreadName = null;
+  private Collection<XTraceMetadata> throwingContext = null;
   private Progress copyPhase;
   private TaskStatus taskStatus;
   private Task reduceTask; //Used for status updates
@@ -122,23 +125,32 @@ public class Shuffle<K, V> implements ShuffleConsumerPlugin<K, V>, ExceptionRepo
       
       synchronized (this) {
         if (throwable != null) {
+          XTraceContext.joinContext(throwingContext);
+          XTraceContext.logEvent(Shuffle.class, "Shuffle", "error in shuffle in " + throwingThreadName + ": " + throwable.toString());
           throw new ShuffleError("error in shuffle in " + throwingThreadName,
                                  throwable);
         }
       }
     }
+    
+    scheduler.joinMapContexts();    
 
+    XTraceContext.logEvent(Shuffle.class, "Shuffle", "Shutting down event fetcher thread");
     // Stop the event-fetcher thread
     eventFetcher.shutDown();
     
     // Stop the map-output fetcher threads
+    XTraceContext.logEvent(Shuffle.class, "Shuffle", "Shutting down map-output fetcher thread");
     for (Fetcher<K,V> fetcher : fetchers) {
       fetcher.shutDown();
+      fetcher.joinContexts();
     }
     
     // stop the scheduler
+    XTraceContext.logEvent(Shuffle.class, "Shuffle", "Stopping the scheduler");
     scheduler.close();
 
+    XTraceContext.logEvent(Shuffle.class, "Shuffle copy complete", "Copy phase complete");
     copyPhase.complete(); // copy is already complete
     taskStatus.setPhase(TaskStatus.Phase.SORT);
     reduceTask.statusUpdate(umbilical);
@@ -148,16 +160,21 @@ public class Shuffle<K, V> implements ShuffleConsumerPlugin<K, V>, ExceptionRepo
     try {
       kvIter = merger.close();
     } catch (Throwable e) {
+      XTraceContext.logEvent(Shuffle.class, "Shuffle merge error", "Error while doing final merge " + e.toString());
       throw new ShuffleError("Error while doing final merge " , e);
     }
 
     // Sanity check
     synchronized (this) {
       if (throwable != null) {
+        XTraceContext.joinContext(throwingContext);
+        XTraceContext.logEvent(Shuffle.class, "Shuffle", "error in shuffle in " + throwingThreadName + ": " + throwable.toString());
         throw new ShuffleError("error in shuffle in " + throwingThreadName,
                                throwable);
       }
     }
+    
+    XTraceContext.logEvent(Shuffle.class, "Shuffle complete", "Shuffle complete");
     
     return kvIter;
   }
@@ -170,6 +187,7 @@ public class Shuffle<K, V> implements ShuffleConsumerPlugin<K, V>, ExceptionRepo
     if (throwable == null) {
       throwable = t;
       throwingThreadName = Thread.currentThread().getName();
+      throwingContext = XTraceContext.getThreadContext();
       // Notify the scheduler so that the reporting thread finds the 
       // exception immediately.
       synchronized (scheduler) {
