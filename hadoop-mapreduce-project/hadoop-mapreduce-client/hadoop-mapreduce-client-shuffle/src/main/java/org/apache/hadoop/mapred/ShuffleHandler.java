@@ -35,6 +35,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
@@ -454,7 +455,7 @@ public class ShuffleHandler extends AbstractService
       XTraceContext.logEvent(ShuffleHandler.class, "ShuffleHandler", 
           "Handling map output retrieval request", "URI", request.getUri(), "Map IDs", mapIds,
           "Reduce ID", reduceQ, "Job ID", jobQ);
-      XTraceContext.logEvent(ShuffleHandler.class, "<trace-tag> ShuffleHandler msgRcvd", "remote-ip", evt.getRemoteAddress().toString()); 
+      XTraceContext.logEvent(ShuffleHandler.class, "<trace-tag> ShuffleHandler.messageReceived", "remote-ip", evt.getRemoteAddress().toString()); 
 
       if (mapIds == null || reduceQ == null || jobQ == null) {
         sendError(ctx, "Required param job, map and reduce", BAD_REQUEST);
@@ -621,6 +622,12 @@ public class ShuffleHandler extends AbstractService
       }
       metrics.shuffleConnections.incr();
       metrics.shuffleOutputBytes.incr(info.partLength); // optimistic
+      
+      SocketAddress local = ch.getLocalAddress();
+      SocketAddress remote = ch.getRemoteAddress();
+      XTraceContext.logEvent(ShuffleHandler.class, "<trace-tag> ShuffleHandler.sendMapOutput", 
+    		  "jid", jobID.toString(), "remote-ip", remote.toString(), "source-ip", local.toString());  
+
       return writeFuture;
     }
 
