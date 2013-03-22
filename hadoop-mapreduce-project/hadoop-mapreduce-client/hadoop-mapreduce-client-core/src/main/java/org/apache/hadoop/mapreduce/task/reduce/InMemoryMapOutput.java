@@ -40,6 +40,8 @@ import org.apache.hadoop.mapred.Reporter;
 
 import org.apache.hadoop.mapreduce.TaskAttemptID;
 
+import edu.berkeley.xtrace.XTraceContext;
+
 @InterfaceAudience.Private
 @InterfaceStability.Unstable
 class InMemoryMapOutput<K, V> extends MapOutput<K, V> {
@@ -113,6 +115,7 @@ class InMemoryMapOutput<K, V> extends MapOutput<K, V> {
   @Override
   public void commit() throws IOException {
     merger.closeInMemoryFile(this);
+    XTraceContext.logEvent(InMemoryMapOutput.class, "InMemoryMapOutput", "Map output committed");
   }
   
   @Override

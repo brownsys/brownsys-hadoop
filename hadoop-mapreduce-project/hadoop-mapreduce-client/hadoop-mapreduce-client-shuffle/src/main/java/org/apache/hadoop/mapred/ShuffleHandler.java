@@ -39,6 +39,7 @@ import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -469,19 +470,23 @@ public class ShuffleHandler extends AbstractService
       ch.write(response);
       // TODO refactor the following into the pipeline
       ChannelFuture lastMap = null;
+      Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
       for (String mapId : mapIds) {
         try {
           lastMap =
             sendMapOutput(ctx, ch, userRsrc.get(jobId), jobId, mapId, reduceId);
           if (null == lastMap) {
+            XTraceContext.logEvent(ShuffleHandler.class, "ShuffleHandler", "Error: "+NOT_FOUND);
             sendError(ctx, NOT_FOUND);
             return;
           }
         } catch (IOException e) {
           LOG.error("Shuffle error ", e);
+          XTraceContext.logEvent(ShuffleHandler.class, "ShuffleHandler", "Shuffle error: "+e.toString());
           sendError(ctx, e.getMessage(), INTERNAL_SERVER_ERROR);
           return;
         }
+        XTraceContext.setThreadContext(start_context);
       }
       lastMap.addListener(metrics);
       lastMap.addListener(ChannelFutureListener.CLOSE);
@@ -548,8 +553,11 @@ public class ShuffleHandler extends AbstractService
           indexFileName);
       final IndexRecord info = 
         indexCache.getIndexInformation(mapId, reduce, indexFileName, user);
+      info.joinContext();
+      XTraceContext.logEvent(ShuffleHandler.class, "ShuffleHandler", "Sending map output for reduce " + reduce + " from map " + mapId, "jobId", jobId);
       final ShuffleHeader header =
         new ShuffleHeader(mapId, info.partLength, info.rawLength, reduce);
+      header.rememberContext();
       final DataOutputBuffer dob = new DataOutputBuffer();
       header.write(dob);
       ch.write(wrappedBuffer(dob.getData(), 0, dob.getLength()));
@@ -599,6 +607,7 @@ public class ShuffleHandler extends AbstractService
       response.setHeader(CONTENT_TYPE, "text/plain; charset=UTF-8");
       response.setContent(
         ChannelBuffers.copiedBuffer(message, CharsetUtil.UTF_8));
+      response.setHeader("X-Trace", XTraceContext.logMerge());
 
       // Close the connection as soon as the error message is sent.
       ctx.getChannel().write(response).addListener(ChannelFutureListener.CLOSE);

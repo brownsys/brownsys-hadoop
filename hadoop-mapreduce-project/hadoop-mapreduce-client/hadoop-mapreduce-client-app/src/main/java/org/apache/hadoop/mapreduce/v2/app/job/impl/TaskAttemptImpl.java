@@ -248,7 +248,7 @@ public abstract class TaskAttemptImpl implements
 
      // Transitions from RUNNING state.
      .addTransition(TaskAttemptStateInternal.RUNNING, TaskAttemptStateInternal.RUNNING,
-         TaskAttemptEventType.TA_UPDATE, new StatusUpdater())
+         TaskAttemptEventType.TA_UPDATE, new StatusUpdater(), StateMachineFactory.Trace.IGNORE)
      .addTransition(TaskAttemptStateInternal.RUNNING, TaskAttemptStateInternal.RUNNING,
          TaskAttemptEventType.TA_DIAGNOSTICS_UPDATE,
          DIAGNOSTIC_INFORMATION_UPDATE_TRANSITION)

@@ -60,6 +60,8 @@ import org.apache.hadoop.util.ReflectionUtils;
 
 import com.google.common.annotations.VisibleForTesting;
 
+import edu.berkeley.xtrace.XTraceContext;
+
 @SuppressWarnings(value={"unchecked"})
 @InterfaceAudience.LimitedPrivate({"MapReduce"})
 @InterfaceStability.Unstable
@@ -254,6 +256,7 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
       LOG.info(mapId + ": Shuffling to disk since " + requestedSize + 
                " is greater than maxSingleShuffleLimit (" + 
                maxSingleShuffleLimit + ")");
+      XTraceContext.logEvent(MergeManagerImpl.class, "MergeManagerImpl", mapId + ": Shuffling to disk since " + requestedSize + " is greater than maxSingleShuffleLimit (" + maxSingleShuffleLimit + ")");
       return new OnDiskMapOutput<K,V>(mapId, reduceId, this, requestedSize,
                                       jobConf, mapOutputFile, fetcher, true);
     }
@@ -276,6 +279,9 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
     if (usedMemory > memoryLimit) {
       LOG.debug(mapId + ": Stalling shuffle since usedMemory (" + usedMemory
           + ") is greater than memoryLimit (" + memoryLimit + ")." + 
+          " CommitMemory is (" + commitMemory + ")");
+      XTraceContext.logEvent(MergeManagerImpl.class, "MergeManagerImpl", mapId + ": Stalling shuffle since usedMemory (" + usedMemory
+          + ") is greater than memoryLimit (" + memoryLimit + ")." + 
           " CommitMemory is (" + commitMemory + ")"); 
       return null;
     }
@@ -284,6 +290,9 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
     LOG.debug(mapId + ": Proceeding with shuffle since usedMemory ("
         + usedMemory + ") is lesser than memoryLimit (" + memoryLimit + ")."
         + "CommitMemory is (" + commitMemory + ")"); 
+    XTraceContext.logEvent(MergeManagerImpl.class, "MergeManagerImpl", mapId + ": Proceeding with shuffle since usedMemory ("
+        + usedMemory + ") is lesser than memoryLimit (" + memoryLimit + ")."
+        + "CommitMemory is (" + commitMemory + ")");
     return unconditionalReserve(mapId, requestedSize, true);
   }
   
@@ -664,6 +673,7 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
     LOG.info("finalMerge called with " + 
              inMemoryMapOutputs.size() + " in-memory map-outputs and " + 
              onDiskMapOutputs.size() + " on-disk map-outputs");
+    XTraceContext.logEvent(MergeManagerImpl.class, "MergeManagerImpl", "finalMerge called with " + inMemoryMapOutputs.size() + " in-memory map-outputs and " + onDiskMapOutputs.size() + " on-disk map-outputs");
     
     final float maxRedPer =
       job.getFloat(MRJobConfig.REDUCE_INPUT_BUFFER_PERCENT, 0f);
