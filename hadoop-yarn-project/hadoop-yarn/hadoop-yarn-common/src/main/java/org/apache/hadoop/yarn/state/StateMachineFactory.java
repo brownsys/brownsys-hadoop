@@ -50,7 +50,7 @@ final public class StateMachineFactory
              <OPERAND, STATE extends Enum<STATE>,
               EVENTTYPE extends Enum<EVENTTYPE>, EVENT> {
   
-  public enum Trace { NEVER, ALWAYS, KEEPALIVE }
+  public enum Trace { NEVER, ALWAYS, KEEPALIVE, IGNORE }
 
   private final TransitionsListNode transitionsListNode;
 
@@ -432,6 +432,20 @@ final public class StateMachineFactory
     throw new InvalidStateTransitonException(oldState, eventType);
   }
   
+  private boolean logXTraceTransition(STATE oldState, EVENTTYPE eventType) {
+    Map<EVENTTYPE, Transition<OPERAND, STATE, EVENTTYPE, EVENT>> transitionMap
+    = stateMachineTable.get(oldState);
+    if (transitionMap != null) {
+      Transition<OPERAND, STATE, EVENTTYPE, EVENT> transition
+          = transitionMap.get(eventType);
+      if (transition != null) {
+        Trace trace_type = transition.getTraceType();
+        return trace_type!=Trace.IGNORE;
+      }
+    }
+    return true;    
+  }
+  
   /**
    * Tells us whether the transition should link back to the previous transition event
    * @param oldState current state
@@ -607,8 +621,8 @@ final public class StateMachineFactory
       if (!optimized) {
         maybeMakeStateMachineTable();
       }
-      this.xtrace_agent = operand.getClass().getSimpleName()+"-"+xtrace_id_seed;
-      XTraceContext.logEvent(operand.getClass(), xtrace_agent, "StateMachine initialized", "StartState", xtraceStateName(currentState));
+      this.xtrace_agent = operand.getClass().getSimpleName()+"-"+xtrace_id_seed+" ";
+      XTraceContext.logEvent(operand.getClass(), xtrace_agent+"init", "StateMachine initialized", "StartState", xtraceStateName(currentState));
       this.previous_transition_context = XTraceContext.getThreadContext();
     }
 
@@ -620,12 +634,17 @@ final public class StateMachineFactory
     public synchronized STATE doTransition(EVENTTYPE eventType, EVENT event)
         throws InvalidStateTransitonException {
       // Add an edge to the previous state machine transition if the transition is to be treated as an xtrace process
-      if (StateMachineFactory.this.logTransitionAsXTraceProcess(currentState, eventType)) {
-        XTraceContext.joinContext(this.previous_transition_context);
+      boolean set_previous_transition_context = false;
+      if (StateMachineFactory.this.logXTraceTransition(currentState, eventType)) {
+        if (StateMachineFactory.this.logTransitionAsXTraceProcess(currentState, eventType)) {
+          XTraceContext.joinContext(this.previous_transition_context);
+        }
+        
+        // Create an event for the transition
+        XTraceContext.logEvent(operand.getClass(), xtrace_agent+event.toString(), event.toString(), "StartState", xtraceStateName(currentState), "Operand", operand.toString());
+        
+        set_previous_transition_context = true;
       }
-      
-      // Create an event for the transition
-      XTraceContext.logEvent(operand.getClass(), xtrace_agent, event.toString(), "StartState", xtraceStateName(currentState), "Operand", operand.toString());
       
       // Do the transition
       try {
@@ -634,7 +653,7 @@ final public class StateMachineFactory
         throw e;
       }
 
-      if (XTraceContext.isValid()) {
+      if (set_previous_transition_context && XTraceContext.isValid()) {
         this.previous_transition_context = XTraceContext.getThreadContext();
       }
       
