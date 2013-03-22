@@ -20,6 +20,7 @@ package org.apache.hadoop.net;
 
 import java.io.IOException;
 import java.io.InterruptedIOException;
+import java.net.Socket;
 import java.net.SocketAddress;
 import java.net.SocketTimeoutException;
 import java.nio.ByteBuffer;
@@ -34,6 +35,8 @@ import java.util.LinkedList;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.util.Time;
+
+import edu.berkeley.xtrace.XTraceContext;
 
 /**
  * This supports input and output streams for a socket channels. 
@@ -190,6 +193,9 @@ abstract class SocketIOWithTimeout {
     
     try { 
       if (channel.connect(endpoint)) {
+    	Socket sock = channel.socket();
+    	SocketAddress remote = sock.getRemoteSocketAddress();
+    	XTraceContext.logEvent(SocketIOWithTimeout.class, "<trace-tag> SocketIOWithTimeout.connect()", "remote-ip", remote.toString());
         return;
       }
 
@@ -204,6 +210,9 @@ abstract class SocketIOWithTimeout {
                                   SelectionKey.OP_CONNECT, timeoutLeft);
         
         if (ret > 0 && channel.finishConnect()) {
+    	  Socket sock = channel.socket();
+    	  SocketAddress remote = sock.getRemoteSocketAddress();
+    	  XTraceContext.logEvent(SocketIOWithTimeout.class, "<trace-tag> SocketIOWithTimeout.connect()", "socket-string", remote.toString());
           return;
         }
         

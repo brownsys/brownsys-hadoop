@@ -428,6 +428,8 @@ public class ShuffleHandler extends AbstractService
             "\n  jobId: " + jobQ);
       }
       XTraceContext.logEvent(ShuffleHandler.class, "ShuffleHandler", "Received: " + request.getUri(), "mapId", mapIds, "reduceId", reduceQ, "jobId", jobQ);
+      
+      XTraceContext.logEvent(ShuffleHandler.class, "<trace-tag> ShuffleHandler msgRcvd", "remote-ip", evt.getRemoteAddress().toString()); 
 
       if (mapIds == null || reduceQ == null || jobQ == null) {
         sendError(ctx, "Required param job, map and reduce", BAD_REQUEST);
