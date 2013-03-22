@@ -195,7 +195,7 @@ abstract class SocketIOWithTimeout {
       if (channel.connect(endpoint)) {
     	Socket sock = channel.socket();
     	SocketAddress remote = sock.getRemoteSocketAddress();
-    	XTraceContext.logEvent(SocketIOWithTimeout.class, "<trace-tag> SocketIOWithTimeout.connect()", "remote-ip", remote.toString());
+    	XTraceContext.logEvent(SocketIOWithTimeout.class, "SocketIOWithTimeout.connect()", "<trace-tag>", "remote-ip", remote.toString());
         return;
       }
 
@@ -212,7 +212,7 @@ abstract class SocketIOWithTimeout {
         if (ret > 0 && channel.finishConnect()) {
     	  Socket sock = channel.socket();
     	  SocketAddress remote = sock.getRemoteSocketAddress();
-    	  XTraceContext.logEvent(SocketIOWithTimeout.class, "<trace-tag> SocketIOWithTimeout.connect()", "socket-string", remote.toString());
+    	  XTraceContext.logEvent(SocketIOWithTimeout.class, "SocketIOWithTimeout.connect()", "<trace-tag>", "socket-string", remote.toString());
           return;
         }
         
