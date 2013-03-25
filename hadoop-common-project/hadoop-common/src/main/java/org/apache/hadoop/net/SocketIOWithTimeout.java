@@ -20,6 +20,7 @@ package org.apache.hadoop.net;
 
 import java.io.IOException;
 import java.io.InterruptedIOException;
+import java.net.InetAddress;
 import java.net.Socket;
 import java.net.SocketAddress;
 import java.net.InetSocketAddress;
@@ -214,9 +215,10 @@ abstract class SocketIOWithTimeout {
         
         if (ret > 0 && channel.finishConnect()) {
     	  Socket sock = channel.socket();
+    	  InetAddress local = sock.getLocalAddress();
     	  InetSocketAddress remote = (InetSocketAddress) sock.getRemoteSocketAddress();
     	  XTraceContext.logEvent(SocketIOWithTimeout.class, "SocketIOWithTimeout.connect()", "<trace-tag>", 
-    			  "local-host",  sock.getLocalAddress().toString(), "local-port",  sock.getLocalPort(),
+    			  "local-host",  local.getHostAddress(), "local-port",  sock.getLocalPort(),
     			  "remote-host", remote.getHostName(), "remote-port", remote.getPort());
           return;
         }
