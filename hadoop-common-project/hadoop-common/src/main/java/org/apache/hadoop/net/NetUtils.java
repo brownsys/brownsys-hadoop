@@ -537,6 +537,10 @@ public class NetUtils {
         if (ch == null) {
           // let the default implementation handle it.
           socket.connect(endpoint, timeout);
+          InetSocketAddress remote = (InetSocketAddress) socket.getRemoteSocketAddress();
+          XTraceContext.logEvent(SocketIOWithTimeout.class, "NetUtils.connect()", "<trace-tag>", 
+    			  "local-host",  socket.getLocalAddress().getHostAddress(), "local-port",  socket.getLocalPort(),
+    			  "remote-host", remote.getHostName(), "remote-port", remote.getPort());
         } else {
           SocketIOWithTimeout.connect(ch, endpoint, timeout);
         }
