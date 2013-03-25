@@ -43,6 +43,8 @@ import org.apache.hadoop.util.PriorityQueue;
 import org.apache.hadoop.util.Progress;
 import org.apache.hadoop.util.Progressable;
 
+import edu.berkeley.xtrace.XTraceContext;
+
 /**
  * Merger is an utility class used by the Map and Reduce tasks for merging
  * both their memory and disk segments
@@ -566,6 +568,7 @@ public class Merger {
                                      Progress mergePhase)
         throws IOException {
       LOG.info("Merging " + segments.size() + " sorted segments");
+      XTraceContext.logEvent(Merger.class, "Merger merge", "Merging " + segments.size() + " sorted segments");
 
       /*
        * If there are inMemory segments, then they come first in the segments

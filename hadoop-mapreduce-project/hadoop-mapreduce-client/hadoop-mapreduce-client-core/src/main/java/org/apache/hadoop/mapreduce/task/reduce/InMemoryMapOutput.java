@@ -114,8 +114,8 @@ class InMemoryMapOutput<K, V> extends MapOutput<K, V> {
 
   @Override
   public void commit() throws IOException {
-    merger.closeInMemoryFile(this);
     XTraceContext.logEvent(InMemoryMapOutput.class, "InMemoryMapOutput", "Map output committed");
+    merger.closeInMemoryFile(this);
   }
   
   @Override

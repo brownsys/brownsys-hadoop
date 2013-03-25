@@ -96,7 +96,6 @@ class ShuffleScheduler<K,V> {
   private boolean reportReadErrorImmediately = true;
   private long maxDelay = MRJobConfig.DEFAULT_MAX_SHUFFLE_FETCH_RETRY_DELAY;
   
-  private Collection<XTraceMetadata> map_contexts = new XTraceMetadataCollection();
   private Collection<XTraceMetadata>  failure_contexts = new XTraceMetadataCollection();
   
   public ShuffleScheduler(JobConf job, TaskStatus status,
@@ -154,7 +153,6 @@ class ShuffleScheduler<K,V> {
       lastProgressTime = System.currentTimeMillis();
       LOG.debug("map " + mapId + " done " + status.getStateString());
       XTraceContext.logEvent(ShuffleScheduler.class, "ShuffleScheduler", "map " + mapId + " done " + status.getStateString());
-      map_contexts = XTraceContext.getThreadContext(map_contexts);
     }
   }
   
@@ -315,7 +313,6 @@ class ShuffleScheduler<K,V> {
 
   public synchronized MapHost getHost() throws InterruptedException {
       while(pendingHosts.isEmpty()) {
-        XTraceContext.logEvent(ShuffleScheduler.class, "ShuffleScheduler", "No pending hosts, waiting");
         wait();
       }
       
@@ -395,10 +392,6 @@ class ShuffleScheduler<K,V> {
       return remainingMaps == 0;
     }
     return true;
-  }
-  
-  public void joinMapContexts() {
-    XTraceContext.joinContext(map_contexts);
   }
   
   /**

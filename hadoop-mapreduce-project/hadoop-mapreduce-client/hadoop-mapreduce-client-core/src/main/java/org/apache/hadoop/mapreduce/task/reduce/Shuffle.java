@@ -133,21 +133,16 @@ public class Shuffle<K, V> implements ShuffleConsumerPlugin<K, V>, ExceptionRepo
       }
     }
     
-    scheduler.joinMapContexts();    
-
-    XTraceContext.logEvent(Shuffle.class, "Shuffle", "Shutting down event fetcher thread");
     // Stop the event-fetcher thread
     eventFetcher.shutDown();
     
     // Stop the map-output fetcher threads
-    XTraceContext.logEvent(Shuffle.class, "Shuffle", "Shutting down map-output fetcher thread");
     for (Fetcher<K,V> fetcher : fetchers) {
       fetcher.shutDown();
       fetcher.joinContexts();
     }
     
     // stop the scheduler
-    XTraceContext.logEvent(Shuffle.class, "Shuffle", "Stopping the scheduler");
     scheduler.close();
 
     XTraceContext.logEvent(Shuffle.class, "Shuffle copy complete", "Copy phase complete");
