@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.net.Socket;
 import java.net.SocketAddress;
+import java.net.InetSocketAddress;
 import java.net.SocketTimeoutException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectableChannel;
@@ -194,8 +195,10 @@ abstract class SocketIOWithTimeout {
     try { 
       if (channel.connect(endpoint)) {
     	Socket sock = channel.socket();
-    	SocketAddress remote = sock.getRemoteSocketAddress();
-    	XTraceContext.logEvent(SocketIOWithTimeout.class, "SocketIOWithTimeout.connect()", "<trace-tag>", "remote-ip", remote.toString());
+    	InetSocketAddress remote = (InetSocketAddress) sock.getRemoteSocketAddress();
+  	  	XTraceContext.logEvent(SocketIOWithTimeout.class, "SocketIOWithTimeout.connect()", "<trace-tag>", 
+  	  			"local-host",  sock.getLocalAddress().toString(), "local-port",  sock.getLocalPort(),
+  	  			"remote-host", remote.getHostName(), "remote-port", remote.getPort());
         return;
       }
 
@@ -211,8 +214,10 @@ abstract class SocketIOWithTimeout {
         
         if (ret > 0 && channel.finishConnect()) {
     	  Socket sock = channel.socket();
-    	  SocketAddress remote = sock.getRemoteSocketAddress();
-    	  XTraceContext.logEvent(SocketIOWithTimeout.class, "SocketIOWithTimeout.connect()", "<trace-tag>", "socket-string", remote.toString());
+    	  InetSocketAddress remote = (InetSocketAddress) sock.getRemoteSocketAddress();
+    	  XTraceContext.logEvent(SocketIOWithTimeout.class, "SocketIOWithTimeout.connect()", "<trace-tag>", 
+    			  "local-host",  sock.getLocalAddress().toString(), "local-port",  sock.getLocalPort(),
+    			  "remote-host", remote.getHostName(), "remote-port", remote.getPort());
           return;
         }
         
