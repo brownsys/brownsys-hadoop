@@ -911,8 +911,6 @@ public class MapTask extends Task {
     final BlockingBuffer bb = new BlockingBuffer();
     volatile boolean spillThreadRunning = false;
     final SpillThread spillThread = new SpillThread();
-    
-    private Collection<XTraceMetadata> previous_spill_context;
 
     private FileSystem rfs;
 
@@ -1094,8 +1092,8 @@ public class MapTask extends Task {
               } else if (bufsoftlimit && kvindex != kvend) {
                 // spill records, if any collected; check latter, as it may
                 // be possible for metadata alignment to hit spill pcnt
+                XTraceContext.logEvent(MapTask.class, "MapTask startspill async", "Triggering asynchronous spill");
                 startSpill();
-                previous_spill_context = XTraceContext.getThreadContext();
                 final int avgRec = (int)
                   (mapOutputByteCounter.getCounter() /
                   mapOutputRecordCounter.getCounter());
@@ -1399,6 +1397,7 @@ public class MapTask extends Task {
                   }
                   // we have records we can spill; only spill if blocked
                   if (kvindex != kvend) {
+                    XTraceContext.logEvent(MapTask.class, "MapTask startspill sync", "Triggering synchronous spill");
                     startSpill();
                     // Blocked on this write, waiting for the spill just
                     // initiated to finish. Instead of repositioning the marker
@@ -1426,7 +1425,7 @@ public class MapTask extends Task {
                     reporter.progress();
                     spillDone.await();
                   }
-                  spillThread.restoreDoneContext();
+                  spillThread.joinSpillDoneContext();
                 } catch (InterruptedException e) {
                     throw new IOException(
                         "Buffer interrupted while waiting for the writer", e);
@@ -1519,10 +1518,20 @@ public class MapTask extends Task {
         xtrace_spillstart_context = XTraceContext.getThreadContext();
       }
       
-      public void restoreDoneContext() {
-        XTraceContext.setThreadContext(xtrace_spilldone_context);
+      public void rememberSpillDoneContext() {
+        xtrace_spilldone_context = XTraceContext.getThreadContext();
       }
-
+      
+      public void joinSpillDoneContext() {
+        XTraceContext.joinContext(xtrace_spilldone_context);
+        xtrace_spilldone_context = null;
+      }
+      
+      public void joinSpillStartContext() {
+        XTraceContext.joinContext(xtrace_spillstart_context);
+        xtrace_spillstart_context = null;
+      }
+      
       @Override
       public void run() {
         spillLock.lock();
@@ -1534,7 +1543,8 @@ public class MapTask extends Task {
             while (!spillInProgress) {
               spillReady.await();
             }
-            XTraceContext.joinContext(xtrace_spillstart_context);
+            joinSpillStartContext();
+            XTraceContext.logEvent(SpillThread.class, "SpillThread", "Spill Thread notified");
             try {
               spillLock.unlock();
               sortAndSpill();
@@ -1549,7 +1559,7 @@ public class MapTask extends Task {
               bufstart = bufend;
               spillInProgress = false;
             }
-            xtrace_spilldone_context = XTraceContext.getThreadContext();
+            rememberSpillDoneContext();
           }
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
@@ -1571,7 +1581,7 @@ public class MapTask extends Task {
         throw new IOException("Spill failed", lspillException);
       }
     }
-
+    
     private void startSpill() {
       assert !spillInProgress;
       kvend = (kvindex + NMETA) % kvmeta.capacity();
@@ -1586,14 +1596,13 @@ public class MapTask extends Task {
                  "); length = " + (distanceTo(kvend, kvstart,
                        kvmeta.capacity()) + 1) + "/" + maxRec);
       }
-      XTraceContext.logEvent(MapTask.class, "MapTask startSpill", "Triggering spill to disk");
       spillThread.rememberSpillStartContext();
       spillReady.signal();
     }
 
     private void sortAndSpill() throws IOException, ClassNotFoundException,
                                        InterruptedException {
-      XTraceContext.joinContext(previous_spill_context);
+      spillThread.joinSpillDoneContext(); // join up with the previous 'done' context if it hasn't already been joined up with. don't want it dangling
       XTraceContext.logEvent(MapTask.class, "MapOutputBuffer sortAndSpill", "Beginning spill "+numSpills);
       
       //approximate the length of the output file to be the length of the
@@ -1942,7 +1951,7 @@ public class MapTask extends Task {
         Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
         Collection<XTraceMetadata> end_contexts = new XTraceMetadataCollection();
         for (int parts = 0; parts < partitions; parts++) {
-          XTraceContext.clearThreadContext();
+          XTraceContext.setThreadContext(start_context);
           //create the segments to be merged
           List<Segment<K,V>> segmentList =
             new ArrayList<Segment<K, V>>(numSpills);
@@ -1981,6 +1990,8 @@ public class MapTask extends Task {
               new Writer<K, V>(job, finalOut, keyClass, valClass, codec,
                                spilledRecordsCounter);
           if (combinerRunner == null || numSpills < minSpillsForCombine) {
+            XTraceContext.logEvent(MapOutputBuffer.class, "MapOutputBuffer skipCombine", "Skipping combine",
+                "CombinerRunnerIsNull", combinerRunner==null, "MinSpillsForCombine", minSpillsForCombine);
             Merger.writeFile(kvIter, writer, reporter, job);
           } else {
             combineCollector.setWriter(writer);

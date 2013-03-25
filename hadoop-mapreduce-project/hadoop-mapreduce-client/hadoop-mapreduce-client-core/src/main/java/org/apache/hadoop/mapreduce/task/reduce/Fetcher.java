@@ -319,10 +319,14 @@ class Fetcher<K,V> extends Thread {
       // yet_to_be_fetched list and marking the failed tasks.
       TaskAttemptID[] failedTasks = null;
       Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
+      Collection<XTraceMetadata> end_contexts = new XTraceMetadataCollection();
+      int initialSize = remaining.size();
       while (!remaining.isEmpty() && failedTasks == null) {
-        XTraceContext.setThreadContext(start_context); // expect copyMapOutput to clear thread context
+        XTraceContext.setThreadContext(start_context);
         failedTasks = copyMapOutput(host, input, remaining);
+        end_contexts = XTraceContext.getThreadContext(end_contexts);
       }
+      XTraceContext.joinContext(end_contexts);
       
       if(failedTasks != null && failedTasks.length > 0) {
         LOG.warn("copyMapOutput failed for tasks "+Arrays.toString(failedTasks));
@@ -340,6 +344,10 @@ class Fetcher<K,V> extends Thread {
         throw new IOException("server didn't return all expected map outputs: "
             + remaining.size() + " left.");
       }
+
+      int failed = remaining.size();
+      int copied = initialSize - failed;
+      XTraceContext.logEvent(Fetcher.class, "Fetcher", copied+" successfully copied, "+failed+" failed.");
     } finally {
       for (TaskAttemptID left : remaining) {
         scheduler.putBackKnownMapOutput(host, left);
@@ -391,6 +399,7 @@ class Fetcher<K,V> extends Thread {
       }
       
       // Get the location for the map output - either in-memory or on-disk
+      XTraceContext.logEvent(Fetcher.class, "Fetcher", "Reserving location for map output");
       mapOutput = merger.reserve(mapId, decompressedLength, id);
       
       // Check if we can shuffle *now* ...
@@ -420,7 +429,6 @@ class Fetcher<K,V> extends Thread {
       // Note successful shuffle
       remaining.remove(mapId);
       metrics.successFetch();
-      XTraceContext.clearThreadContext();
       return null;
     } catch (IOException ioe) {
       ioErrs.increment(1);
