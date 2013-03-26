@@ -588,7 +588,8 @@ public class ShuffleHandler extends AbstractService
       
       InetSocketAddress local = (InetSocketAddress) ch.getLocalAddress();
       InetSocketAddress remote = (InetSocketAddress) ch.getRemoteAddress();
-      XTraceContext.logEvent(ShuffleHandler.class, "ShuffleHandler.sendMapOutput", "<trace-tag>", 
+      XTraceContext.startTrace("ShuffleHandler.sendMapOutput()", "<trace-tag>");
+      XTraceContext.logEvent(ShuffleHandler.class, "ShuffleHandler.sendMapOutput()", "<trace-tag>", 
     		  "local-host",  local.getHostName(), "local-port",  local.getPort(),
 			  "remote-host", remote.getHostName(), "remote-port", remote.getPort());
       
