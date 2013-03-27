@@ -564,7 +564,6 @@ public class NetUtils {
     }
     
     InetSocketAddress remote = (InetSocketAddress) socket.getRemoteSocketAddress();
-    XTraceContext.startTrace("NetUtils.connect()", "<trace-tag>");
 	XTraceContext.logEvent(SocketIOWithTimeout.class, "NetUtils.connect()", "<trace-tag>", 
 			"local-host",  socket.getLocalAddress().getHostAddress(), "local-port",  socket.getLocalPort(),
 			"remote-host", remote.getHostName(), "remote-port", remote.getPort());
