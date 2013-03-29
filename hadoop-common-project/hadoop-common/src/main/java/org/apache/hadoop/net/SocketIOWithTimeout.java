@@ -200,7 +200,7 @@ abstract class SocketIOWithTimeout {
     	String strace = "";
         for (StackTraceElement ste : Thread.currentThread().getStackTrace())
           strace += (" " + ste);
-    	LOG.info("<trace-tag> [" + XTraceContext.XTRACE_CONTEXT_ENV_VARIABLE
+    	LOG.info("<trace-tag> [" + XTraceContext.getThreadContext()
     			+ " " + strace + "]");
   	  	XTraceContext.logEvent(SocketIOWithTimeout.class, "SocketIOWithTimeout.connect()", "<trace-tag>", 
   	  			"local-host",  sock.getLocalAddress().toString(), "local-port",  sock.getLocalPort(),
@@ -225,7 +225,7 @@ abstract class SocketIOWithTimeout {
 		  String strace = "";
 		  for (StackTraceElement ste : Thread.currentThread().getStackTrace())
 			  strace += (" " + ste);
-		  LOG.info("<trace-tag> [" + XTraceContext.XTRACE_CONTEXT_ENV_VARIABLE
+		  LOG.info("<trace-tag> [" + XTraceContext.getThreadContext()
 				  + " " + strace + "]");
     	  XTraceContext.logEvent(SocketIOWithTimeout.class, "SocketIOWithTimeout.connect()", "<trace-tag>", 
     			  "local-host",  local.getHostAddress(), "local-port",  sock.getLocalPort(),
