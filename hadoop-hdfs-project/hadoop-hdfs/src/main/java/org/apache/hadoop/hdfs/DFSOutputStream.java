@@ -310,12 +310,15 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
     /** Append on an existing block? */
     private final boolean isAppend;
 
+    private Collection<XTraceMetadata> xtrace_context;
+    
     /**
      * Default construction for file create
      */
     private DataStreamer() {
       isAppend = false;
       stage = BlockConstructionStage.PIPELINE_SETUP_CREATE;
+      xtrace_context = XTraceContext.getThreadContext();
     }
     
     /**
@@ -373,6 +376,7 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
             "of file " + src);
 
       }
+      xtrace_context = XTraceContext.getThreadContext();
     }
     
     /**
@@ -403,6 +407,7 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
      */
     @Override
     public void run() {
+      XTraceContext.setThreadContext(xtrace_context);
       long lastPacket = Time.now();
       while (!streamerClosed && dfsClient.clientRunning) {
 
