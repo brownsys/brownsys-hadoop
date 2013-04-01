@@ -71,6 +71,8 @@ import org.apache.hadoop.util.DataChecksum;
 
 import com.google.protobuf.ByteString;
 
+import edu.berkeley.xtrace.XTraceContext;
+
 
 /**
  * Thread for processing incoming/outgoing data stream.
@@ -218,6 +220,7 @@ class DataXceiver extends Receiver implements Runnable {
         opStartTime = now();
         processOp(op);
         ++opsProcessed;
+        XTraceContext.clearThreadContext();
       } while (!s.isClosed() && dnConf.socketKeepaliveTimeout > 0);
     } catch (Throwable t) {
       LOG.error(datanode.getDisplayName() + ":DataXceiver error processing " +
@@ -243,6 +246,7 @@ class DataXceiver extends Receiver implements Runnable {
       final long blockOffset,
       final long length,
       final boolean sendChecksum) throws IOException {
+    XTraceContext.logEvent(DataXceiver.class, "DataXceiver readBlock", "Reading block blaaaah");
     previousOpClientName = clientName;
 
     OutputStream baseStream = getOutputStream();
@@ -336,6 +340,7 @@ class DataXceiver extends Receiver implements Runnable {
       final long maxBytesRcvd,
       final long latestGenerationStamp,
       DataChecksum requestedChecksum) throws IOException {
+    XTraceContext.logEvent(DataXceiver.class, "DataXceiver writeBlock", "Reading block blaaaah");
     previousOpClientName = clientname;
     updateCurrentThreadName("Receiving block " + block);
     final boolean isDatanode = clientname.length() == 0;
@@ -555,6 +560,7 @@ class DataXceiver extends Receiver implements Runnable {
       final Token<BlockTokenIdentifier> blockToken,
       final String clientName,
       final DatanodeInfo[] targets) throws IOException {
+    XTraceContext.logEvent(DataXceiver.class, "DataXceiver transferBlock", "Reading block blaaaah");
     checkAccess(null, true, blk, blockToken,
         Op.TRANSFER_BLOCK, BlockTokenSecretManager.AccessMode.COPY);
     previousOpClientName = clientName;
@@ -573,6 +579,7 @@ class DataXceiver extends Receiver implements Runnable {
   @Override
   public void blockChecksum(final ExtendedBlock block,
       final Token<BlockTokenIdentifier> blockToken) throws IOException {
+    XTraceContext.logEvent(DataXceiver.class, "DataXceiver blockChecksum", "Reading block blaaaah");
     final DataOutputStream out = new DataOutputStream(
         getOutputStream());
     checkAccess(out, true, block, blockToken,
@@ -625,6 +632,7 @@ class DataXceiver extends Receiver implements Runnable {
   @Override
   public void copyBlock(final ExtendedBlock block,
       final Token<BlockTokenIdentifier> blockToken) throws IOException {
+    XTraceContext.logEvent(DataXceiver.class, "DataXceiver copyBlock", "Reading block blaaaah");
     updateCurrentThreadName("Copying block " + block);
     // Read in the header
     if (datanode.isBlockTokenEnabled) {
@@ -699,6 +707,7 @@ class DataXceiver extends Receiver implements Runnable {
       final Token<BlockTokenIdentifier> blockToken,
       final String delHint,
       final DatanodeInfo proxySource) throws IOException {
+    XTraceContext.logEvent(DataXceiver.class, "DataXceiver replaceBlock", "Reading block blaaaah");
     updateCurrentThreadName("Replacing block " + block + " from " + delHint);
 
     /* read header */
