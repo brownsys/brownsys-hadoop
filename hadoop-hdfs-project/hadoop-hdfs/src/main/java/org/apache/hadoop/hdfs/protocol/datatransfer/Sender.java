@@ -40,7 +40,10 @@ import org.apache.hadoop.hdfs.security.token.block.BlockTokenIdentifier;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.util.DataChecksum;
 
+import com.google.protobuf.ByteString;
 import com.google.protobuf.Message;
+
+import edu.berkeley.xtrace.XTraceContext;
 
 /** Sender */
 @InterfaceAudience.Private
@@ -79,14 +82,17 @@ public class Sender implements DataTransferProtocol {
       final long length,
       final boolean sendChecksum) throws IOException {
 
-    OpReadBlockProto proto = OpReadBlockProto.newBuilder()
+    OpReadBlockProto.Builder proto = OpReadBlockProto.newBuilder()
       .setHeader(DataTransferProtoUtil.buildClientHeader(blk, clientName, blockToken))
       .setOffset(blockOffset)
       .setLen(length)
-      .setSendChecksums(sendChecksum)
-      .build();
+      .setSendChecksums(sendChecksum);
+      
+    if (XTraceContext.isValid()) {
+      proto.setXtrace(ByteString.copyFrom(XTraceContext.logMerge().pack()));
+    }
 
-    send(out, Op.READ_BLOCK, proto);
+    send(out, Op.READ_BLOCK, proto.build());
   }
   
 
@@ -122,6 +128,10 @@ public class Sender implements DataTransferProtocol {
       proto.setSource(PBHelper.convertDatanodeInfo(source));
     }
 
+    if (XTraceContext.isValid()) {
+      proto.setXtrace(ByteString.copyFrom(XTraceContext.logMerge().pack()));
+    }
+    
     send(out, Op.WRITE_BLOCK, proto.build());
   }
 
@@ -131,13 +141,16 @@ public class Sender implements DataTransferProtocol {
       final String clientName,
       final DatanodeInfo[] targets) throws IOException {
     
-    OpTransferBlockProto proto = OpTransferBlockProto.newBuilder()
+    OpTransferBlockProto.Builder proto = OpTransferBlockProto.newBuilder()
       .setHeader(DataTransferProtoUtil.buildClientHeader(
           blk, clientName, blockToken))
-      .addAllTargets(PBHelper.convert(targets))
-      .build();
+      .addAllTargets(PBHelper.convert(targets));
+      
+    if (XTraceContext.isValid()) {
+      proto.setXtrace(ByteString.copyFrom(XTraceContext.logMerge().pack()));
+    }
 
-    send(out, Op.TRANSFER_BLOCK, proto);
+    send(out, Op.TRANSFER_BLOCK, proto.build());
   }
 
   @Override
@@ -145,32 +158,41 @@ public class Sender implements DataTransferProtocol {
       final Token<BlockTokenIdentifier> blockToken,
       final String delHint,
       final DatanodeInfo source) throws IOException {
-    OpReplaceBlockProto proto = OpReplaceBlockProto.newBuilder()
+    OpReplaceBlockProto.Builder proto = OpReplaceBlockProto.newBuilder()
       .setHeader(DataTransferProtoUtil.buildBaseHeader(blk, blockToken))
       .setDelHint(delHint)
-      .setSource(PBHelper.convertDatanodeInfo(source))
-      .build();
+      .setSource(PBHelper.convertDatanodeInfo(source));
     
-    send(out, Op.REPLACE_BLOCK, proto);
+    if (XTraceContext.isValid()) {
+      proto.setXtrace(ByteString.copyFrom(XTraceContext.logMerge().pack()));
+    }  
+    
+    send(out, Op.REPLACE_BLOCK, proto.build());
   }
 
   @Override
   public void copyBlock(final ExtendedBlock blk,
       final Token<BlockTokenIdentifier> blockToken) throws IOException {
-    OpCopyBlockProto proto = OpCopyBlockProto.newBuilder()
-      .setHeader(DataTransferProtoUtil.buildBaseHeader(blk, blockToken))
-      .build();
+    OpCopyBlockProto.Builder proto = OpCopyBlockProto.newBuilder()
+      .setHeader(DataTransferProtoUtil.buildBaseHeader(blk, blockToken));
     
-    send(out, Op.COPY_BLOCK, proto);
+    if (XTraceContext.isValid()) {
+      proto.setXtrace(ByteString.copyFrom(XTraceContext.logMerge().pack()));
+    }
+    
+    send(out, Op.COPY_BLOCK, proto.build());
   }
 
   @Override
   public void blockChecksum(final ExtendedBlock blk,
       final Token<BlockTokenIdentifier> blockToken) throws IOException {
-    OpBlockChecksumProto proto = OpBlockChecksumProto.newBuilder()
-      .setHeader(DataTransferProtoUtil.buildBaseHeader(blk, blockToken))
-      .build();
+    OpBlockChecksumProto.Builder proto = OpBlockChecksumProto.newBuilder()
+      .setHeader(DataTransferProtoUtil.buildBaseHeader(blk, blockToken));
     
-    send(out, Op.BLOCK_CHECKSUM, proto);
+    if (XTraceContext.isValid()) {
+      proto.setXtrace(ByteString.copyFrom(XTraceContext.logMerge().pack()));
+    }
+    
+    send(out, Op.BLOCK_CHECKSUM, proto.build());
   }
 }
