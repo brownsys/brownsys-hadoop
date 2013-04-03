@@ -322,7 +322,7 @@ abstract public class Task implements Writable, Configurable {
   protected void reportFatalError(TaskAttemptID id, Throwable throwable, 
                                   String logMsg) {
     LOG.fatal(logMsg);
-    XTraceContext.logEvent(Task.class, "FatalError", logMsg);
+    XTraceContext.logEvent(Task.class, "FatalError", "Fatal error occurred", "Message", logMsg);
     Throwable tCause = throwable.getCause();
     String cause = tCause == null 
                    ? StringUtils.stringifyException(throwable)
@@ -331,7 +331,7 @@ abstract public class Task implements Writable, Configurable {
       umbilical.fatalError(id, cause);
     } catch (IOException ioe) {
       LOG.fatal("Failed to contact the tasktracker", ioe);
-      XTraceContext.logEvent(Task.class, "FatalError", "Failed to contact the tasktracker");
+      XTraceContext.logEvent(Task.class, "FatalError", "Failed to contact the tasktracker", "Exit Code", -1);
       System.exit(-1);
     }
   }
@@ -743,7 +743,7 @@ abstract public class Task implements Writable, Configurable {
           // came back up), kill ourselves
           if (!taskFound) {
             LOG.warn("Parent died.  Exiting "+taskId);
-            XTraceContext.logEvent(Task.class, "Task", "Parent died. Exiting"+taskId);
+            XTraceContext.logEvent(Task.class, "Task", "Parent died, exiting", "Exit Code", 66);
             resetDoneFlag();
             System.exit(66);
           }
@@ -754,11 +754,12 @@ abstract public class Task implements Writable, Configurable {
         catch (Throwable t) {
           LOG.info("Communication exception: " + StringUtils.stringifyException(t));
           remainingRetries -=1;
-          XTraceContext.logEvent(Task.class, "Task", "Communication exception: " + StringUtils.stringifyException(t), "Remaining Retries", remainingRetries);
+          XTraceContext.logEvent(Task.class, "Task", "Communication exception "+t.getClass().getName(),
+              "Message", StringUtils.stringifyException(t), "Retries Remaining", remainingRetries);
           if (remainingRetries == 0) {
             ReflectionUtils.logThreadInfo(LOG, "Communication exception", 0);
             LOG.warn("Last retry, killing "+taskId);
-            XTraceContext.logEvent(Task.class, "Task", "Last retry, killing "+taskId);
+            XTraceContext.logEvent(Task.class, "Task", "No retries remaining, killing task", "Exit Code", 65);
             resetDoneFlag();
             System.exit(65);
           }
@@ -1001,8 +1002,7 @@ abstract public class Task implements Writable, Configurable {
     LOG.info("Task:" + taskId + " is done."
              + " And is in the process of committing");
     
-    XTraceContext.logEvent(Task.class, "Task committing", "Task:" + taskId + " is done."
-        + " And is in the process of committing");
+    XTraceContext.logEvent(Task.class, "Task committing", "Task is done and in the process of committing");
     updateCounters();
 
     boolean commitRequired = isCommitRequired();
@@ -1019,8 +1019,10 @@ abstract public class Task implements Writable, Configurable {
         } catch (IOException ie) {
           LOG.warn("Failure sending commit pending: " + 
                     StringUtils.stringifyException(ie));
-          XTraceContext.logEvent(Task.class, "Failure sending commit pending", StringUtils.stringifyException(ie));
+          XTraceContext.logEvent(Task.class, "Task committing fail", "Failure sending commit pending: "+ie.getClass().getName(), 
+              "Message", StringUtils.stringifyException(ie), "Retries Remaining", retries);
           if (--retries == 0) {
+            XTraceContext.logEvent(Task.class, "Task exiting", "No retries remaining for task commit, killing task", "Exit Code", 67);
             System.exit(67);
           }
         }
@@ -1066,6 +1068,7 @@ abstract public class Task implements Writable, Configurable {
       try {
         if (!umbilical.statusUpdate(getTaskID(), taskStatus)) {
           LOG.warn("Parent died.  Exiting "+taskId);
+          XTraceContext.logEvent(Task.class, "Task exiting", "Parent died, exiting", "Exit Code", 66);
           System.exit(66);
         }
         taskStatus.clearStatus();
@@ -1128,8 +1131,9 @@ abstract public class Task implements Writable, Configurable {
       } catch (IOException ie) {
         LOG.warn("Failure signalling completion: " + 
                  StringUtils.stringifyException(ie));
-        XTraceContext.logEvent(Task.class, "Task done fail", "Failure signalling completion: " + 
-                 StringUtils.stringifyException(ie));
+        XTraceContext.logEvent(Task.class, "Task done signalling failure", 
+            "Failure signalling completion: "+ie.getClass().getName(), "Message", StringUtils.stringifyException(ie),
+            "Retries Remaining", retries);
         if (--retries == 0) {
           throw ie;
         }
@@ -1157,11 +1161,12 @@ abstract public class Task implements Writable, Configurable {
       } catch (IOException ie) {
         LOG.warn("Failure asking whether task can commit: " + 
             StringUtils.stringifyException(ie));
-        XTraceContext.logEvent(Task.class, "Commit approval failure", "Failure asking whether task can commit: " + 
-            StringUtils.stringifyException(ie));
+        XTraceContext.logEvent(Task.class, "Commit approval failure", "Failure asking whether task can commit: "+ie.getClass().getName(),
+            "Message", StringUtils.stringifyException(ie), "Retries Remaining", retries);
         if (--retries == 0) {
           //if it couldn't query successfully then delete the output
           discardOutput(taskContext);
+          XTraceContext.logEvent(Task.class, "Commit approval exiting", "Maximum retries reached, discarding output and exiting", "Exit Code", 68);
           System.exit(68);
         }
       }
@@ -1170,14 +1175,14 @@ abstract public class Task implements Writable, Configurable {
     // task can Commit now  
     try {
       LOG.info("Task " + taskId + " is allowed to commit now");
-      XTraceContext.logEvent(Task.class, "Commit approved", "Task " + taskId + " is allowed to commit now");
+      XTraceContext.logEvent(Task.class, "Commit approved", "Task is allowed to commit, committing");
       committer.commitTask(taskContext);
       return;
     } catch (IOException iee) {
       LOG.warn("Failure committing: " + 
         StringUtils.stringifyException(iee));
-      XTraceContext.logEvent(Task.class, "Commit failed", "Failure committing: " + 
-          StringUtils.stringifyException(iee));
+      XTraceContext.logEvent(Task.class, "Commit failed", "Failure committing: "+iee.getClass().getName()+", discarding output", 
+          "Message", StringUtils.stringifyException(iee));
       //if it couldn't commit a successfully then delete the output
       discardOutput(taskContext);
       throw iee;
@@ -1239,8 +1244,8 @@ abstract public class Task implements Writable, Configurable {
       LOG.info("Committing job");
       committer.commitJob(jobContext);
     } else {
-      XTraceContext.logEvent(Task.class, "JobCleanupTask", "Invalid state of the job for cleanup. State found "
-          + jobRunStateForCleanup + " expecting "
+      XTraceContext.logEvent(Task.class, "JobCleanupTask", "Invalid state of the job for cleanup. Found state "
+          + jobRunStateForCleanup + ", but was expecting "
           + JobStatus.State.SUCCEEDED + ", " 
           + JobStatus.State.FAILED + " or "
           + JobStatus.State.KILLED);
@@ -1669,7 +1674,8 @@ abstract public class Task implements Writable, Configurable {
                                                 committer,
                                                 reporter, comparator, keyClass,
                                                 valueClass);
-      XTraceContext.logEvent(NewCombinerRunner.class, "Combiner start", "Combining map outputs", "Combiner", reducer.getClass().getName(), "KeyClass", keyClass, "ValClass", valueClass);
+      XTraceContext.logEvent(NewCombinerRunner.class, "Combiner start", "Combining map outputs", 
+          "Combiner", reducer.getClass().getName(), "KeyClass", keyClass, "ValClass", valueClass);
       reducer.run(reducerContext);
       XTraceContext.logEvent(NewCombinerRunner.class, "Combiner end", "Combine complete");
     } 

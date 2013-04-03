@@ -103,7 +103,7 @@ public class ResourceMgrDelegate extends YarnClientImpl {
     this.application = super.getNewApplication();
     this.applicationId = this.application.getApplicationId();
     JobID id = TypeConverter.fromYarn(applicationId);
-    XTraceContext.logEvent("ResourceMgrDelegate", "Acquired application ID " + id.getId());
+    XTraceContext.logEvent("ResourceMgrDelegate", "Job ID acquired", "Job ID", id.getId());
     return id;
   }
 

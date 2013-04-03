@@ -108,8 +108,8 @@ public class AMLauncher implements Runnable {
     ContainerId masterContainerID = application.getMasterContainer().getId();
     ApplicationSubmissionContext applicationContext =
       application.getSubmissionContext();
-    XTraceContext.logEvent("AMLauncher", "Setting up container " + application.getMasterContainer() 
-        + " for AM " + application.getAppAttemptId());
+    XTraceContext.logEvent(AMLauncher.class, "AMLauncher", "Setting up container for application master", 
+        "Container", application.getMasterContainer(), "Application Master ID", application.getAppAttemptId());
     LOG.info("Setting up container " + application.getMasterContainer() 
         + " for AM " + application.getAppAttemptId());  
     ContainerLaunchContext launchContext =
@@ -263,7 +263,8 @@ public class AMLauncher implements Runnable {
     case LAUNCH:
       try {
         LOG.info("Launching master " + application.getAppAttemptId());
-        XTraceContext.logEvent(AMLauncher.class, "AMLauncher", "Launching master"+application.getAppAttemptId());
+        XTraceContext.logEvent(AMLauncher.class, "AMLauncher", "Launching application master",
+            "Application Master ID", application.getAppAttemptId());
         launch();
         handler.handle(new RMAppAttemptEvent(application.getAppAttemptId(),
             RMAppAttemptEventType.LAUNCHED));
@@ -278,7 +279,8 @@ public class AMLauncher implements Runnable {
     case CLEANUP:
       try {
         LOG.info("Cleaning master " + application.getAppAttemptId());
-        XTraceContext.logEvent(AMLauncher.class, "AMLauncher", "Cleaning master"+application.getAppAttemptId());
+        XTraceContext.logEvent(AMLauncher.class, "AMLauncher", "Cleaning application master",
+            "Application Master ID", application.getAppAttemptId());
         cleanup();
       } catch(IOException ie) {
         LOG.info("Error cleaning master ", ie);

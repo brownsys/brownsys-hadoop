@@ -175,23 +175,26 @@ public class DefaultContainerExecutor extends ContainerExecutor {
       String[] command = {"bash",
           wrapperScriptDst.toUri().getPath().toString()};
       LOG.info("launchContainer: " + Arrays.toString(command));
-      XTraceContext.logEvent(ContainerExecutor.class, "DefaultContainerExecutor", "Invoking command line", "args", Arrays.toString(command));
+      XTraceContext.logEvent(ContainerExecutor.class, "DefaultContainerExecutor", "Invoking command line", 
+          "args", Arrays.toString(command), "Container ID", containerIdStr);
       shExec = new ShellCommandExecutor(
           command,
           new File(containerWorkDir.toUri().getPath()),
           container.getLaunchContext().getEnvironment());      // sanitized env
       if (isContainerActive(containerId)) {
         shExec.execute();
-        XTraceContext.logEvent(ContainerExecutor.class, "DefaultContainerExecutor", "Subprocess finished");
+        XTraceContext.logEvent(ContainerExecutor.class, "DefaultContainerExecutor", "Subprocess finished with exit code "+shExec.getExitCode());
       } else {
         LOG.info("Container " + containerIdStr +
             " was marked as inactive. Returning terminated error");
-        XTraceContext.logEvent(ContainerExecutor.class, "DefaultContainerExecutor", "Container " + containerIdStr + " was marked as inactive. Returning terminated error");
+        XTraceContext.logEvent(ContainerExecutor.class, "DefaultContainerExecutor",
+            "Container was marked as inactive; returning terminated error");
         return ExitCode.TERMINATED.getExitCode();
       }
     } catch (IOException e) {
       if (null == shExec) {
-        XTraceContext.logEvent(ContainerExecutor.class, "DefaultContainerExecutor IOException", e.getMessage());
+        XTraceContext.logEvent(ContainerExecutor.class, "DefaultContainerExecutor IOException: " + e.getClass().getName(),
+            "Message", e.getMessage());
         return -1;
       }
       int exitCode = shExec.getExitCode();

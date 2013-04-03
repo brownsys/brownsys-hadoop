@@ -268,12 +268,12 @@ public class FSDownload implements Callable<Path> {
   @Override
   public Path call() throws Exception {
     XTraceContext.setThreadContext(xtrace_context);
-    XTraceContext.logEvent(FSDownload.class, "FSDownload", "Localizing resource "+resource.getResource().toString());
+    XTraceContext.logEvent(FSDownload.class, "FSDownload", "Localizing resource", "Resource",resource.getResource().toString());
     final Path sCopy;
     try {
       sCopy = ConverterUtils.getPathFromYarnURL(resource.getResource());
     } catch (URISyntaxException e) {
-      XTraceContext.logEvent(FSDownload.class, "FSDownload", "Invalid resource");
+      XTraceContext.logEvent(FSDownload.class, "FSDownload", "Invalid resource: "+e.getClass().getName(), "Message", e.getMessage());
       throw new IOException("Invalid resource", e);
     }
 

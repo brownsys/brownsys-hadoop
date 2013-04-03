@@ -1226,7 +1226,7 @@ public class Client {
     Call call = new Call(rpcKind, rpcRequest);    
     Connection connection = getConnection(remoteId, call);
     if (XTraceContext.isValid()) {
-      XTraceContext.logEvent(RPC.class, "RPC Client", "Sending RPC request with id #" + call.id);
+      XTraceContext.logEvent(RPC.class, "RPC Client", "Sending RPC request", "Call ID", call.id);
       call.xtrace = XTraceContext.getThreadContext();
     }
     try {
@@ -1263,8 +1263,8 @@ public class Client {
         if (call.error instanceof RemoteException) {
           call.error.fillInStackTrace();
           if (XTraceContext.isValid()) {
-        	    XTraceContext.logEvent(RPC.class, "RPC Client", "RPC response with id #" + call.id +
-        	    		" received RemoteException: " + call.error.getMessage());
+            XTraceContext.logEvent(RPC.class, "RPC Client", "RPC response received remote exception",
+                "Call ID", call.id, "Message", call.error.getMessage());
           }
           throw call.error;
         } else { // local exception
@@ -1275,14 +1275,14 @@ public class Client {
                   0,
                   call.error);
           if (XTraceContext.isValid()) {
-      	    XTraceContext.logEvent(RPC.class, "RPC Client", "Local exception handling RPC with id #"
-      	    		+ call.id + ": " + e.getMessage());
+      	    XTraceContext.logEvent(RPC.class, "RPC Client", "Local exception handling RPC response",
+      	        "Call ID", call.id, "Message", e.getMessage());
           }
           throw e;
         }
       } else {
         if (XTraceContext.isValid()) {
-          XTraceContext.logEvent(RPC.class, "RPC Client", "Received RPC response with id #" + call.id);
+          XTraceContext.logEvent(RPC.class, "RPC Client", "Received RPC response", "Call ID", call.id);
         }
         return call.getRpcResult();
       }

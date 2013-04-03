@@ -434,7 +434,8 @@ public class TaskAttemptListenerImpl extends CompositeService
         task.joinContext();
         launchedJVMs.remove(wJvmID);
         LOG.info("JVM with ID: " + jvmId + " given task: " + task.getTaskID());
-        XTraceContext.logEvent(TaskAttemptListenerImpl.class, "TaskUmbilical getTask", "Sending task " + task.getTaskID() + " to JVM with ID: " + jvmId);
+        XTraceContext.logEvent(TaskAttemptListenerImpl.class, "TaskUmbilical getTask", 
+            "Sending task to JVM", "Task ID", task.getTaskID(), "JVM ID", jvmId);
         jvmTask = new JvmTask(task, false);
       }
     }
@@ -449,7 +450,8 @@ public class TaskAttemptListenerImpl extends CompositeService
 
     // A JVM not present in this map is an illegal task/JVM.
     task.rememberContext();
-    XTraceContext.logEvent(TaskAttemptListenerImpl.class, "TaskUmbilical registerPendingTask", "Task "+task.getTaskID()+" registered for JVM with ID: " + jvmID);
+    XTraceContext.logEvent(TaskAttemptListenerImpl.class, "TaskUmbilical registerPendingTask", 
+        "Task registered for JVM", "Task ID", task.getTaskID(), "JVM ID", jvmID);
     jvmIDToActiveAttemptMap.put(jvmID, task);    
   }
 

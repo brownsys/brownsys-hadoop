@@ -258,7 +258,9 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
       LOG.info(mapId + ": Shuffling to disk since " + requestedSize + 
                " is greater than maxSingleShuffleLimit (" + 
                maxSingleShuffleLimit + ")");
-      XTraceContext.logEvent(MergeManagerImpl.class, "MergeManagerImpl", mapId + ": Shuffling to disk since " + requestedSize + " is greater than maxSingleShuffleLimit (" + maxSingleShuffleLimit + ")");
+      XTraceContext.logEvent(MergeManagerImpl.class, "MergeManagerImpl", 
+          "Shuffling directly to disk due to reservation size exceeding max single shuffle limit",
+          "Map ID", mapId, "Requested Size", requestedSize, "maxSingleShuffleLimit", maxSingleShuffleLimit);
       return new OnDiskMapOutput<K,V>(mapId, reduceId, this, requestedSize,
                                       jobConf, mapOutputFile, fetcher, true);
     }
@@ -282,9 +284,9 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
       LOG.debug(mapId + ": Stalling shuffle since usedMemory (" + usedMemory
           + ") is greater than memoryLimit (" + memoryLimit + ")." + 
           " CommitMemory is (" + commitMemory + ")");
-      XTraceContext.logEvent(MergeManagerImpl.class, "MergeManagerImpl", mapId + ": Stalling shuffle since usedMemory (" + usedMemory
-          + ") is greater than memoryLimit (" + memoryLimit + ")." + 
-          " CommitMemory is (" + commitMemory + ")"); 
+      XTraceContext.logEvent(MergeManagerImpl.class, "MergeManagerImpl",
+          "Currently above memory limit, stalling shuffle", "Map ID", mapId,
+          "Used Memory", usedMemory, "Memory Limit", memoryLimit, "Commit Memory", commitMemory); 
       return null;
     }
     
@@ -292,9 +294,9 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
     LOG.debug(mapId + ": Proceeding with shuffle since usedMemory ("
         + usedMemory + ") is lesser than memoryLimit (" + memoryLimit + ")."
         + "CommitMemory is (" + commitMemory + ")"); 
-    XTraceContext.logEvent(MergeManagerImpl.class, "MergeManagerImpl", mapId + ": Proceeding with shuffle since usedMemory ("
-        + usedMemory + ") is lesser than memoryLimit (" + memoryLimit + ")."
-        + "CommitMemory is (" + commitMemory + ")");
+    XTraceContext.logEvent(MergeManagerImpl.class, "MergeManagerImpl",
+        "Proceeding with shuffle", "Map ID", mapId, "Used Memory", usedMemory,
+        "Memory Limit", memoryLimit, "Commit Memory", commitMemory);
     return unconditionalReserve(mapId, requestedSize, true);
   }
   
@@ -405,8 +407,9 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
       
       LOG.info("Initiating Memory-to-Memory merge with " + noInMemorySegments +
                " segments of total-size: " + mergeOutputSize);
-      XTraceContext.logEvent(IntermediateMemoryToMemoryMerger.class, "IntermediateMemoryToMemoryMerger start", "Initiating Memory-to-Memory merge with " + noInMemorySegments +
-               " segments of total-size: " + mergeOutputSize);
+      XTraceContext.logEvent(IntermediateMemoryToMemoryMerger.class, "IntermediateMemoryToMemoryMerger start", 
+          "Initiating Memory-to-Memory merge", "Num Segments", noInMemorySegments, "Total Size", mergeOutputSize,
+          "Reduce ID", reduceId);
 
       RawKeyValueIterator rIter = 
         Merger.merge(jobConf, rfs,
@@ -422,9 +425,8 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
       LOG.info(reduceId +  
                " Memory-to-Memory merge of the " + noInMemorySegments +
                " files in-memory complete.");
-      XTraceContext.logEvent(IntermediateMemoryToMemoryMerger.class, "IntermediateMemoryToMemoryMerger end", reduceId +  
-              " Memory-to-Memory merge of the " + noInMemorySegments +
-              " files in-memory complete.");
+      XTraceContext.logEvent(IntermediateMemoryToMemoryMerger.class, "IntermediateMemoryToMemoryMerger end", 
+          "Memory-to-Memory merge complete", "Reduce ID", reduceId, "Num Segments", noInMemorySegments);
 
       // Note the output of the merge
       closeInMemoryMergedFile(mergedMapOutputs);
@@ -480,8 +482,8 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
       try {
         LOG.info("Initiating in-memory merge with " + noInMemorySegments + 
                  " segments...");
-        XTraceContext.logEvent(InMemoryMerger.class, "InMemoryMerger start", "Initiating in-memory merge with " + noInMemorySegments + 
-                 " segments...");
+        XTraceContext.logEvent(InMemoryMerger.class, "InMemoryMerger start", "Initiating in-memory merge",
+            "Num Segments",  noInMemorySegments);
         
         rIter = Merger.merge(jobConf, rfs,
                              (Class<K>)jobConf.getMapOutputKeyClass(),
@@ -506,8 +508,8 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
             " files in-memory complete." +
             " Local file is " + outputPath + " of size " + 
             localFS.getFileStatus(outputPath).getLen());
-        XTraceContext.logEvent(InMemoryMerger.class, "InMemoryMerger", "Merge of the " + noInMemorySegments +
-            " files in-memory complete.", "LocalFile", outputPath, "Size", localFS.getFileStatus(outputPath).getLen());
+        XTraceContext.logEvent(InMemoryMerger.class, "InMemoryMerger","Merge complete", "Num Segments", noInMemorySegments, 
+            "Local File", outputPath, "Size", localFS.getFileStatus(outputPath).getLen());
       } catch (IOException e) { 
         //make sure that we delete the ondisk file that we created 
         //earlier when we invoked cloneFileAttributes
@@ -550,8 +552,8 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
       
       LOG.info("OnDiskMerger: We have  " + inputs.size() + 
                " map outputs on disk. Triggering merge...");
-      XTraceContext.logEvent(OnDiskMerger.class, "OnDiskMerger start", "OnDiskMerger: We have  " + inputs.size() + 
-               " map outputs on disk. Triggering merge...");
+      XTraceContext.logEvent(OnDiskMerger.class, "OnDiskMerger start",
+          "Merging outputs on disk", "Num Segments", inputs.size());
       
       // 1. Prepare the list of files to be merged. 
       for (CompressAwarePath file : inputs) {
@@ -593,12 +595,8 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
         throw e;
       }
       
-      XTraceContext.logEvent(OnDiskMerger.class, "OnDiskMerger merge end", reduceId +
-          " Finished merging " + inputs.size() + 
-          " map output files on disk of total-size " + 
-          approxOutputSize + "." + 
-          " Local output file is " + outputPath + " of size " +
-          localFS.getFileStatus(outputPath).getLen());
+      XTraceContext.logEvent(OnDiskMerger.class, "OnDiskMerger merge end", "Finished merging map output files on disk", 
+          "Num Segments", inputs.size(), "Output Size", approxOutputSize, "Output File", outputPath);
 
       closeOnDiskFile(compressAwarePath);
 
@@ -705,7 +703,8 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
     LOG.info("finalMerge called with " + 
              inMemoryMapOutputs.size() + " in-memory map-outputs and " + 
              onDiskMapOutputs.size() + " on-disk map-outputs");
-    XTraceContext.logEvent(MergeManagerImpl.class, "MergeManagerImpl finalMerge", "finalMerge called with " + inMemoryMapOutputs.size() + " in-memory map-outputs and " + onDiskMapOutputs.size() + " on-disk map-outputs");
+    XTraceContext.logEvent(MergeManagerImpl.class, "MergeManagerImpl finalMerge", "Starting final merge",
+        "Num In-Memory Map Outputs", inMemoryMapOutputs.size(), "Num On-Disk Map Outputs", onDiskMapOutputs.size());
     
     final float maxRedPer =
       job.getFloat(MRJobConfig.REDUCE_INPUT_BUFFER_PERCENT, 0f);
@@ -738,8 +737,9 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
       final int numMemDiskSegments = memDiskSegments.size();
       if (numMemDiskSegments > 0 &&
             ioSortFactor > onDiskMapOutputs.size()) {
-        XTraceContext.logEvent(MergeManagerImpl.class, "MergeManagerImpl finalMerge flush", "Merging " + numMemDiskSegments + " segments to disk to satisfy reduce memory limit",
-            "NumSegments", numMemDiskSegments, "NumBytes", inMemToDiskBytes);
+        XTraceContext.logEvent(MergeManagerImpl.class, "MergeManagerImpl finalMerge flush", 
+            "Merging segments to disk to satisfy reduce memory limit", "Num Segments", numMemDiskSegments, 
+            "NumBytes", inMemToDiskBytes);
         // If we reach here, it implies that we have less than io.sort.factor
         // disk segments and this will be incremented by 1 (result of the 
         // memory segments merge). Since this total would still be 
@@ -818,8 +818,8 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
     }
     LOG.info("Merging " + onDisk.length + " files, " +
              onDiskBytes + " bytes from disk");
-    XTraceContext.logEvent(MergeManagerImpl.class, "MergeManagerImpl finalMerge", "Merging " + onDisk.length + " files, " +
-             onDiskBytes + " bytes from disk");
+    XTraceContext.logEvent(MergeManagerImpl.class, "MergeManagerImpl finalMerge", "Merging files from disk",
+        "Num Segments", onDisk.length, "Num Bytes", onDiskBytes);
     Collections.sort(diskSegments, new Comparator<Segment<K,V>>() {
       public int compare(Segment<K, V> o1, Segment<K, V> o2) {
         if (o1.getLength() == o2.getLength()) {
@@ -855,10 +855,11 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
           reporter, false, spilledRecordsCounter, null, thisPhase);
       diskSegments.clear();
       XTraceContext.joinContext(mem_context);
-      XTraceContext.logEvent(MergeManagerImpl.class, "MergeManagerImpl finalMerge", "Merging " + finalSegments.size() + " segments, " +
-          inMemBytes + " bytes from memory into reduce");
+      XTraceContext.logEvent(MergeManagerImpl.class, "MergeManagerImpl finalMerge","Piping segment merge into reduce",
+          "Num Segments", finalSegments.size(), "Num Bytes", inMemBytes);
       if (0 == finalSegments.size()) {
-        XTraceContext.logEvent(MergeManagerImpl.class, "MergeManagerImpl finalMerge complete", "Final merge complete, returning result iterator");
+        XTraceContext.logEvent(MergeManagerImpl.class, "MergeManagerImpl finalMerge complete", 
+            "Final merge complete, returning result iterator");
         return diskMerge;
       }
       finalSegments.add(new Segment<K,V>(
@@ -869,7 +870,8 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
                  comparator, reporter, spilledRecordsCounter, null,
                  null);
     
-    XTraceContext.logEvent(MergeManagerImpl.class, "MergeManagerImpl finalMerge complete", "Final merge complete, returning result iterator");
+    XTraceContext.logEvent(MergeManagerImpl.class, "MergeManagerImpl finalMerge complete", 
+        "Final merge complete, returning result iterator");
     return result;
   }
 

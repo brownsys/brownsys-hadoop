@@ -118,7 +118,8 @@ class OnDiskMapOutput<K, V> extends MapOutput<K, V> {
     CompressAwarePath compressAwarePath = new CompressAwarePath(outputPath,
         getSize());
     merger.closeOnDiskFile(compressAwarePath);
-    XTraceContext.logEvent(OnDiskMapOutput.class, "OnDiskMapOutput", "Map output committed", "tmpOutputPath", tmpOutputPath, "outputPath", outputPath);
+    XTraceContext.logEvent(OnDiskMapOutput.class, "OnDiskMapOutput", "Map output committed", 
+        "tmpOutputPath", tmpOutputPath, "outputPath", outputPath);
   }
   
   @Override
