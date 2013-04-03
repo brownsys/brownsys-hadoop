@@ -568,7 +568,8 @@ public class Merger {
                                      Progress mergePhase)
         throws IOException {
       LOG.info("Merging " + segments.size() + " sorted segments");
-      XTraceContext.logEvent(Merger.class, "Merger merge", "Merging " + segments.size() + " sorted segments");
+      XTraceContext.logEvent(Merger.class, "Merger merge", "Merging sorted segments",
+          "Num Segments", + segments.size());
 
       /*
        * If there are inMemory segments, then they come first in the segments

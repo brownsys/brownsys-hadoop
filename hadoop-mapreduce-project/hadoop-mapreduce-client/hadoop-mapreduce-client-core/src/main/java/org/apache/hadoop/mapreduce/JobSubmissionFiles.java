@@ -125,7 +125,6 @@ public class JobSubmissionFiles {
       fs.mkdirs(stagingArea, 
           new FsPermission(JOB_DIR_PERMISSION));
     }
-    XTraceContext.logEvent("JobSubmissionFiles", "Staging directory is " + stagingArea.toString());
     return stagingArea;
   }
   

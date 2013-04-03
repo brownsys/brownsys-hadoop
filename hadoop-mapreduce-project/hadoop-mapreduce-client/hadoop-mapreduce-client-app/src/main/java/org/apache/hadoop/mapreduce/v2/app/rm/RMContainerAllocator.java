@@ -552,7 +552,8 @@ public class RMContainerAllocator extends RMContainerRequestor
   
   @Private
   public void rampUpReduces(int rampUp) {
-    XTraceContext.logEvent(RMContainerAllocator.class, "RMContainerAllocator rampUpReduces", "Ramping up "+rampUp+" reduces");
+    XTraceContext.logEvent(RMContainerAllocator.class, "RMContainerAllocator rampUpReduces", "Ramping up reduces",
+        "Ramp Up", rampUp);
     //more reduce to be scheduled
     Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
     for (int i = 0; i < rampUp; i++) {
@@ -916,7 +917,8 @@ public class RMContainerAllocator extends RMContainerRequestor
     @SuppressWarnings("unchecked")
     private void containerAssigned(Container allocated, 
                                     ContainerRequest assigned) {
-      XTraceContext.logEvent(RMContainerAllocator.class, "RMContainerAllocator", "Container " + allocated.getId().toString() + " to " + assigned.attemptID);
+      XTraceContext.logEvent(RMContainerAllocator.class, "RMContainerAllocator", 
+          "Container Assigned", "Container ID", allocated.getId().toString(), "Assigned ID", assigned.attemptID);
       
       // Update resource requests
       decContainerReq(assigned);
@@ -947,14 +949,16 @@ public class RMContainerAllocator extends RMContainerRequestor
         LOG.info("Assigning container " + allocated + " to fast fail map");
         assigned = assignToFailedMap(allocated);
         allocated.getId().joinContext();
-        XTraceContext.logEvent(RMContainerAllocator.class, "RMContainerAllocator", "Assigned container " + allocated + " to fast fail map");
+        XTraceContext.logEvent(RMContainerAllocator.class, "RMContainerAllocator", "Assigned container for fast fail map", 
+            "Container ID", allocated.getId(), "Assigned ID", assigned.attemptID);
       } else if (PRIORITY_REDUCE.equals(priority)) {
         if (LOG.isDebugEnabled()) {
           LOG.debug("Assigning container " + allocated + " to reduce");
         }
         assigned = assignToReduce(allocated);
         allocated.getId().joinContext();
-        XTraceContext.logEvent(RMContainerAllocator.class, "RMContainerAllocator", "Assigned container " + allocated + " to reduce");
+        XTraceContext.logEvent(RMContainerAllocator.class, "RMContainerAllocator", "Assigned container to reduce",
+            "Container ID", allocated.getId(), "Assigned ID", assigned.attemptID);
       }
         
       return assigned;
@@ -1070,7 +1074,8 @@ public class RMContainerAllocator extends RMContainerRequestor
           if (maps.containsKey(tId)) {
             ContainerRequest assigned = maps.remove(tId);
             assigned.joinContext();
-            XTraceContext.logEvent(RMContainerAllocator.class, "ContainerAllocator", "Assigned container based on host match " + host);
+            XTraceContext.logEvent(RMContainerAllocator.class, "ContainerAllocator", 
+                "Assigned container based on host match", "Host", host);
             containerAssigned(allocated, assigned);
             it.remove();
             JobCounterUpdateEvent jce =
@@ -1105,7 +1110,8 @@ public class RMContainerAllocator extends RMContainerRequestor
           if (maps.containsKey(tId)) {
             ContainerRequest assigned = maps.remove(tId);
             assigned.joinContext();
-            XTraceContext.logEvent(RMContainerAllocator.class, "ContainerAllocator", "Assigned container based on rack match " + rack);
+            XTraceContext.logEvent(RMContainerAllocator.class, "ContainerAllocator", 
+                "Assigned container based on rack match", "Rack", rack);
             containerAssigned(allocated, assigned);
             it.remove();
             JobCounterUpdateEvent jce =
@@ -1134,7 +1140,7 @@ public class RMContainerAllocator extends RMContainerRequestor
         TaskAttemptId tId = maps.keySet().iterator().next();
         ContainerRequest assigned = maps.remove(tId);
         assigned.joinContext();
-        XTraceContext.logEvent(RMContainerAllocator.class, "ContainerAllocator", "Assigned container based on * match ");
+        XTraceContext.logEvent(RMContainerAllocator.class, "ContainerAllocator", "Assigned container based on * match");
         containerAssigned(allocated, assigned);
         it.remove();
         JobCounterUpdateEvent jce =

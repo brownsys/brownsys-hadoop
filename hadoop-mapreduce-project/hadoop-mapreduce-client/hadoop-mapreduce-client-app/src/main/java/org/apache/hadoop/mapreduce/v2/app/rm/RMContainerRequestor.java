@@ -181,7 +181,8 @@ public abstract class RMContainerRequestor extends RMCommunicator {
     for (ContainerId i : releaserequests) {
       XTraceContext.clearThreadContext();
       i.joinContext();
-      XTraceContext.logEvent(RMContainerRequestor.class, "ContainerRequestor", "Requesting RM release container " + i);
+      XTraceContext.logEvent(RMContainerRequestor.class, "ContainerRequestor", "Requesting RM release container",
+          "Container ID", i);
       i.rememberContext();
     }
     XTraceContext.clearThreadContext();

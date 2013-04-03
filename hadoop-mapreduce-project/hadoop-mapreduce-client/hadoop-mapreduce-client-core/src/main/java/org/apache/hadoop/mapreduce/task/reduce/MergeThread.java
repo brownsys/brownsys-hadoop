@@ -76,7 +76,7 @@ abstract class MergeThread<T,K,V> extends Thread {
   public synchronized void waitForMerge() throws InterruptedException {
     int numPending = this.numPending.get();
     while (numPending > 0) {
-      XTraceContext.logEvent(MergeThread.class, "MergeThread", "Waiting for "+numPending+" pending merges");
+      XTraceContext.logEvent(MergeThread.class, "MergeThread", "Waiting for pending merges", "Num Pending", numPending);
       wait();
     }
   }

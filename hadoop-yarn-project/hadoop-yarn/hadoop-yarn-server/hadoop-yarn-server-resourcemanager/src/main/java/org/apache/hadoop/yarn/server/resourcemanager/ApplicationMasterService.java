@@ -343,7 +343,7 @@ public class ApplicationMasterService extends AbstractService implements
     AMResponse response = recordFactory.newRecordInstance(AMResponse.class);
     response.setResponseId(0);
     LOG.info("Registering " + attemptId);
-    XTraceContext.logEvent("ApplicationMasterService", "Registering " + attemptId);
+    XTraceContext.logEvent("ApplicationMasterService", "Registering application attempt", "Attempt ID", attemptId);
     responseMap.put(attemptId, response);
   }
 

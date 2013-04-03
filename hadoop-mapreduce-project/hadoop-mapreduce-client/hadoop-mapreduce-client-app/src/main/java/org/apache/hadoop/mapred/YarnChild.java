@@ -163,12 +163,13 @@ class YarnChild {
         }
       });
     } catch (FSError e) {
-      XTraceContext.logEvent(YarnChild.class, "YarnChild FSError", "FSError from child: "+e.toString());
+      XTraceContext.logEvent(YarnChild.class, "YarnChild FSError", "FSError from child: "+e.getClass().getName(),
+          "Message", e.getMessage());
       LOG.fatal("FSError from child", e);
       umbilical.fsError(taskid, e.getMessage());
     } catch (Exception exception) {
-      XTraceContext.logEvent(YarnChild.class, "YarnChild Exception", "Exception running child : "
-          + StringUtils.stringifyException(exception));
+      XTraceContext.logEvent(YarnChild.class, "YarnChild Exception", "Exception running child: "+exception.getClass().getName(),
+          "Message", StringUtils.stringifyException(exception));
       LOG.warn("Exception running child : "
           + StringUtils.stringifyException(exception));
       try {
@@ -195,8 +196,8 @@ class YarnChild {
         umbilical.fatalError(taskid, StringUtils.stringifyException(exception));
       }
     } catch (Throwable throwable) {
-      XTraceContext.logEvent(YarnChild.class, "YarnChild Error", "Error running child : "
-          + StringUtils.stringifyException(throwable));
+      XTraceContext.logEvent(YarnChild.class, "YarnChild Error", "Error running child: "+throwable.getClass().getName(),
+          "Message", StringUtils.stringifyException(throwable));
       LOG.fatal("Error running child : "
     	        + StringUtils.stringifyException(throwable));
       if (taskid != null) {

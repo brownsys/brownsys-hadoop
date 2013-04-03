@@ -234,7 +234,7 @@ public class RMAppManager implements EventHandler<RMAppManagerEvent>,
       ApplicationSubmissionContext submissionContext, long submitTime) {
     ApplicationId applicationId = submissionContext.getApplicationId();
     RMApp application = null;
-    XTraceContext.logEvent("RMAppManager", "Submitting application with applicationId: " + applicationId.getId());
+    XTraceContext.logEvent("RMAppManager", "Submitting application", "Application ID", applicationId.getId());
     try {
 
       // Sanity checks

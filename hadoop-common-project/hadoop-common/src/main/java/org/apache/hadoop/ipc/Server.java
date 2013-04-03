@@ -440,7 +440,7 @@ public abstract class Server {
       this.rpcResponse = null;
       this.rpcKind = kind;
       if (XTraceContext.isValid()) {
-    	  XTraceContext.logEvent(RPC.class, "RPC Server", "Received RPC call with id #" + id);
+    	  XTraceContext.logEvent(RPC.class, "RPC Server", "Received RPC call", "CallID", id);
     	  this.xtrace = XTraceContext.getThreadContext();
       }
       XTraceContext.clearThreadContext(); //nothing happens until call gets dequeued
@@ -1743,7 +1743,7 @@ public abstract class Server {
           final Call call = callQueue.take(); // pop the queue; maybe blocked here
           if (call.xtrace != null) {
         	  XTraceContext.setThreadContext(call.xtrace);
-        	  XTraceContext.logEvent(RPC.class, "RPC Server", "Processing call from " + call.connection,
+        	  XTraceContext.logEvent(RPC.class, "RPC Server", "Processing RPC call", "From", call.connection,
         			  "Protocol", call.connection.protocolName, "rpcKind", call.rpcKind);
           }
           if (LOG.isDebugEnabled()) {
@@ -1987,8 +1987,8 @@ public abstract class Server {
     response.setCallId(call.callId);
     response.setStatus(status);
     if (XTraceContext.isValid()) {
-      XTraceContext.logEvent(RPC.class, "RPC Server", "Sending " + status + " response to "
-    		  				+ call.connection + " for RPC id #" + call.callId);
+      XTraceContext.logEvent(RPC.class, "RPC Server", "Sending " + status + " response", 
+          "Connection", call.connection, "Call ID", call.callId);
       response.setXtrace(ByteString.copyFrom(XTraceContext.logMerge().pack()));
     }
     /* X-Trace: we have to send in the response the last event in the server

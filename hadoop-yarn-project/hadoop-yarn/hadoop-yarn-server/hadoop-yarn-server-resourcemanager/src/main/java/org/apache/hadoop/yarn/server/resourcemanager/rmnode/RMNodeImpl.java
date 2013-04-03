@@ -548,8 +548,8 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
         if (rmNode.containersToClean.contains(containerId)) {
           LOG.info("Container " + containerId + " already scheduled for " +
           		"cleanup, no further processing");
-          XTraceContext.logEvent(RMNodeImpl.class, "Node cleanup", "Container " + containerId + " already scheduled for " +
-              "cleanup, no further processing");
+          XTraceContext.logEvent(RMNodeImpl.class, "Node cleanup", "Container already scheduled for " +
+              "cleanup, no further processing", "Container ID", containerId);
           continue;
         }
         if (rmNode.finishedApplications.contains(containerId
@@ -557,9 +557,8 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
           LOG.info("Container " + containerId
               + " belongs to an application that is already killed,"
               + " no further processing");
-          XTraceContext.logEvent(RMNodeImpl.class, "Node cleanup", "Container " + containerId
-              + " belongs to an application that is already killed,"
-              + " no further processing");
+          XTraceContext.logEvent(RMNodeImpl.class, "Node cleanup", "Container belongs to an application that is already killed"
+              +", no further processing", "Container ID", containerId);
           continue;
         }
 

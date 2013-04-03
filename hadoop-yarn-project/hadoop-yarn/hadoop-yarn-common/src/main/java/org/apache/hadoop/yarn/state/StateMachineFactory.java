@@ -612,7 +612,7 @@ final public class StateMachineFactory
     private final OPERAND operand;
     private STATE currentState;
 
-    private String xtrace_agent;
+    private String state_machine_id;
     private Collection<XTraceMetadata> previous_transition_context;
 
     InternalStateMachine(OPERAND operand, STATE initialState, int xtrace_id_seed) {
@@ -621,8 +621,9 @@ final public class StateMachineFactory
       if (!optimized) {
         maybeMakeStateMachineTable();
       }
-      this.xtrace_agent = operand.getClass().getSimpleName()+"-"+xtrace_id_seed+" ";
-      XTraceContext.logEvent(operand.getClass(), xtrace_agent+"init", "StateMachine initialized", "StartState", xtraceStateName(currentState));
+      this.state_machine_id = operand.getClass().getSimpleName()+"-"+xtrace_id_seed;
+      XTraceContext.logEvent(operand.getClass(), operand.getClass().getSimpleName()+" init", "StateMachine initialized", 
+          "StartState", xtraceStateName(currentState), "StateMachineID", state_machine_id);
       this.previous_transition_context = XTraceContext.getThreadContext();
     }
 
@@ -641,7 +642,8 @@ final public class StateMachineFactory
         }
         
         // Create an event for the transition
-        XTraceContext.logEvent(operand.getClass(), xtrace_agent+event.toString(), event.toString(), "StartState", xtraceStateName(currentState), "Operand", operand.toString());
+        XTraceContext.logEvent(operand.getClass(), operand.getClass().getSimpleName()+event.toString(), event.toString(), 
+            "StartState", xtraceStateName(currentState), "Operand", operand.toString(), "StateMachineID", state_machine_id);
         
         set_previous_transition_context = true;
       }

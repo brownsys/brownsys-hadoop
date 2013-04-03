@@ -404,8 +404,8 @@ public class ContainerManagerImpl extends CompositeService implements
     LOG.info("Start request for " + containerIDStr + " by user "
         + launchContext.getUser());
     
-    XTraceContext.logEvent(ContainerManager.class, "ContainerManagerImpl", "Start request for " + containerIDStr + " by user "
-        + launchContext.getUser());
+    XTraceContext.logEvent(ContainerManager.class, "ContainerManagerImpl", "Starting container",
+        "User", launchContext.getUser(), "Container ID", containerIDStr);
 
     // //////////// Parse credentials
     ByteBuffer tokens = launchContext.getContainerTokens();

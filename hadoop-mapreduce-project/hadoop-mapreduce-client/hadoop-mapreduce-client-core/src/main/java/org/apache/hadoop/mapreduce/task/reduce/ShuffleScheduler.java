@@ -152,7 +152,8 @@ class ShuffleScheduler<K,V> {
       reduceShuffleBytes.increment(bytes);
       lastProgressTime = System.currentTimeMillis();
       LOG.debug("map " + mapId + " done " + status.getStateString());
-      XTraceContext.logEvent(ShuffleScheduler.class, "ShuffleScheduler", "map " + mapId + " done " + status.getStateString());
+      XTraceContext.logEvent(ShuffleScheduler.class, "ShuffleScheduler",
+          "Shuffle from mapper complete", "Map ID", mapId, "Status", status.getStateString());
     }
   }
   
@@ -328,7 +329,8 @@ class ShuffleScheduler<K,V> {
       
       LOG.info("Assiging " + host + " with " + host.getNumKnownMapOutputs() + 
                " to " + Thread.currentThread().getName());
-      XTraceContext.logEvent(ShuffleScheduler.class, "ShuffleScheduler", "Shuffling from host "+host+" with "+host.getNumKnownMapOutputs()+" known map outputs");
+      XTraceContext.logEvent(ShuffleScheduler.class, "ShuffleScheduler", "Selected a host for shuffle", 
+          "Host", host, "Num Outputs", host.getNumKnownMapOutputs(), "Thread Name", Thread.currentThread().getName());
       shuffleStart.set(System.currentTimeMillis());
       
       return host;

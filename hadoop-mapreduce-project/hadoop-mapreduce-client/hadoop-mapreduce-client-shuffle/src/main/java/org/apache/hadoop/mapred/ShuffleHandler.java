@@ -450,7 +450,9 @@ public class ShuffleHandler extends AbstractService
             "\n  reduceId: " + reduceQ +
             "\n  jobId: " + jobQ);
       }
-      XTraceContext.logEvent(ShuffleHandler.class, "ShuffleHandler", "Received: " + request.getUri(), "mapId", mapIds, "reduceId", reduceQ, "jobId", jobQ);
+      XTraceContext.logEvent(ShuffleHandler.class, "ShuffleHandler", 
+          "Handling map output retrieval request", "URI", request.getUri(), "Map IDs", mapIds,
+          "Reduce ID", reduceQ, "Job ID", jobQ);
 
       if (mapIds == null || reduceQ == null || jobQ == null) {
         sendError(ctx, "Required param job, map and reduce", BAD_REQUEST);
@@ -504,7 +506,8 @@ public class ShuffleHandler extends AbstractService
           }
         } catch (IOException e) {
           LOG.error("Shuffle error ", e);
-          XTraceContext.logEvent(ShuffleHandler.class, "ShuffleHandler", "Shuffle error: "+e.toString());
+          XTraceContext.logEvent(ShuffleHandler.class, "ShuffleHandler", "Shuffle error: "+e.getClass().getName(),
+              "Message", e.getMessage());
           sendError(ctx, e.getMessage(), INTERNAL_SERVER_ERROR);
           return;
         }
@@ -576,7 +579,8 @@ public class ShuffleHandler extends AbstractService
       final IndexRecord info = 
         indexCache.getIndexInformation(mapId, reduce, indexFileName, user);
       info.joinContext();
-      XTraceContext.logEvent(ShuffleHandler.class, "ShuffleHandler", "Sending map output for reduce " + reduce + " from map " + mapId, "jobId", jobId);
+      XTraceContext.logEvent(ShuffleHandler.class, "ShuffleHandler",
+          "Sending map output", "Reduce", reduce, "Map ID", mapId, "Job ID", jobID);
       final ShuffleHeader header =
         new ShuffleHeader(mapId, info.partLength, info.rawLength, reduce);
       header.rememberContext();

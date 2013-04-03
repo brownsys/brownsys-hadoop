@@ -590,7 +590,7 @@ implements ResourceScheduler, CapacitySchedulerContext, Configurable {
       XTraceContext.clearThreadContext();
       containerId.joinContext();
       LOG.debug("Container FINISHED: " + containerId);
-      XTraceContext.logEvent(CapacityScheduler.class, "Container Finished", ""+containerId);
+      XTraceContext.logEvent(CapacityScheduler.class, "Container Finished", "Container Finished", "Container ID",containerId);
       completedContainer(getRMContainer(containerId), 
           completedContainer, RMContainerEventType.FINISHED);
       XTraceContext.clearThreadContext();

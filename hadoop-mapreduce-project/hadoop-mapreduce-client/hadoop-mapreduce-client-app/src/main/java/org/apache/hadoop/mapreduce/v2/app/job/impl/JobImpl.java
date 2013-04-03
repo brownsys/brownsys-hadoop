@@ -996,6 +996,8 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
     JobStateInternal currentState = getInternalState();
     if (completedTaskCount == tasks.size()
         && currentState == JobStateInternal.RUNNING) {
+      XTraceContext.logEvent(JobImpl.class, "JobImpl checkReadyForCommit", "Job ready for commit.",
+          "Completed Tasks", tasks.size(), "Current State", currentState);
       eventHandler.handle(new CommitterJobCommitEvent(jobId, getJobContext()));
       return JobStateInternal.COMMITTING;
     }
@@ -1405,7 +1407,9 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
 
     private void createMapTasks(JobImpl job, long inputLength,
                                 TaskSplitMetaInfo[] splits) {
-      XTraceContext.logEvent(JobImpl.class, "JobImpl", "Input size for job " + job.jobId + " = " + inputLength + ". Number of splits = " + splits.length);
+
+      XTraceContext.logEvent(JobImpl.class, "JobImpl", "Creating Map Tasks", "Input Length", inputLength,
+          "Num Splits", splits.length);
       Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
       for (int i=0; i < job.numMapTasks; ++i) {
         XTraceContext.setThreadContext(start_context);
@@ -1426,7 +1430,7 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
     }
 
     private void createReduceTasks(JobImpl job) {
-      XTraceContext.logEvent(JobImpl.class, "JobImpl", "Number of reduces for job " + job.jobId + " = " + job.numReduceTasks);
+      XTraceContext.logEvent(JobImpl.class, "JobImpl", "Creating Reduce Tasks", "Num Reduces", job.numReduceTasks);
       Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
       for (int i = 0; i < job.numReduceTasks; i++) {
         XTraceContext.setThreadContext(start_context);
@@ -1799,7 +1803,8 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
         
         XTraceContext.joinContext(job.failedMapTaskContexts);
         XTraceContext.joinContext(job.failedReduceTaskContexts);
-        XTraceContext.logEvent(JobImpl.class, "JobImpl checkJobAfterTaskCompletion", diagnosticMsg);
+        XTraceContext.logEvent(JobImpl.class, "JobImpl checkJobAfterTaskCompletion", "Job failed as tasks failed.",
+            "Failed Maps", job.failedMapTaskCount, "Failed Reduces", job.failedReduceTaskCount);
         
         LOG.info(diagnosticMsg);
         job.addDiagnostic(diagnosticMsg);

@@ -126,7 +126,8 @@ public class Shuffle<K, V> implements ShuffleConsumerPlugin<K, V>, ExceptionRepo
       synchronized (this) {
         if (throwable != null) {
           XTraceContext.joinContext(throwingContext);
-          XTraceContext.logEvent(Shuffle.class, "Shuffle", "error in shuffle in " + throwingThreadName + ": " + throwable.toString());
+          XTraceContext.logEvent(Shuffle.class, "Shuffle", "Error during shuffle: "+throwable.getClass().getName(),
+              "Throwing Thread", throwingThreadName, "Message", throwable.getMessage());
           throw new ShuffleError("error in shuffle in " + throwingThreadName,
                                  throwable);
         }
@@ -155,7 +156,8 @@ public class Shuffle<K, V> implements ShuffleConsumerPlugin<K, V>, ExceptionRepo
     try {
       kvIter = merger.close();
     } catch (Throwable e) {
-      XTraceContext.logEvent(Shuffle.class, "Shuffle merge error", "Error while doing final merge " + e.toString());
+      XTraceContext.logEvent(Shuffle.class, "Shuffle merge error", "Error during final merge: "+e.getClass().getName(),
+          "Message", e.getMessage());
       throw new ShuffleError("Error while doing final merge " , e);
     }
 
@@ -163,7 +165,8 @@ public class Shuffle<K, V> implements ShuffleConsumerPlugin<K, V>, ExceptionRepo
     synchronized (this) {
       if (throwable != null) {
         XTraceContext.joinContext(throwingContext);
-        XTraceContext.logEvent(Shuffle.class, "Shuffle", "error in shuffle in " + throwingThreadName + ": " + throwable.toString());
+        XTraceContext.logEvent(Shuffle.class, "Shuffle", "Error during shuffle: "+throwable.getClass().getName(),
+            "Throwing Thread", throwingThreadName, "Message", throwable.getMessage());
         throw new ShuffleError("error in shuffle in " + throwingThreadName,
                                throwable);
       }

@@ -203,7 +203,7 @@ public class ClientRMService extends AbstractService implements
         .newApplicationId(recordFactory, ResourceManager.clusterTimeStamp,
             applicationCounter.incrementAndGet());
     LOG.info("Allocated new applicationId: " + applicationId.getId());
-    XTraceContext.logEvent("ClientRMService", "Allocated new applicationId: " + applicationId.getId());
+    XTraceContext.logEvent(ClientRMService.class, "ClientRMService", "New application ID allocated", "Application ID", applicationId.getId());
     return applicationId;
   }
 

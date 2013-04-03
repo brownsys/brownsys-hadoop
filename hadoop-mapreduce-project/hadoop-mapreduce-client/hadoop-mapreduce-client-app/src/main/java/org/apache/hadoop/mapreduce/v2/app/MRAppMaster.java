@@ -248,7 +248,7 @@ public class MRAppMaster extends CompositeService {
     
     /* This will either generate a new task id, or pick up from an existing one 
      * if we had one passed to us or the xtrace environment variable was set */
-    XTraceContext.logEvent(MRAppMaster.class, "MRAppMaster", "Starting job " + jobId );
+    XTraceContext.logEvent(MRAppMaster.class, "MRAppMaster", "Starting job", "Job ID", jobId);
     
     int numReduceTasks = conf.getInt(MRJobConfig.NUM_REDUCES, 0);
     if ((numReduceTasks > 0 && 
@@ -1265,7 +1265,8 @@ public class MRAppMaster extends CompositeService {
       XTraceContext.setThreadContext(xtrace_context);
       LOG.info("MRAppMaster received a signal. Signaling RMCommunicator and "
         + "JobHistoryEventHandler.");
-      XTraceContext.logEvent(MRAppMasterShutdownHook.class, "MRAppMasterShutdownHook", "MRAppMaster received a signal. Signaling RMCommunicator and JobHistoryEventHandler.");
+      XTraceContext.logEvent(MRAppMasterShutdownHook.class, "MRAppMasterShutdownHook", 
+          "MRAppMaster received a signal. Signaling RMCommunicator and JobHistoryEventHandler.");
 
       // Notify the JHEH and RMCommunicator that a SIGTERM has been received so
       // that they don't take too long in shutting down

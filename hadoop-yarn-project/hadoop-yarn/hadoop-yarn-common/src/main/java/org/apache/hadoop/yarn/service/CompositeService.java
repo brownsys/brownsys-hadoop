@@ -89,11 +89,12 @@ public class CompositeService extends AbstractService {
       // The base composite-service is already stopped, don't do anything again.
       return;
     }
-    XTraceContext.logEvent(CompositeService.class, "Composite Service", "Stopping all services");
+    XTraceContext.logEvent(CompositeService.class, "Composite Service", "Stopping all contained services");
     if (serviceList.size() > 0) {
       stop(serviceList.size() - 1);
     }
-    XTraceContext.logEvent(CompositeService.class, "Composite Service", "All services stopped.  Stopping "+this.getName());
+    XTraceContext.logEvent(CompositeService.class, "Composite Service", "All contained services stopped, stopping self",
+        "Name", this.getName());
     super.stop();
     XTraceContext.logEvent(CompositeService.class, "Composite Service", "Composite service is stopped");
   }
@@ -105,13 +106,14 @@ public class CompositeService extends AbstractService {
     for (int i = numOfServicesStarted; i >= 0; i--) {
       XTraceContext.setThreadContext(start_context);
       Service service = serviceList.get(i);
-      XTraceContext.logEvent(service.getClass(), service.getName(), "Stopping service "+i);
+      XTraceContext.logEvent(service.getClass(), service.getName(), "Stopping service");
       try {
         service.stop();
         XTraceContext.logEvent(service.getClass(), service.getName(), "Service is stopped.");
       } catch (Throwable t) {
         LOG.info("Error stopping " + service.getName(), t);
-        XTraceContext.logEvent(service.getClass(), service.getName(), "Error stopping service " + t.toString());
+        XTraceContext.logEvent(service.getClass(), service.getName(), "Error stopping service: "+t.getClass().getName(),
+            "Message", t.getMessage());
       }
       XTraceContext.getThreadContext(end_context);
       XTraceContext.clearThreadContext();

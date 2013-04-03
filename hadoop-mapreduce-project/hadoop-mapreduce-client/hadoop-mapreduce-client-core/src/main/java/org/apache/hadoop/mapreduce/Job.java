@@ -1249,7 +1249,7 @@ public class Job extends JobContextImpl implements JobContext {
     if (state == JobState.DEFINE) {
       submit();
     }
-    XTraceContext.logEvent("MapReduce Job", "Submitted Job " + getJobID());
+    XTraceContext.logEvent("MapReduce Job", "Submitted Job", "Job ID", getJobID());
     if (verbose) {
       monitorAndPrintJob();
     } else {
@@ -1263,7 +1263,12 @@ public class Job extends JobContextImpl implements JobContext {
         }
       }
     }
-    XTraceContext.logEvent("MapReduce Job", "finished job with success = " + isSuccessful());
+    if (isSuccessful()) {
+      XTraceContext.logEvent(Job.class, "MapReduce Job", "Job finished successfully");
+    } else {
+      XTraceContext.logEvent(Job.class, "MapReduce Job", "Job failed");
+      
+    }
     return isSuccessful();
   }
   
