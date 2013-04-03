@@ -352,7 +352,7 @@ class Fetcher<K,V> extends Thread {
 
       int failed = remaining.size();
       int copied = initialSize - failed;
-      XTraceContext.logEvent(Fetcher.class, "Fetching complete", 
+      XTraceContext.logEvent(Fetcher.class, "Fetching complete", "Fetching complete",
           "Num Succeeded", copied, "Num Failed", failed);
     } finally {
       for (TaskAttemptID left : remaining) {
