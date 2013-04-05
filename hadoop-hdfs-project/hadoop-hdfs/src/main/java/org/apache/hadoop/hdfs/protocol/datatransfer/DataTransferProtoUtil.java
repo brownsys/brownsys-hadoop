@@ -31,6 +31,10 @@ import org.apache.hadoop.hdfs.security.token.block.BlockTokenIdentifier;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.util.DataChecksum;
 
+import com.google.protobuf.ByteString;
+
+import edu.berkeley.xtrace.XTraceContext;
+
 
 /**
  * Static utilities for dealing with the protocol buffers used by the
@@ -78,9 +82,15 @@ public abstract class DataTransferProtoUtil {
 
   static BaseHeaderProto buildBaseHeader(ExtendedBlock blk,
       Token<BlockTokenIdentifier> blockToken) {
-    return BaseHeaderProto.newBuilder()
+    BaseHeaderProto.Builder header = BaseHeaderProto.newBuilder()
       .setBlock(PBHelper.convert(blk))
-      .setToken(PBHelper.convert(blockToken))
-      .build();
+      .setToken(PBHelper.convert(blockToken));
+      
+    if (XTraceContext.isValid()) {
+      header.setXtrace(ByteString.copyFrom(XTraceContext.logMerge().pack()));
+    }
+    
+    return header.build();
   }
 }
+

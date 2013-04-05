@@ -25,6 +25,8 @@ import java.io.IOException;
 
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
+import org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.BaseHeaderProto;
+import org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.ClientOperationHeaderProto;
 import org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.OpBlockChecksumProto;
 import org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.OpCopyBlockProto;
 import org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.OpReadBlockProto;
@@ -89,10 +91,11 @@ public abstract class Receiver implements DataTransferProtocol {
   /** Receive OP_READ_BLOCK */
   private void opReadBlock() throws IOException {
     OpReadBlockProto proto = OpReadBlockProto.parseFrom(vintPrefixed(in));
-    if (proto.hasXtrace()) {
-      ByteString xbs = proto.getXtrace();
+    BaseHeaderProto header = proto.getHeader().getBaseHeader();
+    if (header.hasXtrace()) {
+      ByteString xbs = header.getXtrace();
       XTraceMetadata xmd = XTraceMetadata.createFromBytes(xbs.toByteArray(),
-                                                                0, xbs.size());
+          0, xbs.size());
       if (xmd.isValid()) {
         XTraceContext.setThreadContext(xmd);
       }
@@ -108,10 +111,11 @@ public abstract class Receiver implements DataTransferProtocol {
   /** Receive OP_WRITE_BLOCK */
   private void opWriteBlock(DataInputStream in) throws IOException {
     final OpWriteBlockProto proto = OpWriteBlockProto.parseFrom(vintPrefixed(in));
-    if (proto.hasXtrace()) {
-      ByteString xbs = proto.getXtrace();
+    BaseHeaderProto header = proto.getHeader().getBaseHeader();
+    if (header.hasXtrace()) {
+      ByteString xbs = header.getXtrace();
       XTraceMetadata xmd = XTraceMetadata.createFromBytes(xbs.toByteArray(),
-                                                                0, xbs.size());
+          0, xbs.size());
       if (xmd.isValid()) {
         XTraceContext.setThreadContext(xmd);
       }
@@ -132,14 +136,16 @@ public abstract class Receiver implements DataTransferProtocol {
   private void opTransferBlock(DataInputStream in) throws IOException {
     final OpTransferBlockProto proto =
       OpTransferBlockProto.parseFrom(vintPrefixed(in));
-    if (proto.hasXtrace()) {
-      ByteString xbs = proto.getXtrace();
+    BaseHeaderProto header = proto.getHeader().getBaseHeader();
+    if (header.hasXtrace()) {
+      ByteString xbs = header.getXtrace();
       XTraceMetadata xmd = XTraceMetadata.createFromBytes(xbs.toByteArray(),
-                                                                0, xbs.size());
+          0, xbs.size());
       if (xmd.isValid()) {
         XTraceContext.setThreadContext(xmd);
       }
     }
+ 
     transferBlock(PBHelper.convert(proto.getHeader().getBaseHeader().getBlock()),
         PBHelper.convert(proto.getHeader().getBaseHeader().getToken()),
         proto.getHeader().getClientName(),
@@ -149,10 +155,11 @@ public abstract class Receiver implements DataTransferProtocol {
   /** Receive OP_REPLACE_BLOCK */
   private void opReplaceBlock(DataInputStream in) throws IOException {
     OpReplaceBlockProto proto = OpReplaceBlockProto.parseFrom(vintPrefixed(in));
-    if (proto.hasXtrace()) {
-      ByteString xbs = proto.getXtrace();
+    BaseHeaderProto header = proto.getHeader(); 
+    if (header.hasXtrace()) {
+      ByteString xbs = header.getXtrace();
       XTraceMetadata xmd = XTraceMetadata.createFromBytes(xbs.toByteArray(),
-                                                                0, xbs.size());
+          0, xbs.size());
       if (xmd.isValid()) {
         XTraceContext.setThreadContext(xmd);
       }
@@ -166,8 +173,9 @@ public abstract class Receiver implements DataTransferProtocol {
   /** Receive OP_COPY_BLOCK */
   private void opCopyBlock(DataInputStream in) throws IOException {
     OpCopyBlockProto proto = OpCopyBlockProto.parseFrom(vintPrefixed(in));
-    if (proto.hasXtrace()) {
-      ByteString xbs = proto.getXtrace();
+    BaseHeaderProto header = proto.getHeader();
+    if (header.hasXtrace()) {
+      ByteString xbs = header.getXtrace();
       XTraceMetadata xmd = XTraceMetadata.createFromBytes(xbs.toByteArray(),
                                                                 0, xbs.size());
       if (xmd.isValid()) {
@@ -181,8 +189,9 @@ public abstract class Receiver implements DataTransferProtocol {
   /** Receive OP_BLOCK_CHECKSUM */
   private void opBlockChecksum(DataInputStream in) throws IOException {
     OpBlockChecksumProto proto = OpBlockChecksumProto.parseFrom(vintPrefixed(in));
-    if (proto.hasXtrace()) {
-      ByteString xbs = proto.getXtrace();
+    BaseHeaderProto header = proto.getHeader();
+    if (header.hasXtrace()) {
+      ByteString xbs = header.getXtrace();
       XTraceMetadata xmd = XTraceMetadata.createFromBytes(xbs.toByteArray(),
                                                                 0, xbs.size());
       if (xmd.isValid()) {
