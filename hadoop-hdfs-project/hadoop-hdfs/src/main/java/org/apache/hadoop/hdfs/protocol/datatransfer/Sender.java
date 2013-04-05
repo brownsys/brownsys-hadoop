@@ -89,7 +89,7 @@ public class Sender implements DataTransferProtocol {
       .setSendChecksums(sendChecksum);
       
     if (XTraceContext.isValid()) {
-      proto.setXtrace(ByteString.copyFrom(XTraceContext.logMerge().pack()));
+      //proto.setXtrace(ByteString.copyFrom(XTraceContext.logMerge().pack()));
     }
 
     send(out, Op.READ_BLOCK, proto.build());
@@ -127,10 +127,6 @@ public class Sender implements DataTransferProtocol {
     if (source != null) {
       proto.setSource(PBHelper.convertDatanodeInfo(source));
     }
-
-    if (XTraceContext.isValid()) {
-      proto.setXtrace(ByteString.copyFrom(XTraceContext.logMerge().pack()));
-    }
     
     send(out, Op.WRITE_BLOCK, proto.build());
   }
@@ -145,10 +141,6 @@ public class Sender implements DataTransferProtocol {
       .setHeader(DataTransferProtoUtil.buildClientHeader(
           blk, clientName, blockToken))
       .addAllTargets(PBHelper.convert(targets));
-      
-    if (XTraceContext.isValid()) {
-      proto.setXtrace(ByteString.copyFrom(XTraceContext.logMerge().pack()));
-    }
 
     send(out, Op.TRANSFER_BLOCK, proto.build());
   }
@@ -158,15 +150,12 @@ public class Sender implements DataTransferProtocol {
       final Token<BlockTokenIdentifier> blockToken,
       final String delHint,
       final DatanodeInfo source) throws IOException {
+    
     OpReplaceBlockProto.Builder proto = OpReplaceBlockProto.newBuilder()
       .setHeader(DataTransferProtoUtil.buildBaseHeader(blk, blockToken))
       .setDelHint(delHint)
       .setSource(PBHelper.convertDatanodeInfo(source));
-    
-    if (XTraceContext.isValid()) {
-      proto.setXtrace(ByteString.copyFrom(XTraceContext.logMerge().pack()));
-    }  
-    
+
     send(out, Op.REPLACE_BLOCK, proto.build());
   }
 
@@ -175,11 +164,7 @@ public class Sender implements DataTransferProtocol {
       final Token<BlockTokenIdentifier> blockToken) throws IOException {
     OpCopyBlockProto.Builder proto = OpCopyBlockProto.newBuilder()
       .setHeader(DataTransferProtoUtil.buildBaseHeader(blk, blockToken));
-    
-    if (XTraceContext.isValid()) {
-      proto.setXtrace(ByteString.copyFrom(XTraceContext.logMerge().pack()));
-    }
-    
+        
     send(out, Op.COPY_BLOCK, proto.build());
   }
 
@@ -188,10 +173,6 @@ public class Sender implements DataTransferProtocol {
       final Token<BlockTokenIdentifier> blockToken) throws IOException {
     OpBlockChecksumProto.Builder proto = OpBlockChecksumProto.newBuilder()
       .setHeader(DataTransferProtoUtil.buildBaseHeader(blk, blockToken));
-    
-    if (XTraceContext.isValid()) {
-      proto.setXtrace(ByteString.copyFrom(XTraceContext.logMerge().pack()));
-    }
     
     send(out, Op.BLOCK_CHECKSUM, proto.build());
   }
