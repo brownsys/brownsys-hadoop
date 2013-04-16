@@ -414,6 +414,7 @@ public class MapTask extends Task {
                              ClassNotFoundException {
     InputSplit inputSplit = getSplitDetails(new Path(splitIndex.getSplitLocation()),
            splitIndex.getStartOffset());
+    XTraceContext.logEvent(MapTask.class, "OldMapper", "Processing split", "Split", inputSplit);
 
     updateJobWithSplit(job, inputSplit);
     reporter.setInputSplit(inputSplit);
@@ -439,8 +440,11 @@ public class MapTask extends Task {
       ReflectionUtils.newInstance(job.getMapRunnerClass(), job);
 
     try {
+      XTraceContext.logEvent(MapTask.class, "OldMapper", "Map start");
       runner.run(in, new OldOutputCollector(collector, conf), reporter);
       mapPhase.complete();
+      XTraceContext.logEvent(MapTask.class, "OldMapper", "Map end");
+      XTraceContext.logEvent(MapTask.class, "OldMapper", "Sort phase start");
       // start the sort phase only if there are reducers
       if (numReduceTasks > 0) {
         setPhase(TaskStatus.Phase.SORT);
@@ -452,6 +456,7 @@ public class MapTask extends Task {
       in.close();                               // close input
       collector.close();
     }
+    XTraceContext.logEvent(MapTask.class, "OldMapper", "Sort phase end");
   }
 
   /**
