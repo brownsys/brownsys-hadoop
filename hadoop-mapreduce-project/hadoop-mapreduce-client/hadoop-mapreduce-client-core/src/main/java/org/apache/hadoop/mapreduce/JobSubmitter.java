@@ -413,7 +413,7 @@ class JobSubmitter {
       }
       
       XTraceContext.joinContext(start_context);
-      XTraceContext.logEvent(JobSubmitter.class, "JobSubmiter", "Job submission complete");
+      XTraceContext.logEvent(JobSubmitter.class, "JobSubmitter", "Job submission complete");
     }
   }
   
