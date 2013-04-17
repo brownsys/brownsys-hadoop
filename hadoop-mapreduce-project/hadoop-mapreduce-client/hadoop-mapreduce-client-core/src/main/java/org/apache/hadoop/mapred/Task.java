@@ -621,11 +621,13 @@ abstract public class Task implements Writable, Configurable {
      * Using AtomicBoolean since we need an atomic read & reset method. 
      */  
     private AtomicBoolean progressFlag = new AtomicBoolean(false);
+    private Collection<XTraceMetadata> xtrace;
     
     TaskReporter(Progress taskProgress,
                  TaskUmbilicalProtocol umbilical) {
       this.umbilical = umbilical;
       this.taskProgress = taskProgress;
+      this.xtrace = XTraceContext.getThreadContext();
     }
 
     // getters and setters for flag
@@ -705,6 +707,7 @@ abstract public class Task implements Writable, Configurable {
      * let the parent know that it's alive. It also pings the parent to see if it's alive. 
      */
     public void run() {
+      XTraceContext.setThreadContext(xtrace);
       final int MAX_RETRIES = 3;
       int remainingRetries = MAX_RETRIES;
       // get current flag value and reset it as well
@@ -757,7 +760,7 @@ abstract public class Task implements Writable, Configurable {
           LOG.info("Communication exception: " + StringUtils.stringifyException(t));
           remainingRetries -=1;
           XTraceContext.logEvent(Task.class, "Task", "Communication exception "+t.getClass().getName(),
-              "Message", StringUtils.stringifyException(t), "Retries Remaining", remainingRetries);
+              "Message", t.getMessage(), "Retries Remaining", remainingRetries);
           if (remainingRetries == 0) {
             ReflectionUtils.logThreadInfo(LOG, "Communication exception", 0);
             LOG.warn("Last retry, killing "+taskId);
@@ -1023,7 +1026,7 @@ abstract public class Task implements Writable, Configurable {
           LOG.warn("Failure sending commit pending: " + 
                     StringUtils.stringifyException(ie));
           XTraceContext.logEvent(Task.class, "Task committing fail", "Failure sending commit pending: "+ie.getClass().getName(), 
-              "Message", StringUtils.stringifyException(ie), "Retries Remaining", retries);
+              "Message", ie.getMessage(), "Retries Remaining", retries);
           if (--retries == 0) {
             XTraceContext.logEvent(Task.class, "Task exiting", "No retries remaining for task commit, killing task", "Exit Code", 67);
             XTraceContext.joinParentProcess();
@@ -1137,7 +1140,7 @@ abstract public class Task implements Writable, Configurable {
         LOG.warn("Failure signalling completion: " + 
                  StringUtils.stringifyException(ie));
         XTraceContext.logEvent(Task.class, "Task done signalling failure", 
-            "Failure signalling completion: "+ie.getClass().getName(), "Message", StringUtils.stringifyException(ie),
+            "Failure signalling completion: "+ie.getClass().getName(), "Message", ie.getMessage(),
             "Retries Remaining", retries);
         if (--retries == 0) {
           throw ie;
@@ -1167,7 +1170,7 @@ abstract public class Task implements Writable, Configurable {
         LOG.warn("Failure asking whether task can commit: " + 
             StringUtils.stringifyException(ie));
         XTraceContext.logEvent(Task.class, "Commit approval failure", "Failure asking whether task can commit: "+ie.getClass().getName(),
-            "Message", StringUtils.stringifyException(ie), "Retries Remaining", retries);
+            "Message", ie.getMessage(), "Retries Remaining", retries);
         if (--retries == 0) {
           //if it couldn't query successfully then delete the output
           discardOutput(taskContext);
@@ -1188,7 +1191,7 @@ abstract public class Task implements Writable, Configurable {
       LOG.warn("Failure committing: " + 
         StringUtils.stringifyException(iee));
       XTraceContext.logEvent(Task.class, "Commit failed", "Failure committing: "+iee.getClass().getName()+", discarding output", 
-          "Message", StringUtils.stringifyException(iee));
+          "Message", iee.getMessage());
       //if it couldn't commit a successfully then delete the output
       discardOutput(taskContext);
       throw iee;
