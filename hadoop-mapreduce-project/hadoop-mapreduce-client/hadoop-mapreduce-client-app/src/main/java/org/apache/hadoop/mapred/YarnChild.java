@@ -169,7 +169,7 @@ class YarnChild {
       umbilical.fsError(taskid, e.getMessage());
     } catch (Exception exception) {
       XTraceContext.logEvent(YarnChild.class, "YarnChild Exception", "Exception running child: "+exception.getClass().getName(),
-          "Message", StringUtils.stringifyException(exception));
+          "Message", exception.getMessage());
       LOG.warn("Exception running child : "
           + StringUtils.stringifyException(exception));
       try {
@@ -197,7 +197,7 @@ class YarnChild {
       }
     } catch (Throwable throwable) {
       XTraceContext.logEvent(YarnChild.class, "YarnChild Error", "Error running child: "+throwable.getClass().getName(),
-          "Message", StringUtils.stringifyException(throwable));
+          "Message", throwable.getMessage());
       LOG.fatal("Error running child : "
     	        + StringUtils.stringifyException(throwable));
       if (taskid != null) {

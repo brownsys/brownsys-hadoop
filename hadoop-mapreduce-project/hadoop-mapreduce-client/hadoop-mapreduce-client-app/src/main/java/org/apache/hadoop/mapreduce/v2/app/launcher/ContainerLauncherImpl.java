@@ -391,6 +391,7 @@ public class ContainerLauncherImpl extends AbstractService implements
       XTraceContext.clearThreadContext();
       event.joinContext();
       LOG.info("Processing the event " + event.toString());
+      XTraceContext.logEvent(ContainerLauncherImpl.class, "ContainerLauncherImpl", "Processing the event " + event.toString());
 
       // Load ContainerManager tokens before creating a connection.
       // TODO: Do it only once per NodeManager.
