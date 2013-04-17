@@ -371,7 +371,9 @@ public class ContainerLocalizer {
           new ContainerLocalizer(FileContext.getLocalFSFileContext(), user,
               appId, locId, localDirs,
               RecordFactoryProvider.getRecordFactory(null));
-      System.exit(localizer.runLocalization(nmAddr));
+      int retCode = localizer.runLocalization(nmAddr);
+      XTraceContext.joinParentProcess();
+      System.exit(retCode);
     } catch (Throwable e) {
       // Print error to stdout so that LCE can use it.
       e.printStackTrace(System.out);

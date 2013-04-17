@@ -146,6 +146,8 @@ public class AsyncDispatcher extends AbstractService implements Dispatcher {
       if (exitOnDispatchException
           && (ShutdownHookManager.get().isShutdownInProgress()) == false) {
         LOG.info("Exiting, bbye..");
+        XTraceContext.logEvent(AsyncDispatcher.class, "AsyncDispatcher", "Exiting, bbye..");
+        XTraceContext.joinParentProcess();
         System.exit(-1);
       }
     }

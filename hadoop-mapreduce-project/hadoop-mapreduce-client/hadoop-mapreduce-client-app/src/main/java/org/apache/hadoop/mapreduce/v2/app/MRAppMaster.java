@@ -509,6 +509,7 @@ public class MRAppMaster extends CompositeService {
    * Exit call. Just in a function call to enable testing.
    */
   protected void sysexit() {
+    XTraceContext.joinParentProcess();
     System.exit(0);
   }
 
@@ -1248,6 +1249,8 @@ public class MRAppMaster extends CompositeService {
       initAndStartAppMaster(appMaster, conf, jobUserName);
     } catch (Throwable t) {
       LOG.fatal("Error starting MRAppMaster", t);
+      XTraceContext.logEvent(MRAppMaster.class, "MRAppMaster", "Error starting MRAppMaster: "+t.getClass().getName(), "Message", t.getMessage());
+      XTraceContext.joinParentProcess();
       System.exit(1);
     }
   }
