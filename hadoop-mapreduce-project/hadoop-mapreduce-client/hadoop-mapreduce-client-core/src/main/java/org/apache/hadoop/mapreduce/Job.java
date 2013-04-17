@@ -1333,9 +1333,11 @@ public class Job extends JobContextImpl implements JobContext {
     boolean success = isSuccessful();
     if (success) {
       LOG.info("Job " + jobId + " completed successfully");
+      XTraceContext.logEvent(Job.class, "Job", "Job completed successfully");
     } else {
       LOG.info("Job " + jobId + " failed with state " + status.getState() + 
           " due to: " + status.getFailureInfo());
+      XTraceContext.logEvent(Job.class, "Job", "Job failed with state "+status.getState());
     }
     Counters counters = getCounters();
     if (counters != null) {
