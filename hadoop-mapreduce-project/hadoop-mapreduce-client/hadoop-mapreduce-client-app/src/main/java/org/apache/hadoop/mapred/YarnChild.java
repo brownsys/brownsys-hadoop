@@ -135,6 +135,7 @@ class YarnChild {
         myTask = umbilical.getTask(context);
       }
       if (myTask.shouldDie()) {
+        XTraceContext.logEvent(YarnChild.class, "YarnChild", "Task has been instructed to die.");
         return;
       }
 
@@ -158,6 +159,7 @@ class YarnChild {
         public Object run() throws Exception {
           // use job-specified working directory
           FileSystem.get(job).setWorkingDirectory(job.getWorkingDirectory());
+          XTraceContext.logEvent(YarnChild.class, "YarnChild", "Running task");
           taskFinal.run(job, umbilical); // run the task
           return null;
         }
