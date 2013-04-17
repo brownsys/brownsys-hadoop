@@ -246,6 +246,8 @@ public class LocalContainerLauncher extends AbstractService implements
             // (i.e., exit clumsily--but can never happen, so no worries!)
             LOG.fatal("oopsie...  this can never happen: "
                 + StringUtils.stringifyException(ioe));
+            XTraceContext.logEvent(LocalContainerLauncher.class, "LocalContainerLauncher", "Whoops. Fatal error.");
+            XTraceContext.joinParentProcess();
             System.exit(-1);
           }
 

@@ -332,6 +332,7 @@ abstract public class Task implements Writable, Configurable {
     } catch (IOException ioe) {
       LOG.fatal("Failed to contact the tasktracker", ioe);
       XTraceContext.logEvent(Task.class, "FatalError", "Failed to contact the tasktracker", "Exit Code", -1);
+      XTraceContext.joinParentProcess();
       System.exit(-1);
     }
   }
@@ -745,6 +746,7 @@ abstract public class Task implements Writable, Configurable {
             LOG.warn("Parent died.  Exiting "+taskId);
             XTraceContext.logEvent(Task.class, "Task", "Parent died, exiting", "Exit Code", 66);
             resetDoneFlag();
+            XTraceContext.joinParentProcess();
             System.exit(66);
           }
 
@@ -761,6 +763,7 @@ abstract public class Task implements Writable, Configurable {
             LOG.warn("Last retry, killing "+taskId);
             XTraceContext.logEvent(Task.class, "Task", "No retries remaining, killing task", "Exit Code", 65);
             resetDoneFlag();
+            XTraceContext.joinParentProcess();
             System.exit(65);
           }
         }
@@ -1023,6 +1026,7 @@ abstract public class Task implements Writable, Configurable {
               "Message", StringUtils.stringifyException(ie), "Retries Remaining", retries);
           if (--retries == 0) {
             XTraceContext.logEvent(Task.class, "Task exiting", "No retries remaining for task commit, killing task", "Exit Code", 67);
+            XTraceContext.joinParentProcess();
             System.exit(67);
           }
         }
@@ -1069,6 +1073,7 @@ abstract public class Task implements Writable, Configurable {
         if (!umbilical.statusUpdate(getTaskID(), taskStatus)) {
           LOG.warn("Parent died.  Exiting "+taskId);
           XTraceContext.logEvent(Task.class, "Task exiting", "Parent died, exiting", "Exit Code", 66);
+          XTraceContext.joinParentProcess();
           System.exit(66);
         }
         taskStatus.clearStatus();
@@ -1167,6 +1172,7 @@ abstract public class Task implements Writable, Configurable {
           //if it couldn't query successfully then delete the output
           discardOutput(taskContext);
           XTraceContext.logEvent(Task.class, "Commit approval exiting", "Maximum retries reached, discarding output and exiting", "Exit Code", 68);
+          XTraceContext.joinParentProcess();
           System.exit(68);
         }
       }
