@@ -779,6 +779,7 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
     readLock.lock();
     try {
       JobState state = getState();
+      joinStateMachineXTraceContext();
 
       // jobFile can be null if the job is not yet inited.
       String jobFile =
@@ -951,6 +952,15 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
     }
   }
   
+  private void joinStateMachineXTraceContext() {
+    readLock.lock();
+    try {
+      getStateMachine().joinPreviousTransitionXTraceContext();
+    } finally {
+      readLock.unlock();
+    }    
+  }
+  
   
   //helpful in testing
   protected void addTask(Task task) {
@@ -994,6 +1004,7 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
   
   protected JobStateInternal checkReadyForCommit() {
     JobStateInternal currentState = getInternalState();
+    joinStateMachineXTraceContext();
     if (completedTaskCount == tasks.size()
         && currentState == JobStateInternal.RUNNING) {
       XTraceContext.logEvent(JobImpl.class, "JobImpl checkReadyForCommit", "Job ready for commit.",
@@ -1009,6 +1020,7 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
     if (getInternalState() == JobStateInternal.RUNNING) {
       metrics.endRunningJob(this);
     }
+    joinStateMachineXTraceContext();
     if (finishTime == 0) setFinishTime();
     eventHandler.handle(new JobFinishEvent(jobId));
 

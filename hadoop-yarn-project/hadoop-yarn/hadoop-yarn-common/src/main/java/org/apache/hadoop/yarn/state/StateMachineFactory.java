@@ -630,7 +630,11 @@ final public class StateMachineFactory
     @Override
     public synchronized STATE getCurrentState() {
       return currentState;
-    }    
+    }
+    
+    public void joinPreviousTransitionXTraceContext() {
+      XTraceContext.joinContext(this.previous_transition_context);
+    }
     
     public synchronized STATE doTransition(EVENTTYPE eventType, EVENT event)
         throws InvalidStateTransitonException {
@@ -638,7 +642,7 @@ final public class StateMachineFactory
       boolean set_previous_transition_context = false;
       if (StateMachineFactory.this.logXTraceTransition(currentState, eventType)) {
         if (StateMachineFactory.this.logTransitionAsXTraceProcess(currentState, eventType)) {
-          XTraceContext.joinContext(this.previous_transition_context);
+          joinPreviousTransitionXTraceContext();
         }
         
         // Create an event for the transition
