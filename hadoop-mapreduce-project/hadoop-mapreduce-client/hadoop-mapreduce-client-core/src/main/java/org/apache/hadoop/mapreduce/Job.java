@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.net.URI;
 import java.security.PrivilegedExceptionAction;
+import java.util.Collection;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -41,6 +42,7 @@ import org.apache.hadoop.mapreduce.util.ConfigUtil;
 import org.apache.hadoop.util.StringUtils;
 
 import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
 
 /**
  * The job submitter's view of the Job.
@@ -113,6 +115,7 @@ public class Job extends JobContextImpl implements JobContext {
 
   private JobState state = JobState.DEFINE;
   private JobStatus status;
+  private Collection<XTraceMetadata> status_xtrace;
   private long statustime;
   private Cluster cluster;
 
@@ -315,12 +318,16 @@ public class Job extends JobContextImpl implements JobContext {
    * @throws IOException
    */
   synchronized void updateStatus() throws IOException, InterruptedException {
+    Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
+    XTraceContext.clearThreadContext();
     this.status = ugi.doAs(new PrivilegedExceptionAction<JobStatus>() {
       @Override
       public JobStatus run() throws IOException, InterruptedException {
         return cluster.getClient().getJobStatus(status.getJobID());
       }
     });
+    this.status_xtrace = XTraceContext.getThreadContext();
+    XTraceContext.setThreadContext(start_context);
     if (this.status == null) {
       throw new IOException("Job status not available ");
     }
@@ -331,6 +338,10 @@ public class Job extends JobContextImpl implements JobContext {
     ensureState(JobState.RUNNING);
     updateStatus();
     return status;
+  }
+  
+  public void joinStatusXTraceContext() {
+    XTraceContext.joinContext(this.status_xtrace);
   }
   
   private void setStatus(JobStatus status) {
@@ -1245,7 +1256,7 @@ public class Job extends JobContextImpl implements JobContext {
     if (state == JobState.DEFINE) {
       submit();
     }
-    XTraceContext.logEvent("MapReduce Job", "Submitted Job", "Job ID", getJobID());
+    XTraceContext.logEvent(Job.class, "MapReduce Job", "Submitted Job", "Job ID", getJobID());
     if (verbose) {
       monitorAndPrintJob();
     } else {
@@ -1318,6 +1329,7 @@ public class Job extends JobContextImpl implements JobContext {
       eventCounter += events.length;
       printTaskEvents(events, filter, profiling, mapRanges, reduceRanges);
     }
+    joinStatusXTraceContext();
     boolean success = isSuccessful();
     if (success) {
       LOG.info("Job " + jobId + " completed successfully");
