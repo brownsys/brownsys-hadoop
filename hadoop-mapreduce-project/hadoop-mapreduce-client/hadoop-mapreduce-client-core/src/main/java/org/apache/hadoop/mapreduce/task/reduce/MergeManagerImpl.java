@@ -895,14 +895,6 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
     public void joinContext() {
       XTraceContext.joinContext(xtrace_context);
     }
-    
-    public void rememberContext() {
-      xtrace_context = XTraceContext.getThreadContext();
-    }
-    
-    public void joinContext() {
-      XTraceContext.joinContext(xtrace_context);
-    }
 
     public long getRawDataLength() {
       return rawDataLength;
