@@ -75,7 +75,6 @@ import org.apache.hadoop.yarn.util.RackResolver;
 import com.google.common.annotations.VisibleForTesting;
 import edu.berkeley.xtrace.XTraceContext;
 import edu.berkeley.xtrace.XTraceMetadata;
-import edu.berkeley.xtrace.XTraceMetadataCollection;
 
 /**
  * Allocates the container from the ResourceManager scheduler.
