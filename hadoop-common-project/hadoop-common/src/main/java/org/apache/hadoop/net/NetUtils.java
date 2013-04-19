@@ -64,6 +64,7 @@ import org.apache.hadoop.util.ReflectionUtils;
 import com.google.common.base.Preconditions;
 
 import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
 import edu.berkeley.xtrace.XTraceProcess;
 
 @InterfaceAudience.LimitedPrivate({"HDFS", "MapReduce"})
@@ -516,9 +517,8 @@ public class NetUtils {
       throw new IllegalArgumentException("Illegal argument for connect()");
     }
     
-    XTraceProcess xtrace_connect_process = XTraceContext.startProcess(NetUtils.class, "NetUtils", "Connection to " + endpoint,
-    		"Socket", socket.toString(), 
-    		"timeout", timeout);
+    XTraceContext.logEvent(NetUtils.class, "NetUtils", "Connecting to remote...", "Socket", socket.toString(), "Timeout", timeout);
+    Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
     
     try {
       
@@ -559,11 +559,13 @@ public class NetUtils {
           "No daemon is listening on the target port.");
       }
     } catch (IOException e) {
-    	XTraceContext.failProcess(xtrace_connect_process, e);
+      XTraceContext.joinContext(start_context);
+      XTraceContext.logEvent(NetUtils.class, "NetUtils", "Failed to connect to remote host: "+e.getClass().getName(), "Message", e.getMessage());
     	throw e;
     }
-    
-    XTraceContext.endProcess(xtrace_connect_process, "Connected socket " + socket);
+
+    XTraceContext.joinContext(start_context);
+    XTraceContext.logEvent(NetUtils.class, "NetUtils", "Connected to remote host");
   }
   
   /** 
