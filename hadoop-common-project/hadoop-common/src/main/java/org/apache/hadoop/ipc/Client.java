@@ -600,7 +600,8 @@ public class Client {
       if (socket != null || shouldCloseConnection.get()) {
         return;
       } 
-      XTraceProcess connectProcess = XTraceContext.startProcess(Connection.class, "RPC Client", "Connecting to server " + server);
+      XTraceContext.logEvent(Connection.class, "RPC Client", "Connecting to server");
+      Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
       try {
         if (LOG.isDebugEnabled()) {
           LOG.debug("Connecting to "+server);
@@ -662,11 +663,13 @@ public class Client {
           // start the receiver thread after the socket connection has been set
           // up
           start();
-          XTraceContext.endProcess(connectProcess);
+          XTraceContext.joinContext(start_context);
+          XTraceContext.logEvent(Connection.class, "RPC Client", "Connected to server");
           return;
         }
       } catch (Throwable t) {
-    	XTraceContext.failProcess(connectProcess, t);
+        XTraceContext.joinContext(start_context);
+        XTraceContext.logEvent(Connection.class, "RPC Client", "Failed to connect to server: "+t.getClass().getName(), "Message", t.getMessage());
         if (t instanceof IOException) {
           markClosed((IOException)t);
         } else {
