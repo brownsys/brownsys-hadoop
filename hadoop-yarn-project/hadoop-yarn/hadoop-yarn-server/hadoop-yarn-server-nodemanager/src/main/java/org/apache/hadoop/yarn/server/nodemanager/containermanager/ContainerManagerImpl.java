@@ -499,7 +499,6 @@ public class ContainerManagerImpl extends CompositeService implements
         recordFactory.newRecordInstance(StopContainerResponse.class);
 
     Container container = this.context.getContainers().get(containerID);
-    container.getContainerID().rememberContext();
     if (container == null) {
       LOG.warn("Trying to stop unknown container " + containerID);
       NMAuditLogger.logFailure("UnknownUser",
@@ -509,6 +508,7 @@ public class ContainerManagerImpl extends CompositeService implements
           containerID);
       return response; // Return immediately.
     }
+    container.getContainerID().rememberContext();
 
     dispatcher.getEventHandler().handle(
         new ContainerKillEvent(containerID,
