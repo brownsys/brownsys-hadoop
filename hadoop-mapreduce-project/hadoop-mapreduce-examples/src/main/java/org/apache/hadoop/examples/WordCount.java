@@ -74,7 +74,6 @@ public class WordCount {
       System.err.println("Usage: wordcount <in> <out> <numreduces>");
       System.exit(2);
     }
-    int numred = otherArgs.length > 2 ? Integer.valueOf(otherArgs[2]) : 2;
     Job job = new Job(conf, "word count");
     job.setJarByClass(WordCount.class);
     job.setMapperClass(TokenizerMapper.class);
@@ -82,9 +81,12 @@ public class WordCount {
     job.setReducerClass(IntSumReducer.class);
     job.setOutputKeyClass(Text.class);
     job.setOutputValueClass(IntWritable.class);
-    job.setNumReduceTasks(numred);
     FileInputFormat.addInputPath(job, new Path(otherArgs[0]));
     FileOutputFormat.setOutputPath(job, new Path(otherArgs[1]));
+    if (otherArgs.length==3) {
+      int numred = otherArgs.length > 2 ? Integer.valueOf(otherArgs[2]) : 2;
+      job.setNumReduceTasks(numred);
+    }
     System.exit(job.waitForCompletion(true) ? 0 : 1);
   }
 }
