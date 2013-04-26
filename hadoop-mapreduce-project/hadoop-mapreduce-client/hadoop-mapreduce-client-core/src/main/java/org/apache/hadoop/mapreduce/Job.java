@@ -144,7 +144,7 @@ public class Job extends JobContextImpl implements JobContext {
     conf.writeXml(partial);
     StringWriter full = new StringWriter();
     Configuration.dumpConfiguration(conf, full);
-	  XTraceContext.startTrace("Hadoop Job", "Initializing Job");
+	  XTraceContext.startTrace("Hadoop Job", "Initializing Job", conf.getJobName(), conf.getNumMapTasks()+" Maps", conf.getNumReduceTasks()+" Reduces");
   }
 
   Job(JobStatus status, JobConf conf) throws IOException {
