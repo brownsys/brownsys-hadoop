@@ -144,7 +144,11 @@ public class Job extends JobContextImpl implements JobContext {
     conf.writeXml(partial);
     StringWriter full = new StringWriter();
     Configuration.dumpConfiguration(conf, full);
-	  XTraceContext.startTrace("Hadoop Job", "Initializing Job", conf.getJobName(), conf.getNumMapTasks()+" Maps", conf.getNumReduceTasks()+" Reduces");
+    if (!"".equals(conf.getJobName())) {
+      XTraceContext.startTrace("Hadoop Job", "Initializing Job", conf.getJobName());
+    } else {
+      XTraceContext.startTrace("Hadoop Job", "Initializing Job");
+    }
   }
 
   Job(JobStatus status, JobConf conf) throws IOException {
@@ -1270,10 +1274,13 @@ public class Job extends JobContextImpl implements JobContext {
         }
       }
     }
+
+    long maps = getCounters().findCounter(JobCounter.TOTAL_LAUNCHED_MAPS).getValue();
+    long reds = getCounters().findCounter(JobCounter.TOTAL_LAUNCHED_REDUCES).getValue();
     if (isSuccessful()) {
-      XTraceContext.logEvent(Job.class, "MapReduce Job", "Job finished successfully");
+      XTraceContext.logEvent(Job.class, "MapReduce Job", "Job finished successfully", "Tag", maps+" Maps", "Tag", reds+" Reduces");
     } else {
-      XTraceContext.logEvent(Job.class, "MapReduce Job", "Job failed");
+      XTraceContext.logEvent(Job.class, "MapReduce Job", "Job failed", "Tag", maps+" Maps", "Tag", reds+" Reduces");
       
     }
     return isSuccessful();
