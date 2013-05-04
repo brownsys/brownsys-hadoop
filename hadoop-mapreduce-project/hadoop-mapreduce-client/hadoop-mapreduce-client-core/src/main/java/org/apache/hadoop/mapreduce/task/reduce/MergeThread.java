@@ -78,6 +78,7 @@ abstract class MergeThread<T,K,V> extends Thread {
     while (numPending > 0) {
       XTraceContext.logEvent(MergeThread.class, "MergeThread", "Waiting for pending merges", "Num Pending", numPending);
       wait();
+      numPending = this.numPending.get();
     }
   }
 
