@@ -452,6 +452,7 @@ public abstract class RMContainerRequestor extends RMCommunicator {
     if(ask.contains(remoteRequest)) {
       ask.remove(remoteRequest);
     }
+    remoteRequest.rememberContext();
     ask.add(remoteRequest);    
   }
 
