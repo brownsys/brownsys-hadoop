@@ -74,6 +74,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerAppReport;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerNodeReport;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerUtils;
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.CapacityScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.AppAddedSchedulerEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.AppRemovedSchedulerEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.ContainerExpiredSchedulerEvent;
@@ -90,6 +91,8 @@ import org.apache.hadoop.yarn.util.resource.ResourceCalculator;
 import org.apache.hadoop.yarn.util.resource.Resources;
 
 import com.google.common.annotations.VisibleForTesting;
+
+import edu.berkeley.xtrace.XTraceContext;
 
 /**
  * A scheduler that schedules resources between a set of queues. The scheduler
@@ -852,6 +855,9 @@ public class FairScheduler implements ResourceScheduler {
    * Process a container which has launched on a node, as reported by the node.
    */
   private void containerLaunchedOnNode(ContainerId containerId, FSSchedulerNode node) {
+    XTraceContext.clearThreadContext();
+    containerId.joinContext();
+    
     // Get the application for the finished container
     ApplicationAttemptId applicationAttemptId = containerId.getApplicationAttemptId();
     FSSchedulerApp application = applications.get(applicationAttemptId);
@@ -863,6 +869,7 @@ public class FairScheduler implements ResourceScheduler {
     }
 
     application.containerLaunchedOnNode(containerId, node.getNodeID());
+    XTraceContext.clearThreadContext();
   }
 
   /**
@@ -890,9 +897,13 @@ public class FairScheduler implements ResourceScheduler {
     // Process completed containers
     for (ContainerStatus completedContainer : completedContainers) {
       ContainerId containerId = completedContainer.getContainerId();
+      XTraceContext.clearThreadContext();
+      containerId.joinContext();
       LOG.debug("Container FINISHED: " + containerId);
+      XTraceContext.logEvent(CapacityScheduler.class, "Container Finished", "Container Finished", "Container ID", containerId);
       completedContainer(getRMContainer(containerId),
           completedContainer, RMContainerEventType.FINISHED);
+      XTraceContext.clearThreadContext();
     }
 
     // Assign new containers...

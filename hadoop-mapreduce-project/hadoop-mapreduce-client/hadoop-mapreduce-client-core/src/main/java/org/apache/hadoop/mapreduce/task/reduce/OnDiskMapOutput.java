@@ -40,6 +40,7 @@ import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.mapreduce.task.reduce.MergeManagerImpl.CompressAwarePath;
 
 import com.google.common.annotations.VisibleForTesting;
+import edu.berkeley.xtrace.XTraceContext;
 
 @InterfaceAudience.Private
 @InterfaceStability.Unstable
@@ -134,6 +135,8 @@ class OnDiskMapOutput<K, V> extends MapOutput<K, V> {
     CompressAwarePath compressAwarePath = new CompressAwarePath(outputPath,
         getSize(), this.compressedSize);
     merger.closeOnDiskFile(compressAwarePath);
+    XTraceContext.logEvent(OnDiskMapOutput.class, "OnDiskMapOutput", "Map output committed", 
+        "tmpOutputPath", tmpOutputPath, "outputPath", outputPath);
   }
   
   @Override

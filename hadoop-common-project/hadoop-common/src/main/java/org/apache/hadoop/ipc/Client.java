@@ -37,6 +37,7 @@ import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.security.PrivilegedExceptionAction;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.Map.Entry;
@@ -93,6 +94,12 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.protobuf.CodedOutputStream;
+import com.google.protobuf.ByteString;
+
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
+import edu.berkeley.xtrace.XTraceMetadataCollection;
+import edu.berkeley.xtrace.XTraceProcess;
 
 /** A client for an IPC service.  IPC calls take a single {@link Writable} as a
  * parameter, and return a {@link Writable} as their value.  A service runs on
@@ -255,6 +262,7 @@ public class Client {
     IOException error;          // exception, null if success
     final RPC.RpcKind rpcKind;      // Rpc EngineKind
     boolean done;               // true when call is done
+    Collection<XTraceMetadata> xtrace;      // X-Trace context for the return
 
     private Call(RPC.RpcKind rpcKind, Writable param) {
       this.rpcKind = rpcKind;
@@ -631,6 +639,8 @@ public class Client {
       if (socket != null || shouldCloseConnection.get()) {
         return;
       } 
+      XTraceContext.logEvent(Connection.class, "RPC Client", "Connecting to server");
+      Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
       try {
         if (LOG.isDebugEnabled()) {
           LOG.debug("Connecting to "+server);
@@ -702,9 +712,13 @@ public class Client {
           // start the receiver thread after the socket connection has been set
           // up
           start();
+          XTraceContext.joinContext(start_context);
+          XTraceContext.logEvent(Connection.class, "RPC Client", "Connected to server");
           return;
         }
       } catch (Throwable t) {
+        XTraceContext.joinContext(start_context);
+        XTraceContext.logEvent(Connection.class, "RPC Client", "Failed to connect to server: "+t.getClass().getName(), "Message", t.getMessage());
         if (t instanceof IOException) {
           markClosed((IOException)t);
         } else {
@@ -1004,8 +1018,17 @@ public class Client {
         if (LOG.isDebugEnabled())
           LOG.debug(getName() + " got value #" + callId);
 
-        Call call = calls.get(callId);
+        Call call = calls.get(callId);        
         RpcStatusProto status = header.getStatus();
+        if (header.hasXtrace()) {
+    	    ByteString xbs = header.getXtrace();
+    	    XTraceMetadata xmd = XTraceMetadata.createFromBytes(xbs.toByteArray(),
+                                                                  0, xbs.size());
+    	    if (xmd.isValid()) {
+    	  	  call.xtrace = new XTraceMetadataCollection(xmd);
+    	    }
+        }
+        
         if (status == RpcStatusProto.SUCCESS) {
           Writable value = ReflectionUtils.newInstance(valueClass, conf);
           value.readFields(in);                 // read value
@@ -1316,6 +1339,10 @@ public class Client {
       ConnectionId remoteId, int serviceClass) throws IOException {
     final Call call = createCall(rpcKind, rpcRequest);
     Connection connection = getConnection(remoteId, call, serviceClass);
+    if (XTraceContext.isValid()) {
+      XTraceContext.logEvent(RPC.class, "RPC Client", "Sending RPC request", "Call ID", call.id);
+      call.xtrace = XTraceContext.getThreadContext();
+    }
     try {
       connection.sendRpcRequest(call);                 // send the rpc request
     } catch (RejectedExecutionException e) {
@@ -1342,19 +1369,35 @@ public class Client {
         Thread.currentThread().interrupt();
       }
 
+
+      if (call.xtrace != null) {
+    	XTraceContext.setThreadContext(call.xtrace);
+      }             
       if (call.error != null) {
         if (call.error instanceof RemoteException) {
           call.error.fillInStackTrace();
+          if (XTraceContext.isValid()) {
+            XTraceContext.logEvent(RPC.class, "RPC Client", "RPC response received remote exception",
+                "Call ID", call.id, "Message", call.error.getMessage());
+          }
           throw call.error;
         } else { // local exception
           InetSocketAddress address = connection.getRemoteAddress();
-          throw NetUtils.wrapException(address.getHostName(),
+          IOException e = NetUtils.wrapException(address.getHostName(),
                   address.getPort(),
                   NetUtils.getHostname(),
                   0,
                   call.error);
+          if (XTraceContext.isValid()) {
+      	    XTraceContext.logEvent(RPC.class, "RPC Client", "Local exception handling RPC response",
+      	        "Call ID", call.id, "Message", e.getMessage());
+          }
+          throw e;
         }
       } else {
+        if (XTraceContext.isValid()) {
+          XTraceContext.logEvent(RPC.class, "RPC Client", "Received RPC response", "Call ID", call.id);
+        }
         return call.getRpcResponse();
       }
     }

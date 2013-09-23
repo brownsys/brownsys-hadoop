@@ -31,6 +31,7 @@ import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 import org.apache.hadoop.yarn.factories.RpcClientFactory;
+import edu.berkeley.xtrace.XTraceContext;
 
 @Private
 public class RpcClientFactoryPBImpl implements RpcClientFactory {

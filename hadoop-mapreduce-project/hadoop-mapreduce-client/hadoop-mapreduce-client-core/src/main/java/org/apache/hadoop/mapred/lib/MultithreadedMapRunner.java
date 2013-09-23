@@ -32,7 +32,11 @@ import org.apache.hadoop.mapreduce.lib.map.MultithreadedMapper;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
+
 import java.io.IOException;
+import java.util.Collection;
 import java.util.concurrent.*;
 
 /**
@@ -205,6 +209,7 @@ public class MultithreadedMapRunner<K1, V1, K2, V2>
     private V1 value;
     private OutputCollector<K2, V2> output;
     private Reporter reporter;
+    private Collection<XTraceMetadata> xtrace_context;
 
     /**
      * Collecting all required parameters to execute a Mapper.map call.
@@ -222,6 +227,7 @@ public class MultithreadedMapRunner<K1, V1, K2, V2>
       this.value = value;
       this.output = output;
       this.reporter = reporter;
+      this.xtrace_context = XTraceContext.getThreadContext();
     }
 
     /**
@@ -231,6 +237,7 @@ public class MultithreadedMapRunner<K1, V1, K2, V2>
      *
      */
     public void run() {
+      XTraceContext.setThreadContext(xtrace_context);
       try {
         // map pair to output
         MultithreadedMapRunner.this.mapper.map(key, value, output, reporter);
@@ -257,6 +264,7 @@ public class MultithreadedMapRunner<K1, V1, K2, V2>
           }
         }
       }
+      XTraceContext.clearThreadContext();
     }
   }
 

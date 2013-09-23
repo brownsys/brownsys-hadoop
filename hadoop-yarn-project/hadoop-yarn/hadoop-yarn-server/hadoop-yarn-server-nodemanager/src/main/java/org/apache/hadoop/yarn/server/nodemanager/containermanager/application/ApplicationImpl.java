@@ -18,6 +18,7 @@
 
 package org.apache.hadoop.yarn.server.nodemanager.containermanager.application;
 
+import java.util.Collection;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
@@ -51,6 +52,10 @@ import org.apache.hadoop.yarn.state.MultipleArcTransition;
 import org.apache.hadoop.yarn.state.SingleArcTransition;
 import org.apache.hadoop.yarn.state.StateMachine;
 import org.apache.hadoop.yarn.state.StateMachineFactory;
+
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
+import edu.berkeley.xtrace.XTraceMetadataCollection;
 
 /**
  * The state machine for the representation of an Application
@@ -124,7 +129,7 @@ public class ApplicationImpl implements Application {
   private static StateMachineFactory<ApplicationImpl, ApplicationState,
           ApplicationEventType, ApplicationEvent> stateMachineFactory =
       new StateMachineFactory<ApplicationImpl, ApplicationState,
-          ApplicationEventType, ApplicationEvent>(ApplicationState.NEW)
+          ApplicationEventType, ApplicationEvent>(ApplicationState.NEW, StateMachineFactory.Trace.KEEPALIVE)
 
            // Transitions from NEW state
            .addTransition(ApplicationState.NEW, ApplicationState.INITING,
@@ -299,10 +304,15 @@ public class ApplicationImpl implements Application {
     @Override
     public void transition(ApplicationImpl app, ApplicationEvent event) {
       // Start all the containers waiting for ApplicationInit
+      Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
+      Collection<XTraceMetadata> end_context = new XTraceMetadataCollection();
       for (Container container : app.containers.values()) {
+        XTraceContext.setThreadContext(start_context);
         app.dispatcher.getEventHandler().handle(new ContainerInitEvent(
               container.getContainerId()));
+        end_context = XTraceContext.getThreadContext(end_context);
       }
+      XTraceContext.joinContext(end_context);      
     }
   }
 
@@ -411,6 +421,7 @@ public class ApplicationImpl implements Application {
 
   @Override
   public void handle(ApplicationEvent event) {
+    event.joinContext();
 
     this.writeLock.lock();
 

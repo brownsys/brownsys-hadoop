@@ -44,6 +44,7 @@ import java.nio.channels.WritableByteChannel;
 import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -112,6 +113,9 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.CodedOutputStream;
 import com.google.protobuf.Message;
 import com.google.protobuf.Message.Builder;
+
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
 
 /** An abstract IPC service.  IPC calls take a single {@link Writable} as a
  * parameter, and return a {@link Writable} as their value.  A service runs on
@@ -477,6 +481,7 @@ public abstract class Server {
     private ByteBuffer rpcResponse;       // the response for this call
     private final RPC.RpcKind rpcKind;
     private final byte[] clientId;
+    private Collection<XTraceMetadata> xtrace;  // the X-Trace context this was received with
 
     public Call(int id, int retryCount, Writable param, 
         Connection connection) {
@@ -494,6 +499,12 @@ public abstract class Server {
       this.rpcResponse = null;
       this.rpcKind = kind;
       this.clientId = clientId;
+      if (XTraceContext.isValid()) {
+    	  XTraceContext.logEvent(RPC.class, "RPC Server", "Received RPC call", "CallID", id);
+    	  this.xtrace = XTraceContext.getThreadContext();
+      }
+      XTraceContext.clearThreadContext(); //nothing happens until call gets dequeued
+                                          //we use call.xtrace to keep track
     }
     
     @Override
@@ -1809,6 +1820,14 @@ public abstract class Server {
      */
     private void checkRpcHeaders(RpcRequestHeaderProto header)
         throws WrappedRpcServerException {
+      if (header.hasXtrace()) {
+        ByteString xbs = header.getXtrace();
+        XTraceMetadata xmd = XTraceMetadata.createFromBytes(xbs.toByteArray(),
+                                                                  0, xbs.size());
+        if (xmd.isValid()) {
+          XTraceContext.setThreadContext(xmd);
+        }
+      }
       if (!header.hasRpcOp()) {
         String err = " IPC Server: No rpc op in rpcRequestHeader";
         throw new WrappedRpcServerException(
@@ -2012,8 +2031,14 @@ public abstract class Server {
       ByteArrayOutputStream buf = 
         new ByteArrayOutputStream(INITIAL_RESP_BUF_SIZE);
       while (running) {
+        XTraceContext.clearThreadContext();
         try {
           final Call call = callQueue.take(); // pop the queue; maybe blocked here
+          if (call.xtrace != null) {
+        	  XTraceContext.setThreadContext(call.xtrace);
+        	  XTraceContext.logEvent(RPC.class, "RPC Server", "Processing RPC call", "From", call.connection,
+        			  "Protocol", call.connection.protocolName, "rpcKind", call.rpcKind);
+          }
           if (LOG.isDebugEnabled()) {
             LOG.debug(getName() + ": " + call + " for RpcKind " + call.rpcKind);
           }
@@ -2291,6 +2316,18 @@ public abstract class Server {
     headerBuilder.setRetryCount(call.retryCount);
     headerBuilder.setStatus(status);
     headerBuilder.setServerIpcVersionNum(CURRENT_VERSION);
+    if (XTraceContext.isValid()) {
+      XTraceContext.logEvent(RPC.class, "RPC Server", "Sending " + status + " response", 
+          "Connection", call.connection, "Call ID", call.callId);
+      headerBuilder.setXtrace(ByteString.copyFrom(XTraceContext.logMerge().pack()));
+    }
+    /* X-Trace: we have to send in the response the last event in the server
+     * before the data is sent, and this is not it, there can be more events
+     * later, related to enqueuing and sending this call. To log them correctly
+     * here, we'd have to write the metadata after all these events, maybe
+     * having the X-Trace metadata as a writable after the response. Alternatively,
+     * we could use the clock within a span to log these.
+     */
 
     if (status == RpcStatusProto.SUCCESS) {
       RpcResponseHeaderProto header = headerBuilder.build();
@@ -2340,6 +2377,10 @@ public abstract class Server {
       wrapWithSasl(responseBuf, call);
     }
     call.setResponse(ByteBuffer.wrap(responseBuf.toByteArray()));
+    
+    if (XTraceContext.isValid()) {
+        XTraceContext.clearThreadContext(); //to prevent leaking
+    }
   }
   
   /**
@@ -2579,7 +2620,7 @@ public abstract class Server {
    * This is a wrapper around {@link ReadableByteChannel#read(ByteBuffer)}.
    * If the amount of data is large, it writes to channel in smaller chunks. 
    * This is to avoid jdk from creating many direct buffers as the size of 
-   * ByteBuffer increases. There should not be any performance degredation.
+   * ByteBuffer increases. There should not be any performance degradation.
    * 
    * @see ReadableByteChannel#read(ByteBuffer)
    */

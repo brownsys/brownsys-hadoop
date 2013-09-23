@@ -158,6 +158,7 @@ public class AuxServices extends AbstractService
 
   @Override
   public void handle(AuxServicesEvent event) {
+    event.joinContext();
     LOG.info("Got event " + event.getType() + " for appId "
         + event.getApplicationID());
     switch (event.getType()) {

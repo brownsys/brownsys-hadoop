@@ -24,6 +24,7 @@ import java.nio.ByteBuffer;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Collection;
 import java.util.Map;
 
 import org.apache.commons.logging.Log;
@@ -63,6 +64,9 @@ import org.apache.hadoop.yarn.util.ConverterUtils;
 
 import com.google.common.annotations.VisibleForTesting;
 
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
+
 /**
  * The launch of the AM itself.
  */
@@ -80,6 +84,8 @@ public class AMLauncher implements Runnable {
   
   @SuppressWarnings("rawtypes")
   private final EventHandler handler;
+
+  private Collection<XTraceMetadata> xtrace_context;
   
   public AMLauncher(RMContext rmContext, RMAppAttempt application,
       AMLauncherEventType eventType, Configuration conf) {
@@ -89,6 +95,7 @@ public class AMLauncher implements Runnable {
     this.rmContext = rmContext;
     this.handler = rmContext.getDispatcher().getEventHandler();
     this.masterContainer = application.getMasterContainer();
+    this.xtrace_context = XTraceContext.getThreadContext();
   }
   
   private void connect() throws IOException {
@@ -103,7 +110,9 @@ public class AMLauncher implements Runnable {
     ApplicationSubmissionContext applicationContext =
       application.getSubmissionContext();
     LOG.info("Setting up container " + masterContainer
-        + " for AM " + application.getAppAttemptId());  
+        + " for AM " + application.getAppAttemptId());
+    XTraceContext.logEvent(AMLauncher.class, "AMLauncher", "Setting up container for application master", 
+        "Container", application.getMasterContainer(), "Application Master ID", application.getAppAttemptId());
     ContainerLaunchContext launchContext =
         createAMContainerLaunchContext(applicationContext, masterContainerID);
 
@@ -242,10 +251,14 @@ public class AMLauncher implements Runnable {
   
   @SuppressWarnings("unchecked")
   public void run() {
+	XTraceContext.setThreadContext(this.xtrace_context);
+	
     switch (eventType) {
     case LAUNCH:
       try {
-        LOG.info("Launching master" + application.getAppAttemptId());
+        LOG.info("Launching master " + application.getAppAttemptId());
+        XTraceContext.logEvent(AMLauncher.class, "AMLauncher", "Launching application master",
+            "Application Master ID", application.getAppAttemptId());
         launch();
         handler.handle(new RMAppAttemptEvent(application.getAppAttemptId(),
             RMAppAttemptEventType.LAUNCHED));
@@ -260,6 +273,8 @@ public class AMLauncher implements Runnable {
     case CLEANUP:
       try {
         LOG.info("Cleaning master " + application.getAppAttemptId());
+        XTraceContext.logEvent(AMLauncher.class, "AMLauncher", "Cleaning application master",
+            "Application Master ID", application.getAppAttemptId());
         cleanup();
       } catch(IOException ie) {
         LOG.info("Error cleaning master ", ie);
@@ -277,6 +292,8 @@ public class AMLauncher implements Runnable {
       LOG.warn("Received unknown event-type " + eventType + ". Ignoring.");
       break;
     }
+    
+    XTraceContext.clearThreadContext();
   }
 
   private void parseAndThrowException(Throwable t) throws YarnException,

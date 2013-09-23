@@ -56,6 +56,7 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.security.AMRMTokenIdentifier;
 import org.apache.hadoop.yarn.util.ConverterUtils;
+import edu.berkeley.xtrace.XTraceContext;
 
 import com.google.common.annotations.VisibleForTesting;
 
@@ -170,7 +171,9 @@ public class ResourceMgrDelegate extends YarnClient {
     try {
       this.application = client.createApplication().getApplicationSubmissionContext();
       this.applicationId = this.application.getApplicationId();
-      return TypeConverter.fromYarn(applicationId);
+      JobID id = TypeConverter.fromYarn(applicationId);
+      XTraceContext.logEvent("ResourceMgrDelegate", "Job ID acquired", "Job ID", id.getId());
+      return id;
     } catch (YarnException e) {
       throw new IOException(e);
     }

@@ -21,6 +21,7 @@ package org.apache.hadoop.yarn.server.resourcemanager.scheduler.fifo;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -74,6 +75,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerAppReport;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerNodeReport;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerUtils;
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.CapacityScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.common.fica.FiCaSchedulerApp;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.common.fica.FiCaSchedulerNode;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.common.fica.FiCaSchedulerUtils;
@@ -89,6 +91,10 @@ import org.apache.hadoop.yarn.server.utils.Lock;
 import org.apache.hadoop.yarn.util.resource.DefaultResourceCalculator;
 import org.apache.hadoop.yarn.util.resource.ResourceCalculator;
 import org.apache.hadoop.yarn.util.resource.Resources;
+
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
+import edu.berkeley.xtrace.XTraceMetadataCollection;
 
 @LimitedPrivate("yarn")
 @Evolving
@@ -258,7 +264,10 @@ public class FifoScheduler implements ResourceScheduler, Configurable {
         clusterResource, minimumAllocation, maximumAllocation);
 
     // Release containers
+    Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
     for (ContainerId releasedContainer : release) {
+      XTraceContext.setThreadContext(start_context);
+      releasedContainer.joinContext();
       RMContainer rmContainer = getRMContainer(releasedContainer);
       if (rmContainer == null) {
          RMAuditLogger.logFailure(application.getUser(),
@@ -273,6 +282,7 @@ public class FifoScheduler implements ResourceScheduler, Configurable {
               SchedulerUtils.RELEASED_CONTAINER),
           RMContainerEventType.RELEASED);
     }
+    XTraceContext.setThreadContext(start_context);
 
     synchronized (application) {
 
@@ -553,6 +563,9 @@ public class FifoScheduler implements ResourceScheduler, Configurable {
   private int assignContainer(FiCaSchedulerNode node, FiCaSchedulerApp application, 
       Priority priority, int assignableContainers, 
       ResourceRequest request, NodeType type) {
+    XTraceContext.clearThreadContext();
+    request.joinContext();
+    
     LOG.debug("assignContainers:" +
         " node=" + node.getRMNode().getNodeAddress() + 
         " application=" + application.getApplicationId().getId() + 
@@ -607,6 +620,7 @@ public class FifoScheduler implements ResourceScheduler, Configurable {
       }
 
     }
+    XTraceContext.clearThreadContext();
     
     return assignedContainers;
   }
@@ -629,9 +643,13 @@ public class FifoScheduler implements ResourceScheduler, Configurable {
     // Process completed containers
     for (ContainerStatus completedContainer : completedContainers) {
       ContainerId containerId = completedContainer.getContainerId();
+      XTraceContext.clearThreadContext();
+      containerId.joinContext();
       LOG.debug("Container FINISHED: " + containerId);
+      XTraceContext.logEvent(CapacityScheduler.class, "Container Finished", "Container Finished", "Container ID", containerId);
       containerCompleted(getRMContainer(containerId), 
           completedContainer, RMContainerEventType.FINISHED);
+      XTraceContext.clearThreadContext();
     }
 
     if (Resources.greaterThanOrEqual(resourceCalculator, clusterResource,
@@ -651,6 +669,7 @@ public class FifoScheduler implements ResourceScheduler, Configurable {
 
   @Override
   public void handle(SchedulerEvent event) {
+    event.joinContext();
     switch(event.getType()) {
     case NODE_ADDED:
     {
@@ -708,6 +727,9 @@ public class FifoScheduler implements ResourceScheduler, Configurable {
   }
 
   private void containerLaunchedOnNode(ContainerId containerId, FiCaSchedulerNode node) {
+    XTraceContext.clearThreadContext();
+    containerId.joinContext();
+    
     // Get the application for the finished container
     ApplicationAttemptId applicationAttemptId = containerId.getApplicationAttemptId();
     FiCaSchedulerApp application = getApplication(applicationAttemptId);
@@ -723,6 +745,7 @@ public class FifoScheduler implements ResourceScheduler, Configurable {
     }
     
     application.containerLaunchedOnNode(containerId, node.getNodeID());
+    XTraceContext.clearThreadContext();
   }
 
   @Lock(FifoScheduler.class)

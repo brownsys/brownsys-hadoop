@@ -67,6 +67,8 @@ import org.apache.hadoop.yarn.server.utils.Lock.NoLock;
 import org.apache.hadoop.yarn.util.resource.ResourceCalculator;
 import org.apache.hadoop.yarn.util.resource.Resources;
 
+import edu.berkeley.xtrace.XTraceContext;
+
 @Private
 @Unstable
 public class LeafQueue implements CSQueue {
@@ -1301,6 +1303,12 @@ public class LeafQueue implements CSQueue {
   private Resource assignContainer(Resource clusterResource, FiCaSchedulerNode node, 
       FiCaSchedulerApp application, Priority priority, 
       ResourceRequest request, NodeType type, RMContainer rmContainer) {
+    
+    XTraceContext.clearThreadContext();
+    request.joinContext();
+    
+    try { // xtrace try
+    
     if (LOG.isDebugEnabled()) {
       LOG.debug("assignContainers: node=" + node.getHostName()
         + " application=" + application.getApplicationId().getId()
@@ -1381,6 +1389,10 @@ public class LeafQueue implements CSQueue {
           " cluster=" + clusterResource);
 
       return request.getCapability();
+    }
+    
+    } finally { // xtrace finally
+      XTraceContext.clearThreadContext();
     }
   }
 

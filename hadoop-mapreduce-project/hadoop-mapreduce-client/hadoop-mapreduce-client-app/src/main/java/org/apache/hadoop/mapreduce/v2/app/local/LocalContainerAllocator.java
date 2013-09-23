@@ -139,6 +139,7 @@ public class LocalContainerAllocator extends RMCommunicator
   @SuppressWarnings("unchecked")
   @Override
   public void handle(ContainerAllocatorEvent event) {
+    event.joinContext();
     if (event.getType() == ContainerAllocator.EventType.CONTAINER_REQ) {
       LOG.info("Processing the event " + event.toString());
       // Assign the same container ID as the AM

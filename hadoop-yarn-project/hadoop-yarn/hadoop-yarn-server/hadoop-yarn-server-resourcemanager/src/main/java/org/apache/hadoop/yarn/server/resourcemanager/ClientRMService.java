@@ -94,6 +94,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.security.authorize.RMPolicy
 import org.apache.hadoop.yarn.server.security.ApplicationACLsManager;
 import org.apache.hadoop.yarn.server.utils.BuilderUtils;
 import org.apache.hadoop.yarn.util.Records;
+import edu.berkeley.xtrace.XTraceContext;
 
 
 /**
@@ -201,6 +202,7 @@ public class ClientRMService extends AbstractService implements
         .newApplicationId(recordFactory, ResourceManager.clusterTimeStamp,
             applicationCounter.incrementAndGet());
     LOG.info("Allocated new applicationId: " + applicationId.getId());
+    XTraceContext.logEvent(ClientRMService.class, "ClientRMService", "New application ID allocated", "Application ID", applicationId.getId());
     return applicationId;
   }
 

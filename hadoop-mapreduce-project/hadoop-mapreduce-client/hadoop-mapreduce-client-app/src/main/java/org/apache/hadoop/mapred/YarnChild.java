@@ -62,6 +62,8 @@ import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.log4j.LogManager;
 
+import edu.berkeley.xtrace.XTraceContext;
+
 /**
  * The main() for MapReduce task processes.
  */
@@ -72,6 +74,7 @@ class YarnChild {
   static volatile TaskAttemptID taskid = null;
 
   public static void main(String[] args) throws Throwable {
+    XTraceContext.logEvent(YarnChild.class, "YarnChild", "YarnChild starting");
     Thread.setDefaultUncaughtExceptionHandler(new YarnUncaughtExceptionHandler());
     LOG.debug("Child starting");
 
@@ -133,6 +136,7 @@ class YarnChild {
         myTask = umbilical.getTask(context);
       }
       if (myTask.shouldDie()) {
+        XTraceContext.logEvent(YarnChild.class, "YarnChild", "Task has been instructed to die.");
         return;
       }
 
@@ -159,14 +163,19 @@ class YarnChild {
         public Object run() throws Exception {
           // use job-specified working directory
           FileSystem.get(job).setWorkingDirectory(job.getWorkingDirectory());
+          XTraceContext.logEvent(YarnChild.class, "YarnChild", "Running task");
           taskFinal.run(job, umbilical); // run the task
           return null;
         }
       });
     } catch (FSError e) {
+      XTraceContext.logEvent(YarnChild.class, "YarnChild FSError", "FSError from child: "+e.getClass().getName(),
+          "Message", e.getMessage());
       LOG.fatal("FSError from child", e);
       umbilical.fsError(taskid, e.getMessage());
     } catch (Exception exception) {
+      XTraceContext.logEvent(YarnChild.class, "YarnChild Exception", "Exception running child: "+exception.getClass().getName(),
+          "Message", exception.getMessage());
       LOG.warn("Exception running child : "
           + StringUtils.stringifyException(exception));
       try {
@@ -193,6 +202,8 @@ class YarnChild {
         umbilical.fatalError(taskid, StringUtils.stringifyException(exception));
       }
     } catch (Throwable throwable) {
+      XTraceContext.logEvent(YarnChild.class, "YarnChild Error", "Error running child: "+throwable.getClass().getName(),
+          "Message", throwable.getMessage());
       LOG.fatal("Error running child : "
     	        + StringUtils.stringifyException(throwable));
       if (taskid != null) {
@@ -203,6 +214,8 @@ class YarnChild {
         umbilical.fatalError(taskid, cause);
       }
     } finally {
+      XTraceContext.logEvent(YarnChild.class,"YarnChild", "YarnChild exiting");
+      XTraceContext.joinParentProcess();
       RPC.stopProxy(umbilical);
       DefaultMetricsSystem.shutdown();
       // Shutting down log4j of the child-vm...

@@ -196,7 +196,7 @@ public abstract class TaskAttemptImpl implements
         stateMachineFactory
     = new StateMachineFactory
              <TaskAttemptImpl, TaskAttemptStateInternal, TaskAttemptEventType, TaskAttemptEvent>
-           (TaskAttemptStateInternal.NEW)
+           (TaskAttemptStateInternal.NEW, StateMachineFactory.Trace.KEEPALIVE)
 
      // Transitions from the NEW state.
      .addTransition(TaskAttemptStateInternal.NEW, TaskAttemptStateInternal.UNASSIGNED,
@@ -255,7 +255,7 @@ public abstract class TaskAttemptImpl implements
 
      // Transitions from RUNNING state.
      .addTransition(TaskAttemptStateInternal.RUNNING, TaskAttemptStateInternal.RUNNING,
-         TaskAttemptEventType.TA_UPDATE, new StatusUpdater())
+         TaskAttemptEventType.TA_UPDATE, new StatusUpdater(), StateMachineFactory.Trace.IGNORE)
      .addTransition(TaskAttemptStateInternal.RUNNING, TaskAttemptStateInternal.RUNNING,
          TaskAttemptEventType.TA_DIAGNOSTICS_UPDATE,
          DIAGNOSTIC_INFORMATION_UPDATE_TRANSITION)
@@ -1028,6 +1028,7 @@ public abstract class TaskAttemptImpl implements
   @SuppressWarnings("unchecked")
   @Override
   public void handle(TaskAttemptEvent event) {
+    event.joinContext();
     if (LOG.isDebugEnabled()) {
       LOG.debug("Processing " + event.getTaskAttemptID() + " of type "
           + event.getType());

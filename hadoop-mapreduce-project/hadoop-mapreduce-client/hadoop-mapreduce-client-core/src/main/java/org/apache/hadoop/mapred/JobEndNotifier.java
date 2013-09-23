@@ -37,8 +37,8 @@ public class JobEndNotifier {
   private static final Log LOG =
     LogFactory.getLog(JobEndNotifier.class.getName());
 
- 
-
+  
+  
   private static JobEndStatusInfo createNotification(JobConf conf,
                                                      JobStatus status) {
     JobEndStatusInfo notification = null;

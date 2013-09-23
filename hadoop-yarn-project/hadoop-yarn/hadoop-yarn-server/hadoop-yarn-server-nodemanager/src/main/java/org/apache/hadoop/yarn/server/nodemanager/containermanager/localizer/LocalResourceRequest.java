@@ -191,4 +191,12 @@ public class LocalResourceRequest
     sb.append(getPattern()).append(" }");
     return sb.toString();
   }
+
+  @Override
+  public void rememberContext() {
+  }
+
+  @Override
+  public void joinContext() {
+  }
 }

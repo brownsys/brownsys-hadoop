@@ -25,6 +25,7 @@ import java.io.OutputStream;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.net.InetSocketAddress;
+import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -57,6 +58,10 @@ import com.google.protobuf.GeneratedMessage;
 import com.google.protobuf.Message;
 import com.google.protobuf.ServiceException;
 import com.google.protobuf.TextFormat;
+
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
+import edu.berkeley.xtrace.XTraceProcess;
 
 /**
  * RPC Engine for for protobuf based RPCs.
@@ -176,6 +181,11 @@ public class ProtobufRpcEngine implements RpcEngine {
     @Override
     public Object invoke(Object proxy, Method method, Object[] args)
         throws ServiceException {
+
+      XTraceContext.logEvent(RPC.class, "ProtobufRpcEngine", "RPC Client invoking remote method "+method.getName(), "Protocol", this.protocolName, "ConnectionID", this.remoteId);
+      Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
+      try { // xtrace try
+      
       long startTime = 0;
       if (LOG.isDebugEnabled()) {
         startTime = Time.now();
@@ -241,7 +251,16 @@ public class ProtobufRpcEngine implements RpcEngine {
       } catch (Throwable e) {
         throw new ServiceException(e);
       }
+      
+      XTraceContext.joinContext(start_context);
+      XTraceContext.logEvent(RPC.class, "ProtobufRpcEngine", "Client invocation of "+method.getName()+" successful");
+      
       return returnMessage;
+      } catch (ServiceException e) {// xtrace catch
+        XTraceContext.joinContext(start_context);
+        XTraceContext.logEvent(RPC.class, "ProtobufRpcEngine", "Remote invocation of "+method.getName()+" failed due to exception: "+e.getClass().getName(), "Message", e.getMessage());
+        throw e;
+      }
     }
 
     @Override
@@ -563,6 +582,10 @@ public class ProtobufRpcEngine implements RpcEngine {
         if (server.verbose)
           LOG.info("Call: protocol=" + protocol + ", method=" + methodName);
         
+        XTraceContext.logEvent(ProtoBufRpcInvoker.class, "ProtoBufRpcInvoker", "Invoking method "+methodName, "Protocol", protocol);
+        Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
+        try { // xtrace try
+        
         ProtoClassProtoImpl protocolImpl = getProtocolImpl(server, protoName,
             clientVersion);
         BlockingService service = (BlockingService) protocolImpl.protocolImpl;
@@ -598,7 +621,15 @@ public class ProtobufRpcEngine implements RpcEngine {
         } catch (Exception e) {
           throw e;
         }
-        return new RpcResponseWrapper(result);
+
+        XTraceContext.joinContext(start_context);
+        XTraceContext.logEvent(ProtoBufRpcInvoker.class, "ProtoBufRpcInvoker", "Invocation of "+methodName+" completed, responding to client");
+        return new RpcResponseWrapper(result);        
+        } catch (Exception e) { // xtrace catch
+          XTraceContext.joinContext(start_context);
+          XTraceContext.logEvent(ProtoBufRpcInvoker.class, "ProtoBufRpcInvoker", "Failed to invoke method "+methodName+": "+e.getClass().getName(), "Message", e.getMessage());
+          throw e;
+        }
       }
     }
   }

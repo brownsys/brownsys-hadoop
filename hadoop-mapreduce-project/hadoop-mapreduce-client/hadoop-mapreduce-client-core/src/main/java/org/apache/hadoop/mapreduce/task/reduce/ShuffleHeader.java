@@ -20,12 +20,17 @@ package org.apache.hadoop.mapreduce.task.reduce;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableUtils;
+
+import edu.berkeley.xtrace.TaskID;
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
 
 /**
  * Shuffle Header information that is sent by the TaskTracker and 
@@ -51,6 +56,7 @@ public class ShuffleHeader implements Writable {
   long uncompressedLength;
   long compressedLength;
   int forReduce;
+  XTraceMetadata m;
   
   public ShuffleHeader() { }
   
@@ -67,6 +73,9 @@ public class ShuffleHeader implements Writable {
     compressedLength = WritableUtils.readVLong(in);
     uncompressedLength = WritableUtils.readVLong(in);
     forReduce = WritableUtils.readVInt(in);
+    byte[] taskid = ByteBuffer.allocate(8).putLong(WritableUtils.readVLong(in)).array();
+    byte[] opid = ByteBuffer.allocate(8).putLong(WritableUtils.readVLong(in)).array();
+    m = new XTraceMetadata(new TaskID(taskid, 8), opid);
   }
 
   public void write(DataOutput out) throws IOException {
@@ -74,5 +83,36 @@ public class ShuffleHeader implements Writable {
     WritableUtils.writeVLong(out, compressedLength);
     WritableUtils.writeVLong(out, uncompressedLength);
     WritableUtils.writeVInt(out, forReduce);
+    WritableUtils.writeVLong(out, getXTraceTaskID());
+    WritableUtils.writeVLong(out, getXTraceOpID());
+  }
+  
+  private long getXTraceTaskID() {
+    if (m!=null) {
+      try {
+        return ByteBuffer.wrap(m.getTaskId().get()).getLong();
+      } catch (Exception e) {
+      }
+    }
+    return 0L;
+  }
+  
+  private long getXTraceOpID() {
+    if (m!=null) {
+      try {
+        return ByteBuffer.wrap(m.getOpId()).getLong();
+      } catch (Exception e) {
+      }
+    }
+    return 0L;    
+  }
+  
+  
+  public void rememberContext() {
+    m = XTraceContext.logMerge();
+  }
+  
+  public void joinContext() {
+    XTraceContext.joinChildProcess(m);
   }
 }

@@ -21,6 +21,7 @@ package org.apache.hadoop.yarn.server.nodemanager;
 import java.io.IOException;
 import java.net.ConnectException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -64,6 +65,10 @@ import org.apache.hadoop.yarn.server.nodemanager.containermanager.container.Cont
 import org.apache.hadoop.yarn.server.nodemanager.metrics.NodeManagerMetrics;
 
 import com.google.common.annotations.VisibleForTesting;
+
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
+
 
 public class NodeStatusUpdaterImpl extends AbstractService implements
     NodeStatusUpdater {
@@ -346,13 +351,14 @@ public class NodeStatusUpdaterImpl extends AbstractService implements
   }
 
   protected void startStatusUpdater() {
-
+    
     statusUpdaterRunnable = new Runnable() {
       @Override
       @SuppressWarnings("unchecked")
       public void run() {
         int lastHeartBeatID = 0;
         while (!isStopped) {
+          XTraceContext.clearThreadContext();
           // Send heartbeat
           try {
             NodeHeartbeatResponse response = null;

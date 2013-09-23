@@ -29,6 +29,7 @@ import org.apache.hadoop.security.SaslRpcServer.AuthMethod;
 import org.apache.hadoop.security.UserGroupInformation;
 
 import com.google.protobuf.ByteString;
+import edu.berkeley.xtrace.XTraceContext;
 
 public abstract class ProtoUtil {
 
@@ -165,6 +166,9 @@ public abstract class ProtoUtil {
     RpcRequestHeaderProto.Builder result = RpcRequestHeaderProto.newBuilder();
     result.setRpcKind(convert(rpcKind)).setRpcOp(operation).setCallId(callId)
         .setRetryCount(retryCount).setClientId(ByteString.copyFrom(uuid));
+    if (XTraceContext.isValid()) {
+      result.setXtrace(ByteString.copyFrom(XTraceContext.logMerge().pack()));
+    }
     return result.build();
   }
 }

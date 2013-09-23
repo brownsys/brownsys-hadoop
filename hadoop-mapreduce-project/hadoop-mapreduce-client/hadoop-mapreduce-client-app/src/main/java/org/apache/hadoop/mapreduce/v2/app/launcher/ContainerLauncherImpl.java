@@ -21,6 +21,8 @@ package org.apache.hadoop.mapreduce.v2.app.launcher;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.security.PrivilegedAction;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -57,6 +59,9 @@ import org.apache.hadoop.yarn.client.api.impl.ContainerManagementProtocolProxy.C
 import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
 
 /**
  * This class is responsible for launching of containers.
@@ -124,6 +129,8 @@ public class ContainerLauncherImpl extends AbstractService implements
     
     @SuppressWarnings("unchecked")
     public synchronized void launch(ContainerRemoteLaunchEvent event) {
+      event.joinContext();
+      TaskAttemptId taskAttemptID = event.getTaskAttemptID();
       LOG.info("Launching " + taskAttemptID);
       if(this.state == ContainerState.KILLED_BEFORE_LAUNCH) {
         state = ContainerState.DONE;
@@ -189,7 +196,6 @@ public class ContainerLauncherImpl extends AbstractService implements
     
     @SuppressWarnings("unchecked")
     public synchronized void kill() {
-
       if(this.state == ContainerState.PREP) {
         this.state = ContainerState.KILLED_BEFORE_LAUNCH;
       } else if (!isCompletelyDone()) {
@@ -267,6 +273,7 @@ public class ContainerLauncherImpl extends AbstractService implements
         Set<String> allNodes = new HashSet<String>();
 
         while (!stopped.get() && !Thread.currentThread().isInterrupted()) {
+          XTraceContext.clearThreadContext();
           try {
             event = eventQueue.take();
           } catch (InterruptedException e) {
@@ -276,7 +283,7 @@ public class ContainerLauncherImpl extends AbstractService implements
             return;
           }
           allNodes.add(event.getContainerMgrAddress());
-
+          event.joinContext();
           int poolSize = launcherPool.getCorePoolSize();
 
           // See if we need up the pool size only if haven't reached the
@@ -354,7 +361,10 @@ public class ContainerLauncherImpl extends AbstractService implements
 
     @Override
     public void run() {
+      XTraceContext.clearThreadContext();
+      event.joinContext();
       LOG.info("Processing the event " + event.toString());
+      XTraceContext.logEvent(ContainerLauncherImpl.class, "ContainerLauncherImpl", "Processing the event " + event.toString());
 
       // Load ContainerManager tokens before creating a connection.
       // TODO: Do it only once per NodeManager.
@@ -374,6 +384,7 @@ public class ContainerLauncherImpl extends AbstractService implements
         break;
       }
       removeContainerIfDone(containerID);
+      XTraceContext.clearThreadContext();
     }
   }
   

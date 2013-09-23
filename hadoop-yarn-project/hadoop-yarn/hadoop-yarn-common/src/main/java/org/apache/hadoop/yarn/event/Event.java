@@ -32,4 +32,6 @@ public interface Event<TYPE extends Enum<TYPE>> {
   TYPE getType();
   long getTimestamp();
   String toString();
+  void rememberContext();
+  void joinContext();
 }

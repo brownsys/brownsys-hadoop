@@ -56,6 +56,8 @@ import org.apache.hadoop.util.Progress;
 import org.apache.hadoop.util.Progressable;
 import org.apache.hadoop.util.ReflectionUtils;
 
+import edu.berkeley.xtrace.XTraceContext;
+
 /** A Reduce task. */
 @InterfaceAudience.Private
 @InterfaceStability.Unstable
@@ -311,6 +313,9 @@ public class ReduceTask extends Task {
   @SuppressWarnings("unchecked")
   public void run(JobConf job, final TaskUmbilicalProtocol umbilical)
     throws IOException, InterruptedException, ClassNotFoundException {
+
+    XTraceContext.logEvent(ReduceTask.class, "ReduceTask", "ReduceTask running");
+    
     job.setBoolean(JobContext.SKIP_RECORDS, isSkipping());
 
     if (isMapOrReduce()) {
@@ -641,10 +646,12 @@ public class ReduceTask extends Task {
                                                committer,
                                                reporter, comparator, keyClass,
                                                valueClass);
+    XTraceContext.logEvent(ReduceTask.class, "NewReducer", "Running reduce start");
     try {
       reducer.run(reducerContext);
     } finally {
       trackedRW.close(reducerContext);
+      XTraceContext.logEvent(ReduceTask.class, "NewReducer", "Running reduce end");
     }
   }
   

@@ -50,6 +50,7 @@ message ContainerIdProto {
   optional ApplicationIdProto app_id = 1;
   optional ApplicationAttemptIdProto app_attempt_id = 2;
   optional int32 id = 3;
+  optional bytes xtrace = 4; // X-Trace metadata
 }
 
 message ResourceProto {
@@ -120,6 +121,7 @@ message LocalResourceProto {
   optional LocalResourceTypeProto type = 4;
   optional LocalResourceVisibilityProto visibility = 5;
   optional string pattern = 6;
+  optional bytes xtrace = 7; // X-Trace metadata
 }
 
 message ApplicationResourceUsageReportProto {
@@ -188,6 +190,7 @@ message ResourceRequestProto {
   optional ResourceProto capability = 3;
   optional int32 num_containers = 4;
   optional bool relax_locality = 5 [default = true];
+  optional bytes xtrace = 6; // X-Trace metadata
 }
 
 enum AMCommandProto {

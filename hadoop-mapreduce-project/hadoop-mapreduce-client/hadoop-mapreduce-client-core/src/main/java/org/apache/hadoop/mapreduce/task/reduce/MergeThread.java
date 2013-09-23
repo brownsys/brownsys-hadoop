@@ -28,6 +28,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import edu.berkeley.xtrace.XTraceContext;
+
 abstract class MergeThread<T,K,V> extends Thread {
   
   private static final Log LOG = LogFactory.getLog(MergeThread.class);
@@ -72,8 +74,11 @@ abstract class MergeThread<T,K,V> extends Thread {
   }
 
   public synchronized void waitForMerge() throws InterruptedException {
-    while (numPending.get() > 0) {
+    int numPending = this.numPending.get();
+    while (numPending > 0) {
+      XTraceContext.logEvent(MergeThread.class, "MergeThread", "Waiting for pending merges", "Num Pending", numPending);
       wait();
+      numPending = this.numPending.get();
     }
   }
 

@@ -67,6 +67,9 @@ import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
+
 /**
  * This class provides a way to interact with history files in a thread safe
  * manor.
@@ -745,15 +748,18 @@ public class HistoryFileManager extends AbstractService {
           if (LOG.isDebugEnabled()) {
             LOG.debug("Scheduling move to done of " +found);
           }
+          final Collection<XTraceMetadata> xtrace_context = XTraceContext.getThreadContext();
           moveToDoneExecutor.execute(new Runnable() {
             @Override
             public void run() {
+              XTraceContext.setThreadContext(xtrace_context);
               try {
                 found.moveToDone();
               } catch (IOException e) {
                 LOG.info("Failed to process fileInfo for job: " + 
                     found.getJobId(), e);
               }
+              XTraceContext.clearThreadContext();
             }
           });
         }

@@ -23,6 +23,8 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.security.PrivilegedExceptionAction;
+import java.util.Collection;
+import java.util.Random;
 import java.util.concurrent.Callable;
 import java.util.regex.Pattern;
 
@@ -43,6 +45,9 @@ import org.apache.hadoop.util.RunJar;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
+
 /**
  * Download a single URL to the local disk.
  *
@@ -60,6 +65,8 @@ public class FSDownload implements Callable<Path> {
   /** The local FS dir path under which this resource is to be localized to */
   private Path destDirPath;
 
+  private Collection<XTraceMetadata> xtrace_context;
+
   private static final FsPermission cachePerms = new FsPermission(
       (short) 0755);
   static final FsPermission PUBLIC_FILE_PERMS = new FsPermission((short) 0555);
@@ -76,6 +83,7 @@ public class FSDownload implements Callable<Path> {
     this.files = files;
     this.userUgi = ugi;
     this.resource = resource;
+    this.xtrace_context = XTraceContext.getThreadContext();
   }
 
   LocalResource getResource() {
@@ -169,6 +177,7 @@ public class FSDownload implements Callable<Path> {
 
   
   private Path copy(Path sCopy, Path dstdir) throws IOException {
+    XTraceContext.logEvent(FSDownload.class, "FSDownload", "Copying", "Source", sCopy.toString(), "Destination", dstdir.toString());
     FileSystem sourceFs = sCopy.getFileSystem(conf);
     Path dCopy = new Path(dstdir, sCopy.getName() + ".tmp");
     FileStatus sStat = sourceFs.getFileStatus(sCopy);
@@ -190,6 +199,7 @@ public class FSDownload implements Callable<Path> {
   }
 
   private long unpack(File localrsrc, File dst, Pattern pattern) throws IOException {
+    XTraceContext.logEvent(FSDownload.class, "FSDownload", "Unpacking", "Resource", localrsrc.toString(), "Unpack To", dst.toString());
     switch (resource.getType()) {
     case ARCHIVE: {
       String lowerDst = dst.getName().toLowerCase();
@@ -262,10 +272,13 @@ public class FSDownload implements Callable<Path> {
 
   @Override
   public Path call() throws Exception {
+    XTraceContext.setThreadContext(xtrace_context);
+    XTraceContext.logEvent(FSDownload.class, "FSDownload", "Localizing resource", "Resource",resource.getResource().toString());
     final Path sCopy;
     try {
       sCopy = ConverterUtils.getPathFromYarnURL(resource.getResource());
     } catch (URISyntaxException e) {
+      XTraceContext.logEvent(FSDownload.class, "FSDownload", "Invalid resource: "+e.getClass().getName(), "Message", e.getMessage());
       throw new IOException("Invalid resource", e);
     }
     createDir(destDirPath, cachePerms);
@@ -301,7 +314,10 @@ public class FSDownload implements Callable<Path> {
       conf = null;
       resource = null;
     }
-    return files.makeQualified(new Path(destDirPath, sCopy.getName()));
+    Path p = files.makeQualified(new Path(destDirPath, sCopy.getName()));
+    XTraceContext.rememberObject(p);
+    XTraceContext.clearThreadContext();
+    return p;
   }
 
   /**

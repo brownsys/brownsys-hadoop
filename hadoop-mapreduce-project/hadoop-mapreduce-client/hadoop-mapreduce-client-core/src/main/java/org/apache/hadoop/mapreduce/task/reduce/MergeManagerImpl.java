@@ -19,6 +19,7 @@ package org.apache.hadoop.mapreduce.task.reduce;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -59,6 +60,9 @@ import org.apache.hadoop.util.Progress;
 import org.apache.hadoop.util.ReflectionUtils;
 
 import com.google.common.annotations.VisibleForTesting;
+
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
 
 @SuppressWarnings(value={"unchecked"})
 @InterfaceAudience.LimitedPrivate({"MapReduce"})
@@ -254,6 +258,9 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
       LOG.info(mapId + ": Shuffling to disk since " + requestedSize + 
                " is greater than maxSingleShuffleLimit (" + 
                maxSingleShuffleLimit + ")");
+      XTraceContext.logEvent(MergeManagerImpl.class, "MergeManagerImpl", 
+          "Shuffling directly to disk due to reservation size exceeding max single shuffle limit",
+          "Map ID", mapId, "Requested Size", requestedSize, "maxSingleShuffleLimit", maxSingleShuffleLimit);
       return new OnDiskMapOutput<K,V>(mapId, reduceId, this, requestedSize,
                                       jobConf, mapOutputFile, fetcher, true);
     }
@@ -276,7 +283,10 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
     if (usedMemory > memoryLimit) {
       LOG.debug(mapId + ": Stalling shuffle since usedMemory (" + usedMemory
           + ") is greater than memoryLimit (" + memoryLimit + ")." + 
-          " CommitMemory is (" + commitMemory + ")"); 
+          " CommitMemory is (" + commitMemory + ")");
+      XTraceContext.logEvent(MergeManagerImpl.class, "MergeManagerImpl",
+          "Currently above memory limit, stalling shuffle", "Map ID", mapId,
+          "Used Memory", usedMemory, "Memory Limit", memoryLimit, "Commit Memory", commitMemory); 
       return null;
     }
     
@@ -284,6 +294,9 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
     LOG.debug(mapId + ": Proceeding with shuffle since usedMemory ("
         + usedMemory + ") is lesser than memoryLimit (" + memoryLimit + ")."
         + "CommitMemory is (" + commitMemory + ")"); 
+    XTraceContext.logEvent(MergeManagerImpl.class, "MergeManagerImpl",
+        "Proceeding with shuffle", "Map ID", mapId, "Used Memory", usedMemory,
+        "Memory Limit", memoryLimit, "Commit Memory", commitMemory);
     return unconditionalReserve(mapId, requestedSize, true);
   }
   
@@ -302,7 +315,8 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
     usedMemory -= size;
   }
 
-  public synchronized void closeInMemoryFile(InMemoryMapOutput<K,V> mapOutput) { 
+  public synchronized void closeInMemoryFile(InMemoryMapOutput<K,V> mapOutput) {
+    mapOutput.rememberContext();
     inMemoryMapOutputs.add(mapOutput);
     LOG.info("closeInMemoryFile -> map-output of size: " + mapOutput.getSize()
         + ", inMemoryMapOutputs.size() -> " + inMemoryMapOutputs.size()
@@ -330,6 +344,7 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
   
   
   public synchronized void closeInMemoryMergedFile(InMemoryMapOutput<K,V> mapOutput) {
+    mapOutput.rememberContext();
     inMemoryMergedMapOutputs.add(mapOutput);
     LOG.info("closeInMemoryMergedFile -> size: " + mapOutput.getSize() + 
              ", inMemoryMergedMapOutputs.size() -> " + 
@@ -337,6 +352,7 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
   }
   
   public synchronized void closeOnDiskFile(CompressAwarePath file) {
+    file.rememberContext();
     onDiskMapOutputs.add(file);
     
     if (onDiskMapOutputs.size() >= (2 * ioSortFactor - 1)) {
@@ -391,6 +407,9 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
       
       LOG.info("Initiating Memory-to-Memory merge with " + noInMemorySegments +
                " segments of total-size: " + mergeOutputSize);
+      XTraceContext.logEvent(IntermediateMemoryToMemoryMerger.class, "IntermediateMemoryToMemoryMerger start", 
+          "Initiating Memory-to-Memory merge", "Num Segments", noInMemorySegments, "Total Size", mergeOutputSize,
+          "Reduce ID", reduceId);
 
       RawKeyValueIterator rIter = 
         Merger.merge(jobConf, rfs,
@@ -406,6 +425,8 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
       LOG.info(reduceId +  
                " Memory-to-Memory merge of the " + noInMemorySegments +
                " files in-memory complete.");
+      XTraceContext.logEvent(IntermediateMemoryToMemoryMerger.class, "IntermediateMemoryToMemoryMerger end", 
+          "Memory-to-Memory merge complete", "Reduce ID", reduceId, "Num Segments", noInMemorySegments);
 
       // Note the output of the merge
       closeInMemoryMergedFile(mergedMapOutputs);
@@ -457,9 +478,12 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
 
       RawKeyValueIterator rIter = null;
       CompressAwarePath compressAwarePath;
+      
       try {
         LOG.info("Initiating in-memory merge with " + noInMemorySegments + 
                  " segments...");
+        XTraceContext.logEvent(InMemoryMerger.class, "InMemoryMerger start", "Initiating in-memory merge",
+            "Num Segments",  noInMemorySegments);
         
         rIter = Merger.merge(jobConf, rfs,
                              (Class<K>)jobConf.getMapOutputKeyClass(),
@@ -484,12 +508,16 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
             " files in-memory complete." +
             " Local file is " + outputPath + " of size " + 
             localFS.getFileStatus(outputPath).getLen());
+        XTraceContext.logEvent(InMemoryMerger.class, "InMemoryMerger","Merge complete", "Num Segments", noInMemorySegments, 
+            "Local File", outputPath, "Size", localFS.getFileStatus(outputPath).getLen());
       } catch (IOException e) { 
         //make sure that we delete the ondisk file that we created 
         //earlier when we invoked cloneFileAttributes
         localFS.delete(outputPath, true);
         throw e;
       }
+      
+      XTraceContext.logEvent(InMemoryMerger.class, "InMemoryMerger end", "In-memory merge finished");
 
       // Note the output of the merge
       closeOnDiskFile(compressAwarePath);
@@ -512,13 +540,20 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
         LOG.info("No ondisk files to merge...");
         return;
       }
+      for (CompressAwarePath input : inputs) {
+    	  XTraceContext.joinObject(input);
+      }
       
       long approxOutputSize = 0;
       int bytesPerSum = 
         jobConf.getInt("io.bytes.per.checksum", 512);
+
+      
       
       LOG.info("OnDiskMerger: We have  " + inputs.size() + 
                " map outputs on disk. Triggering merge...");
+      XTraceContext.logEvent(OnDiskMerger.class, "OnDiskMerger start",
+          "Merging outputs on disk", "Num Segments", inputs.size());
       
       // 1. Prepare the list of files to be merged. 
       for (CompressAwarePath file : inputs) {
@@ -559,6 +594,9 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
         localFS.delete(outputPath, true);
         throw e;
       }
+      
+      XTraceContext.logEvent(OnDiskMerger.class, "OnDiskMerger merge end", "Finished merging map output files on disk", 
+          "Num Segments", inputs.size(), "Output Size", approxOutputSize, "Output File", outputPath);
 
       closeOnDiskFile(compressAwarePath);
 
@@ -607,6 +645,7 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
     }
     while(fullSize > leaveBytes) {
       InMemoryMapOutput<K,V> mo = inMemoryMapOutputs.remove(0);
+      mo.joinContext();
       byte[] data = mo.getMemory();
       long size = data.length;
       totalSize += size;
@@ -664,6 +703,8 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
     LOG.info("finalMerge called with " + 
              inMemoryMapOutputs.size() + " in-memory map-outputs and " + 
              onDiskMapOutputs.size() + " on-disk map-outputs");
+    XTraceContext.logEvent(MergeManagerImpl.class, "MergeManagerImpl finalMerge", "Starting final merge",
+        "Num In-Memory Map Outputs", inMemoryMapOutputs.size(), "Num On-Disk Map Outputs", onDiskMapOutputs.size());
     
     final float maxRedPer =
       job.getFloat(MRJobConfig.REDUCE_INPUT_BUFFER_PERCENT, 0f);
@@ -687,6 +728,7 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
     List<Segment<K,V>> memDiskSegments = new ArrayList<Segment<K,V>>();
     long inMemToDiskBytes = 0;
     boolean mergePhaseFinished = false;
+    Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
     if (inMemoryMapOutputs.size() > 0) {
       TaskID mapId = inMemoryMapOutputs.get(0).getMapId().getTaskID();
       inMemToDiskBytes = createInMemorySegments(inMemoryMapOutputs, 
@@ -695,7 +737,9 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
       final int numMemDiskSegments = memDiskSegments.size();
       if (numMemDiskSegments > 0 &&
             ioSortFactor > onDiskMapOutputs.size()) {
-        
+        XTraceContext.logEvent(MergeManagerImpl.class, "MergeManagerImpl finalMerge flush", 
+            "Merging segments to disk to satisfy reduce memory limit", "Num Segments", numMemDiskSegments, 
+            "NumBytes", inMemToDiskBytes);
         // If we reach here, it implies that we have less than io.sort.factor
         // disk segments and this will be incremented by 1 (result of the 
         // memory segments merge). Since this total would still be 
@@ -717,9 +761,13 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
             keyClass, valueClass, codec, null);
         try {
           Merger.writeFile(rIter, writer, reporter, job);
+          XTraceContext.logEvent(MergeManagerImpl.class, "MergeManagerImpl finalMerge flush merge", "Merge complete");
           writer.close();
-          onDiskMapOutputs.add(new CompressAwarePath(outputPath,
-              writer.getRawLength(), writer.getCompressedLength()));
+          CompressAwarePath p = new CompressAwarePath(outputPath, writer.getRawLength(), writer.getCompressedLength());
+          onDiskMapOutputs.add(p);
+          XTraceContext.logEvent(MergeManagerImpl.class, "MergeManagerImpl finalMerge flush complete", "Merged to disk",
+              "OutputPath", outputPath.toString());
+          p.rememberContext();
           writer = null;
           // add to list of final disk outputs.
         } catch (IOException e) {
@@ -741,6 +789,7 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
                  "reduce memory limit");
         inMemToDiskBytes = 0;
         memDiskSegments.clear();
+        XTraceContext.setThreadContext(start_context);
       } else if (inMemToDiskBytes != 0) {
         LOG.info("Keeping " + numMemDiskSegments + " segments, " +
                  inMemToDiskBytes + " bytes in memory for " +
@@ -748,6 +797,8 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
       }
     }
 
+    start_context = XTraceContext.getThreadContext();
+    
     // segments on disk
     List<Segment<K,V>> diskSegments = new ArrayList<Segment<K,V>>();
     long onDiskBytes = inMemToDiskBytes;
@@ -755,6 +806,7 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
     CompressAwarePath[] onDisk = onDiskMapOutputs.toArray(
         new CompressAwarePath[onDiskMapOutputs.size()]);
     for (CompressAwarePath file : onDisk) {
+      file.joinContext();
       long fileLength = fs.getFileStatus(file).getLen();
       onDiskBytes += fileLength;
       rawBytes += (file.getRawDataLength() > 0) ? file.getRawDataLength() : fileLength;
@@ -768,6 +820,8 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
     }
     LOG.info("Merging " + onDisk.length + " files, " +
              onDiskBytes + " bytes from disk");
+    XTraceContext.logEvent(MergeManagerImpl.class, "MergeManagerImpl finalMerge", "Merging files from disk",
+        "Num Segments", onDisk.length, "Num Bytes", onDiskBytes);
     Collections.sort(diskSegments, new Comparator<Segment<K,V>>() {
       public int compare(Segment<K, V> o1, Segment<K, V> o2) {
         if (o1.getLength() == o2.getLength()) {
@@ -776,6 +830,9 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
         return o1.getLength() < o2.getLength() ? -1 : 1;
       }
     });
+    
+    Collection<XTraceMetadata> disk_context = XTraceContext.getThreadContext();
+    XTraceContext.setThreadContext(start_context);
 
     // build final list of segments from merged backed by disk + in-mem
     List<Segment<K,V>> finalSegments = new ArrayList<Segment<K,V>>();
@@ -783,7 +840,11 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
                                              finalSegments, 0);
     LOG.info("Merging " + finalSegments.size() + " segments, " +
              inMemBytes + " bytes from memory into reduce");
+    
+    Collection<XTraceMetadata> mem_context = XTraceContext.getThreadContext();
+    
     if (0 != onDiskBytes) {
+      XTraceContext.setThreadContext(disk_context);
       final int numInMemSegments = memDiskSegments.size();
       diskSegments.addAll(0, memDiskSegments);
       memDiskSegments.clear();
@@ -795,27 +856,44 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
           ioSortFactor, numInMemSegments, tmpDir, comparator,
           reporter, false, spilledRecordsCounter, null, thisPhase);
       diskSegments.clear();
+      XTraceContext.joinContext(mem_context);
+      XTraceContext.logEvent(MergeManagerImpl.class, "MergeManagerImpl finalMerge","Piping segment merge into reduce",
+          "Num Segments", finalSegments.size(), "Num Bytes", inMemBytes);
       if (0 == finalSegments.size()) {
+        XTraceContext.logEvent(MergeManagerImpl.class, "MergeManagerImpl finalMerge complete", 
+            "Final merge complete, returning result iterator");
         return diskMerge;
       }
       finalSegments.add(new Segment<K,V>(
             new RawKVIteratorReader(diskMerge, onDiskBytes), true, rawBytes));
     }
-    return Merger.merge(job, fs, keyClass, valueClass,
+    RawKeyValueIterator result = Merger.merge(job, fs, keyClass, valueClass,
                  finalSegments, finalSegments.size(), tmpDir,
                  comparator, reporter, spilledRecordsCounter, null,
                  null);
-  
+    
+    XTraceContext.logEvent(MergeManagerImpl.class, "MergeManagerImpl finalMerge complete", 
+        "Final merge complete, returning result iterator");
+    return result;
   }
 
   static class CompressAwarePath extends Path {
     private long rawDataLength;
     private long compressedSize;
+    private Collection<XTraceMetadata> xtrace_context;
 
     public CompressAwarePath(Path path, long rawDataLength, long compressSize) {
       super(path.toUri());
       this.rawDataLength = rawDataLength;
       this.compressedSize = compressSize;
+    }
+    
+    public void rememberContext() {
+      xtrace_context = XTraceContext.getThreadContext();
+    }
+    
+    public void joinContext() {
+      XTraceContext.joinContext(xtrace_context);
     }
 
     public long getRawDataLength() {

@@ -84,6 +84,8 @@ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.YarnScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.security.authorize.RMPolicyProvider;
 import org.apache.hadoop.yarn.server.utils.BuilderUtils;
 
+import edu.berkeley.xtrace.XTraceContext;
+
 @SuppressWarnings("unchecked")
 @Private
 public class ApplicationMasterService extends AbstractService implements
@@ -530,6 +532,7 @@ public class ApplicationMasterService extends AbstractService implements
     // attemptID get registered
     response.setResponseId(-1);
     LOG.info("Registering app attempt : " + attemptId);
+    XTraceContext.logEvent("ApplicationMasterService", "Registering application attempt", "Attempt ID", attemptId);
     responseMap.put(attemptId, response);
     rmContext.getNMTokenSecretManager().registerApplicationAttempt(attemptId);
   }

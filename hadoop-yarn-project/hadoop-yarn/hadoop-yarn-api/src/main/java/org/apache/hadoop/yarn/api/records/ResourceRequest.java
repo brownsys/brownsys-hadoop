@@ -239,6 +239,9 @@ public abstract class ResourceRequest implements Comparable<ResourceRequest> {
   @Stable
   public abstract void setRelaxLocality(boolean relaxLocality);
   
+  public abstract void rememberContext();
+  public abstract void joinContext();
+
   @Override
   public int hashCode() {
     final int prime = 2153;
