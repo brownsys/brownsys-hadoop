@@ -17,6 +17,8 @@
  */
 package org.apache.hadoop.mapreduce;
 
+import static org.apache.hadoop.mapred.QueueManager.toFullPropertyName;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
@@ -45,8 +47,6 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.QueueACL;
-import static org.apache.hadoop.mapred.QueueManager.toFullPropertyName;
-
 import org.apache.hadoop.mapreduce.filecache.ClientDistributedCacheManager;
 import org.apache.hadoop.mapreduce.filecache.DistributedCache;
 import org.apache.hadoop.mapreduce.protocol.ClientProtocol;
@@ -63,9 +63,13 @@ import org.codehaus.jackson.map.ObjectMapper;
 
 import com.google.common.base.Charsets;
 
+import edu.brown.cs.systems.xtrace.Context;
+import edu.brown.cs.systems.xtrace.XTrace;
+
 @InterfaceAudience.Private
 @InterfaceStability.Unstable
 class JobSubmitter {
+  protected static final XTrace.Logger xtrace = XTrace.getLogger(JobSubmitter.class);
   protected static final Log LOG = LogFactory.getLog(JobSubmitter.class);
   private static final String SHUFFLE_KEYGEN_ALGORITHM = "HmacSHA1";
   private static final int SHUFFLE_KEY_LENGTH = 64;
@@ -336,7 +340,10 @@ class JobSubmitter {
   JobStatus submitJobInternal(Job job, Cluster cluster) 
   throws ClassNotFoundException, InterruptedException, IOException {
 
-    //validate the jobs output specs 
+    xtrace.log("Submitting Job");
+    Context start_context = XTrace.get();
+	  
+    //validate the jobs output specs
     checkSpecs(job);
     
     Path jobStagingArea = JobSubmissionFiles.getStagingDir(cluster, 
@@ -351,6 +358,7 @@ class JobSubmitter {
       conf.set(MRJobConfig.JOB_SUBMITHOSTADDR,submitHostAddress);
     }
     JobID jobId = submitClient.getNewJobID();
+    System.out.println("Submitting job with jobid " + jobId + " and the client class is " + submitClient.getClass().getName());
     job.setJobID(jobId);
     Path submitJobDir = new Path(jobStagingArea, jobId.toString());
     JobStatus status = null;
@@ -426,6 +434,9 @@ class JobSubmitter {
           jtFs.delete(submitJobDir, true);
 
       }
+      
+      XTrace.join(start_context);
+      xtrace.log("Job submission complete");
     }
   }
   

@@ -49,9 +49,10 @@ import org.apache.hadoop.mapreduce.v2.app.launcher.ContainerLauncherEvent;
 import org.apache.hadoop.mapreduce.v2.app.launcher.ContainerRemoteLaunchEvent;
 import org.apache.hadoop.service.AbstractService;
 import org.apache.hadoop.util.StringUtils;
-import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
 import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
+
+import edu.brown.cs.systems.xtrace.XTrace;
 
 /**
  * Runs the container task locally in a thread.
@@ -172,12 +173,14 @@ public class LocalContainerLauncher extends AbstractService implements
       // (i.e., fork()), else will get weird failures when maps try to create/
       // write same dirname or filename:  no chdir() in Java
       while (!Thread.currentThread().isInterrupted()) {
+        XTrace.stop();
         try {
           event = eventQueue.take();
         } catch (InterruptedException e) {  // mostly via T_KILL? JOB_KILL?
           LOG.error("Returning, interrupted : " + e);
           return;
         }
+        event.joinContext();
 
         LOG.info("Processing the event " + event.toString());
 
@@ -241,6 +244,9 @@ public class LocalContainerLauncher extends AbstractService implements
             // (i.e., exit clumsily--but can never happen, so no worries!)
             LOG.fatal("oopsie...  this can never happen: "
                 + StringUtils.stringifyException(ioe));
+            // TODO: X-Trace todo: join parent
+//            XTraceContext.logEvent(LocalContainerLauncher.class, "LocalContainerLauncher", "Whoops. Fatal error.");
+//            XTraceContext.joinParentProcess();
             System.exit(-1);
           }
 

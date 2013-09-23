@@ -18,33 +18,40 @@
 
 package org.apache.hadoop.ipc;
 
-import java.lang.reflect.Proxy;
-import java.lang.reflect.Method;
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
-
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.net.InetSocketAddress;
-import java.io.*;
 
 import javax.net.SocketFactory;
 
-import org.apache.commons.logging.*;
-
-import org.apache.hadoop.io.*;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.classification.InterfaceAudience;
+import org.apache.hadoop.classification.InterfaceStability;
+import org.apache.hadoop.conf.Configurable;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.io.ObjectWritable;
+import org.apache.hadoop.io.UTF8;
+import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.retry.RetryPolicy;
 import org.apache.hadoop.ipc.Client.ConnectionId;
 import org.apache.hadoop.ipc.RPC.RpcInvoker;
-import org.apache.hadoop.ipc.VersionedProtocol;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.SecretManager;
 import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.util.Time;
-import org.apache.hadoop.classification.InterfaceAudience;
-import org.apache.hadoop.classification.InterfaceStability;
-import org.apache.hadoop.conf.*;
+
+import edu.brown.cs.systems.xtrace.Context;
+import edu.brown.cs.systems.xtrace.XTrace;
 
 /** An RpcEngine implementation for Writable data. */
 @InterfaceStability.Evolving
 public class WritableRpcEngine implements RpcEngine {
+  private static final XTrace.Logger xtrace = XTrace.getLogger(RPC.class);
   private static final Log LOG = LogFactory.getLog(RPC.class);
   
   //writableRpcVersion should be updated if there is a change
@@ -228,13 +235,27 @@ public class WritableRpcEngine implements RpcEngine {
         startTime = Time.now();
       }
 
+      xtrace.log("RPC Client invoking remote method "+method.getName(), "ConnectionID", this.remoteId);
+      Context start_context = XTrace.get();
+      try { // xtrace try
+
       ObjectWritable value = (ObjectWritable)
         client.call(RPC.RpcKind.RPC_WRITABLE, new Invocation(method, args), remoteId);
       if (LOG.isDebugEnabled()) {
         long callTime = Time.now() - startTime;
         LOG.debug("Call: " + method.getName() + " " + callTime);
       }
+      
+      XTrace.join(start_context);
+      xtrace.log("Client invocation of "+method.getName()+" successful");
+
       return value.get();
+      
+      } catch (Exception e) {// xtrace catch
+        XTrace.join(start_context);
+        xtrace.log("Remote invocation of "+method.getName()+" failed due to exception: "+e.getClass().getName(), "Message", e.getMessage());
+        throw e;
+      }
     }
     
     /* close the IPC client that's responsible for this invoker's RPCs */ 
@@ -420,6 +441,10 @@ public class WritableRpcEngine implements RpcEngine {
 
         Invocation call = (Invocation)rpcRequest;
         if (server.verbose) log("Call: " + call);
+        
+        xtrace.log("Invoking method", "Method", call.getMethodName());
+        Context start_context = XTrace.get();
+        try { // xtrace try
 
         // Verify writable rpc version
         if (call.getRpcVersion() != writableRpcVersion) {
@@ -493,6 +518,9 @@ public class WritableRpcEngine implements RpcEngine {
                                                processingTime);
           if (server.verbose) log("Return: "+value);
 
+          XTrace.join(start_context);
+          xtrace.log("Invocation of method completed, responding to client", "Method", call.getMethodName());
+          
           return new ObjectWritable(method.getReturnType(), value);
 
         } catch (InvocationTargetException e) {
@@ -512,7 +540,13 @@ public class WritableRpcEngine implements RpcEngine {
           ioe.setStackTrace(e.getStackTrace());
           throw ioe;
         }
-      }
+
+        } catch (IOException e) { // xtrace catch
+          XTrace.join(start_context);
+          xtrace.log("Failed to invoke method "+call.getMethodName()+": "+e.getClass().getName(), "Message", e.getMessage());
+          throw e;
+        }
+     }
     }
   }
 

@@ -615,6 +615,16 @@ public class MockJobs extends MockApps {
         jobConf.addResource(fc.open(configFile), configFile.toString());
         return jobConf;
       }
+
+      @Override
+      public int getAndJoinCompletedMaps() {
+        return getCompletedMaps();
+      }
+
+      @Override
+      public int getAndJoinCompletedReduces() {
+        return getCompletedReduces();
+      }
     };
   }
 

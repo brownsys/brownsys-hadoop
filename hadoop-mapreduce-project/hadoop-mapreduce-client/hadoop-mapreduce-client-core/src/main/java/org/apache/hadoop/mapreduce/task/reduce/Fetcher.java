@@ -26,6 +26,7 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.security.GeneralSecurityException;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -47,8 +48,12 @@ import org.apache.hadoop.security.ssl.SSLFactory;
 
 import com.google.common.annotations.VisibleForTesting;
 
+import edu.brown.cs.systems.xtrace.Context;
+import edu.brown.cs.systems.xtrace.XTrace;
+
 class Fetcher<K,V> extends Thread {
   
+  private static final XTrace.Logger xtrace = XTrace.getLogger(Fetcher.class);
   private static final Log LOG = LogFactory.getLog(Fetcher.class);
   
   /** Number of ms before timing out a copy */
@@ -86,6 +91,9 @@ class Fetcher<K,V> extends Thread {
 
   protected HttpURLConnection connection;
   private volatile boolean stopped = false;
+
+  private final Context xtrace_start_context;
+  private final Collection<Context> copy_contexts = new HashSet<Context>();
 
   private static boolean sslShuffle;
   private static SSLFactory sslFactory;
@@ -147,6 +155,8 @@ class Fetcher<K,V> extends Thread {
         }
       }
     }
+    
+    xtrace_start_context = XTrace.get();
   }
   
   public void run() {
@@ -156,6 +166,8 @@ class Fetcher<K,V> extends Thread {
         try {
           // If merge is on, block
           merger.waitForResource();
+          
+          XTrace.set(xtrace_start_context);
 
           // Get a host to shuffle from
           host = scheduler.getHost();
@@ -168,6 +180,8 @@ class Fetcher<K,V> extends Thread {
             scheduler.freeHost(host);
             metrics.threadFree();            
           }
+          copy_contexts.add(XTrace.get());
+          XTrace.stop();
         }
       }
     } catch (InterruptedException ie) {
@@ -197,6 +211,11 @@ class Fetcher<K,V> extends Thread {
     if (sslFactory != null) {
       sslFactory.destroy();
     }
+  }
+  
+  public void joinContexts() {
+    for (Context ctx : copy_contexts)
+      XTrace.join(ctx);
   }
 
   @VisibleForTesting
@@ -251,6 +270,7 @@ class Fetcher<K,V> extends Thread {
       LOG.debug("Fetcher " + id + " going to fetch from " + host + " for: "
         + maps);
     }
+    xtrace.log("Fetching map outputs from mapper", "Num Maps", maps.size(), "Host", host, "TaskAttemptIDs", maps);
     
     // List of maps to be fetched yet
     Set<TaskAttemptID> remaining = new HashSet<TaskAttemptID>(maps);
@@ -259,6 +279,7 @@ class Fetcher<K,V> extends Thread {
     DataInputStream input = null;
     try {
       URL url = getMapOutputURL(host, maps);
+      xtrace.log("Connecting to map output on host", "URL", url);
       openConnection(url);
       if (stopped) {
         abortConnect(host, remaining);
@@ -273,6 +294,9 @@ class Fetcher<K,V> extends Thread {
       // put url hash into http header
       connection.addRequestProperty(
           SecureShuffleUtils.HTTP_HEADER_URL_HASH, encHash);
+      String xtrace_string = XTrace.base16();
+      if (xtrace_string!=null)
+        connection.addRequestProperty("X-Trace", xtrace_string);
       // set the read timeout
       connection.setReadTimeout(readTimeout);
       // put shuffle version into http header
@@ -291,6 +315,11 @@ class Fetcher<K,V> extends Thread {
       // Validate response code
       int rc = connection.getResponseCode();
       if (rc != HttpURLConnection.HTTP_OK) {
+        String xtrace_context = connection.getHeaderField("X-Trace");
+        if (xtrace_context!=null) {
+          XTrace.join(Context.parseBase16(xtrace_context));
+        }
+        xtrace.log("Got invalid response code " + rc + " from host", "URL", url, "Message", connection.getResponseMessage());
         throw new IOException(
             "Got invalid response code " + rc + " from " + url +
             ": " + connection.getResponseMessage());
@@ -316,6 +345,7 @@ class Fetcher<K,V> extends Thread {
       ioErrs.increment(1);
       LOG.warn("Failed to connect to " + host + " with " + remaining.size() + 
                " map outputs", ie);
+      xtrace.log("Failed to connect to host: "+ie.getClass().getName(), "Host", host, "Remaining Outputs", remaining.size(), "Message", ie.getMessage());
 
       // If connect did not succeed, just mark all the maps as failed,
       // indirectly penalizing the host
@@ -337,12 +367,20 @@ class Fetcher<K,V> extends Thread {
       // after putting back the remaining maps to the 
       // yet_to_be_fetched list and marking the failed tasks.
       TaskAttemptID[] failedTasks = null;
+      Context start_context = XTrace.get();
+      Collection<Context> end_contexts = new HashSet<Context>();
+      int initialSize = remaining.size();
       while (!remaining.isEmpty() && failedTasks == null) {
+        XTrace.set(start_context);
         failedTasks = copyMapOutput(host, input, remaining);
+        end_contexts.add(XTrace.get());
       }
+      for (Context ctx : end_contexts)
+        XTrace.join(ctx);
       
       if(failedTasks != null && failedTasks.length > 0) {
         LOG.warn("copyMapOutput failed for tasks "+Arrays.toString(failedTasks));
+        xtrace.log("Failed to copy map output for some tasks", "Failed Tasks", Arrays.toString(failedTasks));
         for(TaskAttemptID left: failedTasks) {
           scheduler.copyFailed(left, host, true, false);
         }
@@ -350,9 +388,16 @@ class Fetcher<K,V> extends Thread {
 
       // Sanity check
       if (failedTasks == null && !remaining.isEmpty()) {
+        xtrace.log("Server didn't return all expected map outputs", "Remaining", remaining.size());
         throw new IOException("server didn't return all expected map outputs: "
             + remaining.size() + " left.");
       }
+
+
+      int failed = remaining.size();
+      int copied = initialSize - failed;
+      xtrace.log("Fetching complete", "Num Succeeded", copied, "Num Failed", failed);
+      
       input.close();
       input = null;
     } finally {
@@ -390,6 +435,7 @@ class Fetcher<K,V> extends Thread {
       } catch (IllegalArgumentException e) {
         badIdErrs.increment(1);
         LOG.warn("Invalid map id ", e);
+        xtrace.log("Invalid map ID: "+e.getClass().getName(), "Message", e.toString(), "Map ID", mapId);
         //Don't know which one was bad, so consider all of them as bad
         return remaining.toArray(new TaskAttemptID[remaining.size()]);
       }
@@ -407,11 +453,12 @@ class Fetcher<K,V> extends Thread {
       }
       
       // Get the location for the map output - either in-memory or on-disk
+      xtrace.log("Reserving location for map output");
       mapOutput = merger.reserve(mapId, decompressedLength, id);
       
       // Check if we can shuffle *now* ...
       if (mapOutput == null) {
-        LOG.info("fetcher#" + id + " - MergeManager returned status WAIT ...");
+        xtrace.log("Merge Manager instructed fetcher to wait", "Fetcher ID", id);
         //Not an error but wait to process data.
         return EMPTY_ATTEMPT_ID_ARRAY;
       } 
@@ -424,6 +471,9 @@ class Fetcher<K,V> extends Thread {
         LOG.info("fetcher#" + id + " about to shuffle output of map "
             + mapOutput.getMapId() + " decomp: " + decompressedLength
             + " len: " + compressedLength + " to " + mapOutput.getDescription());
+        xtrace.log("Shuffling ouputs from mapper", 
+            "Fetcher ID", id, "Map ID", mapOutput.getMapId(), "Decompressed Length", decompressedLength,
+            "Compressed Length", compressedLength, "Copy Destination", mapOutput.getDescription());
         mapOutput.shuffle(host, input, compressedLength, decompressedLength,
             metrics, reporter);
       } catch (java.lang.InternalError e) {
@@ -445,6 +495,9 @@ class Fetcher<K,V> extends Thread {
         LOG.info("fetcher#" + id + " failed to read map header" + 
                  mapId + " decomp: " + 
                  decompressedLength + ", " + compressedLength, ioe);
+        xtrace.log("Fetcher failed to read map header: "+ioe.getClass().getName(),
+            "Fetcher ID", id, "Map ID", mapId, "Decompressed Length", decompressedLength, "Compressed Length", compressedLength,
+            "Message", ioe.getMessage());
         if(mapId == null) {
           return remaining.toArray(new TaskAttemptID[remaining.size()]);
         } else {
@@ -454,6 +507,8 @@ class Fetcher<K,V> extends Thread {
       
       LOG.warn("Failed to shuffle output of " + mapId + 
                " from " + host.getHostName(), ioe); 
+      xtrace.log("Failed failed to shuffle map output: "+ioe.getClass().getName(),
+          "Fetcher Id", id, "Map ID", mapId, "Host", host.getHostName(), "Message", ioe.getMessage());
 
       // Inform the shuffle-scheduler
       mapOutput.abort();

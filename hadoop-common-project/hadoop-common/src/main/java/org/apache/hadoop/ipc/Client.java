@@ -18,7 +18,7 @@
 
 package org.apache.hadoop.ipc;
 
-import static org.apache.hadoop.ipc.RpcConstants.*;
+import static org.apache.hadoop.ipc.RpcConstants.PING_CALL_ID;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -92,7 +92,12 @@ import org.apache.hadoop.util.Time;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.google.protobuf.ByteString;
 import com.google.protobuf.CodedOutputStream;
+
+import edu.brown.cs.systems.resourcetracing.resources.Network;
+import edu.brown.cs.systems.xtrace.Context;
+import edu.brown.cs.systems.xtrace.XTrace;
 
 /** A client for an IPC service.  IPC calls take a single {@link Writable} as a
  * parameter, and return a {@link Writable} as their value.  A service runs on
@@ -102,6 +107,7 @@ import com.google.protobuf.CodedOutputStream;
  */
 public class Client {
   
+  public static final XTrace.Logger xtrace = XTrace.getLogger(Client.class);
   public static final Log LOG = LogFactory.getLog(Client.class);
 
   /** A counter for generating call IDs. */
@@ -238,6 +244,9 @@ public class Client {
         }
       }
     }
+    if (header.hasXtrace()) {
+      XTrace.set(header.getXtrace().toByteArray());
+    }
   }
 
   Call createCall(RPC.RpcKind rpcKind, Writable rpcRequest) {
@@ -255,6 +264,7 @@ public class Client {
     IOException error;          // exception, null if success
     final RPC.RpcKind rpcKind;      // Rpc EngineKind
     boolean done;               // true when call is done
+    Context xtrace;      // X-Trace context for the return
 
     private Call(RPC.RpcKind rpcKind, Writable param) {
       this.rpcKind = rpcKind;
@@ -631,6 +641,8 @@ public class Client {
       if (socket != null || shouldCloseConnection.get()) {
         return;
       } 
+      xtrace.log("Connecting to server");
+      Context start_context = XTrace.get();
       try {
         if (LOG.isDebugEnabled()) {
           LOG.debug("Connecting to "+server);
@@ -702,9 +714,13 @@ public class Client {
           // start the receiver thread after the socket connection has been set
           // up
           start();
+          XTrace.join(start_context);
+          xtrace.log("Connected to server");
           return;
         }
       } catch (Throwable t) {
+        XTrace.join(start_context);
+        xtrace.log("Failed to connect to server: "+t.getClass().getName(), "Message", t.getMessage());
         if (t instanceof IOException) {
           markClosed((IOException)t);
         } else {
@@ -882,10 +898,13 @@ public class Client {
 
     @Override
     public void run() {
+      // XTrace: this is a long-lived thread that is lazily started by the first client.
+      // Clear any thread contexts that may have been set after the thread begins
+      xtrace.log("RPC Response reader thread started");
       if (LOG.isDebugEnabled())
         LOG.debug(getName() + ": starting, having connections " 
             + connections.size());
-
+      XTrace.stop();
       try {
         while (waitForWork()) {//wait here for work - read or close connection
           receiveRpcResponse();
@@ -946,6 +965,7 @@ public class Client {
                 
                 if (LOG.isDebugEnabled())
                   LOG.debug(getName() + " sending #" + call.id);
+                xtrace.log("Client senderFuture sending call");
          
                 byte[] data = d.getData();
                 int totalLength = d.getLength();
@@ -991,24 +1011,36 @@ public class Client {
       }
       touch();
       
+      XTrace.stop();
       try {
-        int totalLen = in.readInt();
-        RpcResponseHeaderProto header = 
-            RpcResponseHeaderProto.parseDelimitedFrom(in);
+        Network.ignore(true);
+        int totalLen;
+        RpcResponseHeaderProto header;
+        try {
+          totalLen = in.readInt();
+          header = RpcResponseHeaderProto.parseDelimitedFrom(in);
+        } finally {
+          Network.ignore(false);
+        }
         checkResponse(header);
 
         int headerLen = header.getSerializedSize();
         headerLen += CodedOutputStream.computeRawVarint32Size(headerLen);
+        
+        Network.Read.alreadyStarted(in);
+        Network.Read.alreadyFinished(in, headerLen);
 
         int callId = header.getCallId();
         if (LOG.isDebugEnabled())
           LOG.debug(getName() + " got value #" + callId);
 
-        Call call = calls.get(callId);
+        Call call = calls.get(callId);        
         RpcStatusProto status = header.getStatus();
+        
         if (status == RpcStatusProto.SUCCESS) {
           Writable value = ReflectionUtils.newInstance(valueClass, conf);
           value.readFields(in);                 // read value
+          call.xtrace = XTrace.get();
           call.setRpcResponse(value);
           calls.remove(callId);
           
@@ -1053,6 +1085,8 @@ public class Client {
         }
       } catch (IOException e) {
         markClosed(e);
+      } finally {
+        XTrace.stop();
       }
     }
     
@@ -1316,6 +1350,8 @@ public class Client {
       ConnectionId remoteId, int serviceClass) throws IOException {
     final Call call = createCall(rpcKind, rpcRequest);
     Connection connection = getConnection(remoteId, call, serviceClass);
+    xtrace.log("Sending RPC request", "Call ID", call.id);
+    call.xtrace = XTrace.get();
     try {
       connection.sendRpcRequest(call);                 // send the rpc request
     } catch (RejectedExecutionException e) {
@@ -1325,7 +1361,6 @@ public class Client {
       LOG.warn("interrupted waiting to send rpc request to server", e);
       throw new IOException(e);
     }
-
     boolean interrupted = false;
     synchronized (call) {
       while (!call.done) {
@@ -1342,19 +1377,24 @@ public class Client {
         Thread.currentThread().interrupt();
       }
 
+      XTrace.join(call.xtrace);
       if (call.error != null) {
         if (call.error instanceof RemoteException) {
           call.error.fillInStackTrace();
+          xtrace.log("RPC response received remote exception", "Call ID", call.id, "Message", call.error.getMessage());
           throw call.error;
         } else { // local exception
           InetSocketAddress address = connection.getRemoteAddress();
-          throw NetUtils.wrapException(address.getHostName(),
+          IOException e = NetUtils.wrapException(address.getHostName(),
                   address.getPort(),
                   NetUtils.getHostname(),
                   0,
                   call.error);
+          xtrace.log("Local exception handling RPC response", "Call ID", call.id, "Message", e.getMessage());
+          throw e;
         }
       } else {
+        xtrace.log("Received RPC response", "Call ID", call.id);
         return call.getRpcResponse();
       }
     }

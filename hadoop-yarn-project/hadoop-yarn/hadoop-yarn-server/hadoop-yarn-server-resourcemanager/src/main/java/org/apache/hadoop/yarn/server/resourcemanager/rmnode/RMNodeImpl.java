@@ -63,6 +63,8 @@ import org.apache.hadoop.yarn.state.StateMachineFactory;
 
 import com.google.common.annotations.VisibleForTesting;
 
+import edu.brown.cs.systems.xtrace.XTrace;
+
 /**
  * This class is used to keep track of all the applications/containers
  * running on a node.
@@ -73,6 +75,7 @@ import com.google.common.annotations.VisibleForTesting;
 @SuppressWarnings("unchecked")
 public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
 
+  private static final XTrace.Logger xtrace = XTrace.getLogger(RMNodeImpl.class);
   private static final Log LOG = LogFactory.getLog(RMNodeImpl.class);
 
   private static final RecordFactory recordFactory = RecordFactoryProvider
@@ -118,7 +121,7 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
                  = new StateMachineFactory<RMNodeImpl,
                                            NodeState,
                                            RMNodeEventType,
-                                           RMNodeEvent>(NodeState.NEW)
+                                           RMNodeEvent>(NodeState.NEW, StateMachineFactory.Trace.NEVER)
   
      //Transitions from NEW state
      .addTransition(NodeState.NEW, NodeState.RUNNING, 
@@ -350,6 +353,7 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
   }
 
   public void handle(RMNodeEvent event) {
+    event.joinContext();
     LOG.debug("Processing " + event.getNodeId() + " of type " + event.getType());
     try {
       writeLock.lock();
@@ -484,8 +488,9 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
 
     @Override
     public void transition(RMNodeImpl rmNode, RMNodeEvent event) {
-      rmNode.containersToClean.add(((
-          RMNodeCleanContainerEvent) event).getContainerId());
+      ContainerId id = ((RMNodeCleanContainerEvent) event).getContainerId();
+      id.rememberContext();
+      rmNode.containersToClean.add(id);
     }
   }
 
@@ -557,12 +562,16 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
       for (ContainerStatus remoteContainer : statusEvent.getContainers()) {
         ContainerId containerId = remoteContainer.getContainerId();
         
+        XTrace.stop();
+        containerId.joinContext();
+        
         // Don't bother with containers already scheduled for cleanup, or for
         // applications already killed. The scheduler doens't need to know any
         // more about this container
         if (rmNode.containersToClean.contains(containerId)) {
           LOG.info("Container " + containerId + " already scheduled for " +
           		"cleanup, no further processing");
+          xtrace.log("Container already scheduled for cleanup", "Container ID", containerId);
           continue;
         }
         if (rmNode.finishedApplications.contains(containerId
@@ -570,6 +579,7 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
           LOG.info("Container " + containerId
               + " belongs to an application that is already killed,"
               + " no further processing");
+          xtrace.log("Container belongs to an application that is already killed", "Container ID", containerId);
           continue;
         }
 
@@ -580,6 +590,7 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
             rmNode.justLaunchedContainers.put(containerId, remoteContainer);
             newlyLaunchedContainers.add(remoteContainer);
           }
+          rmNode.justLaunchedContainers.get(containerId).getContainerId().rememberContext();
         } else {
           // A finished container
           rmNode.justLaunchedContainers.remove(containerId);

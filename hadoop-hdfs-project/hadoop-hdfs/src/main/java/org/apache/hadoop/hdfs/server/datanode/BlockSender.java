@@ -47,6 +47,10 @@ import org.apache.hadoop.util.DataChecksum;
 
 import com.google.common.base.Preconditions;
 
+import edu.brown.cs.systems.resourcethrottling.LocalThrottlingPoints;
+import edu.brown.cs.systems.resourcethrottling.ThrottlingPoint;
+import edu.brown.cs.systems.xtrace.XTrace;
+
 /**
  * Reads a block from the disk and sends it to a recipient.
  * 
@@ -88,6 +92,8 @@ import com.google.common.base.Preconditions;
  *  no checksum error, it replies to DataNode with OP_STATUS_CHECKSUM_OK.
  */
 class BlockSender implements java.io.Closeable {
+  static final XTrace.Logger xtrace = XTrace.getLogger(BlockSender.class);
+  static final ThrottlingPoint throttlingpoint = LocalThrottlingPoints.getThrottlingPoint("BlockSender");
   static final Log LOG = DataNode.LOG;
   static final Log ClientTraceLog = DataNode.ClientTraceLog;
   private static final boolean is32Bit = 
@@ -142,6 +148,7 @@ class BlockSender implements java.io.Closeable {
   // Cache-management related fields
   private final long readaheadLength;
   private boolean shouldDropCacheBehindRead;
+  private boolean shouldFadviseSequential;
   private ReadaheadRequest curReadahead;
   private long lastCacheDropOffset;
   private static final long CACHE_DROP_INTERVAL_BYTES = 1024 * 1024; // 1MB
@@ -177,6 +184,7 @@ class BlockSender implements java.io.Closeable {
       this.clientTraceFmt = clientTraceFmt;
       this.readaheadLength = datanode.getDnConf().readaheadLength;
       this.shouldDropCacheBehindRead = datanode.getDnConf().dropCacheBehindReads;
+      this.shouldFadviseSequential = datanode.getDnConf().fadviseSequential;
       this.datanode = datanode;
       
       if (verifyChecksum) {
@@ -226,7 +234,9 @@ class BlockSender implements java.io.Closeable {
        */
       DataChecksum csum = null;
       if (verifyChecksum || sendChecksum) {
+        xtrace.log("Getting metadata input stream");
         final InputStream metaIn = datanode.data.getMetaDataInputStream(block);
+        xtrace.log("Got metadata input stream");
         if (!corruptChecksumOk || metaIn != null) {
           if (metaIn == null) {
             //need checksum but meta-data not found
@@ -454,6 +464,8 @@ class BlockSender implements java.io.Closeable {
     int packetLen = dataLen + checksumDataLen + 4;
     boolean lastDataPacket = offset + dataLen == endOffset && dataLen > 0;
 
+    xtrace.log("Sending packet", "dataLen", dataLen, "numChunks", numChunks, "packetLen", packetLen);
+    
     // The packet buffer is organized as follows:
     // _______HHHHCCCCD?D?D?D?
     //        ^   ^
@@ -515,6 +527,7 @@ class BlockSender implements java.io.Closeable {
         // normal transfer
         out.write(buf, headerOff, dataOff + dataLen - headerOff);
       }
+      xtrace.log("Packet send complete");
     } catch (IOException e) {
       if (e instanceof SocketTimeoutException) {
         /*
@@ -523,6 +536,7 @@ class BlockSender implements java.io.Closeable {
          * the socket open).
          */
           LOG.info("exception: ", e);
+          xtrace.log("SocketTimeoutException");
       } else {
         /* Exception while writing to the client. Connection closure from
          * the other end is mostly the case and we do not care much about
@@ -537,6 +551,7 @@ class BlockSender implements java.io.Closeable {
         if (!ioem.startsWith("Broken pipe") && !ioem.startsWith("Connection reset")) {
           LOG.error("BlockSender.sendChunks() exception: ", e);
         }
+        xtrace.log("Exception", "Message", ioem);
       }
       throw ioeToSocketException(e);
     }
@@ -544,6 +559,9 @@ class BlockSender implements java.io.Closeable {
     if (throttler != null) { // rebalancing so throttle
       throttler.throttle(packetLen);
     }
+    
+    // Retro throttle
+    throttlingpoint.throttle();
 
     return dataLen;
   }
@@ -625,17 +643,21 @@ class BlockSender implements java.io.Closeable {
    * @return total bytes read, including checksum data.
    */
   long sendBlock(DataOutputStream out, OutputStream baseStream, 
-                 DataTransferThrottler throttler) throws IOException {
+                 DataTransferThrottler throttler) throws IOException {    
     if (out == null) {
       throw new IOException( "out stream is null" );
     }
+
+    xtrace.log("Sending Block", "BlockName", block.getBlockName());
+    try { // xtrace try
+    
     initialOffset = offset;
     long totalRead = 0;
     OutputStream streamForSendChunks = out;
     
     lastCacheDropOffset = initialOffset;
 
-    if (isLongRead() && blockInFd != null) {
+    if (isLongRead() && blockInFd != null && shouldFadviseSequential) {
       // Advise that this file descriptor will be accessed sequentially.
       NativeIO.POSIX.posixFadviseIfPossible(
           blockInFd, 0, 0, NativeIO.POSIX.POSIX_FADV_SEQUENTIAL);
@@ -688,6 +710,9 @@ class BlockSender implements java.io.Closeable {
         }
 
         sentEntireByteRange = true;
+        xtrace.log("Entire block sent", "totalRead", totalRead, "initialOffset", initialOffset);
+      } else {
+        xtrace.log("Block send interrupted", "totalRead", totalRead, "initialOffset", initialOffset);
       }
     } finally {
       if (clientTraceFmt != null) {
@@ -698,6 +723,11 @@ class BlockSender implements java.io.Closeable {
       close();
     }
     return totalRead;
+    
+    } catch (IOException e) { // xtrace catch
+      xtrace.log("IOException sending block", "Message", e.getMessage());
+      throw e;
+    }
   }
 
   /**

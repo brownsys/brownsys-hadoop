@@ -52,7 +52,6 @@ import org.apache.hadoop.yarn.event.EventHandler;
 import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 import org.apache.hadoop.yarn.util.Clock;
 
-
 public class DefaultSpeculator extends AbstractService implements
     Speculator {
 
@@ -428,6 +427,7 @@ public class DefaultSpeculator extends AbstractService implements
 
   @Override
   public void handle(SpeculatorEvent event) {
+    event.joinContext();
     processSpeculatorEvent(event);
   }
 

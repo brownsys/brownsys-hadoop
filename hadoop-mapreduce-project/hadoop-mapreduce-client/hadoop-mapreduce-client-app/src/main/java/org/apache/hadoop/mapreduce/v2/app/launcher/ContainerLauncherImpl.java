@@ -58,12 +58,15 @@ import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
+import edu.brown.cs.systems.xtrace.XTrace;
+
 /**
  * This class is responsible for launching of containers.
  */
 public class ContainerLauncherImpl extends AbstractService implements
     ContainerLauncher {
 
+  static final XTrace.Logger xtrace = XTrace.getLogger(ContainerLauncherImpl.class);
   static final Log LOG = LogFactory.getLog(ContainerLauncherImpl.class);
 
   private ConcurrentHashMap<ContainerId, Container> containers = 
@@ -124,6 +127,8 @@ public class ContainerLauncherImpl extends AbstractService implements
     
     @SuppressWarnings("unchecked")
     public synchronized void launch(ContainerRemoteLaunchEvent event) {
+      event.joinContext();
+      TaskAttemptId taskAttemptID = event.getTaskAttemptID();
       LOG.info("Launching " + taskAttemptID);
       if(this.state == ContainerState.KILLED_BEFORE_LAUNCH) {
         state = ContainerState.DONE;
@@ -189,7 +194,6 @@ public class ContainerLauncherImpl extends AbstractService implements
     
     @SuppressWarnings("unchecked")
     public synchronized void kill() {
-
       if(this.state == ContainerState.PREP) {
         this.state = ContainerState.KILLED_BEFORE_LAUNCH;
       } else if (!isCompletelyDone()) {
@@ -267,6 +271,7 @@ public class ContainerLauncherImpl extends AbstractService implements
         Set<String> allNodes = new HashSet<String>();
 
         while (!stopped.get() && !Thread.currentThread().isInterrupted()) {
+          XTrace.stop();
           try {
             event = eventQueue.take();
           } catch (InterruptedException e) {
@@ -276,7 +281,7 @@ public class ContainerLauncherImpl extends AbstractService implements
             return;
           }
           allNodes.add(event.getContainerMgrAddress());
-
+          event.joinContext();
           int poolSize = launcherPool.getCorePoolSize();
 
           // See if we need up the pool size only if haven't reached the
@@ -354,7 +359,10 @@ public class ContainerLauncherImpl extends AbstractService implements
 
     @Override
     public void run() {
+      XTrace.stop();
+      event.joinContext();
       LOG.info("Processing the event " + event.toString());
+      xtrace.log("Processing event", "Event", event);
 
       // Load ContainerManager tokens before creating a connection.
       // TODO: Do it only once per NodeManager.
@@ -374,6 +382,7 @@ public class ContainerLauncherImpl extends AbstractService implements
         break;
       }
       removeContainerIfDone(containerID);
+      XTrace.stop();
     }
   }
   

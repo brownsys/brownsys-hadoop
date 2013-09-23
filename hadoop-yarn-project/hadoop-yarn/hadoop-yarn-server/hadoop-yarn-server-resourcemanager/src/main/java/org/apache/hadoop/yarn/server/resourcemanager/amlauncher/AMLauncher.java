@@ -34,8 +34,8 @@ import org.apache.hadoop.io.DataOutputBuffer;
 import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.SecretManager.InvalidToken;
+import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.ContainerManagementProtocol;
@@ -63,11 +63,14 @@ import org.apache.hadoop.yarn.util.ConverterUtils;
 
 import com.google.common.annotations.VisibleForTesting;
 
+import edu.brown.cs.systems.xtrace.XTrace;
+
 /**
  * The launch of the AM itself.
  */
 public class AMLauncher implements Runnable {
 
+  private static final XTrace.Logger xtrace = XTrace.getLogger(AMLauncher.class);
   private static final Log LOG = LogFactory.getLog(AMLauncher.class);
 
   private ContainerManagementProtocol containerMgrProxy;
@@ -80,7 +83,7 @@ public class AMLauncher implements Runnable {
   
   @SuppressWarnings("rawtypes")
   private final EventHandler handler;
-  
+
   public AMLauncher(RMContext rmContext, RMAppAttempt application,
       AMLauncherEventType eventType, Configuration conf) {
     this.application = application;
@@ -103,7 +106,9 @@ public class AMLauncher implements Runnable {
     ApplicationSubmissionContext applicationContext =
       application.getSubmissionContext();
     LOG.info("Setting up container " + masterContainer
-        + " for AM " + application.getAppAttemptId());  
+        + " for AM " + application.getAppAttemptId());
+    xtrace.log("Setting up container for application master", 
+        "Container", application.getMasterContainer(), "Application Master ID", application.getAppAttemptId());
     ContainerLaunchContext launchContext =
         createAMContainerLaunchContext(applicationContext, masterContainerID);
 
@@ -245,7 +250,8 @@ public class AMLauncher implements Runnable {
     switch (eventType) {
     case LAUNCH:
       try {
-        LOG.info("Launching master" + application.getAppAttemptId());
+        LOG.info("Launching master " + application.getAppAttemptId());
+        xtrace.log("Launching application master", "Application Master ID", application.getAppAttemptId());
         launch();
         handler.handle(new RMAppAttemptEvent(application.getAppAttemptId(),
             RMAppAttemptEventType.LAUNCHED));
@@ -260,6 +266,7 @@ public class AMLauncher implements Runnable {
     case CLEANUP:
       try {
         LOG.info("Cleaning master " + application.getAppAttemptId());
+        xtrace.log("Cleaning application master", "Application Master ID", application.getAppAttemptId());
         cleanup();
       } catch(IOException ie) {
         LOG.info("Error cleaning master ", ie);

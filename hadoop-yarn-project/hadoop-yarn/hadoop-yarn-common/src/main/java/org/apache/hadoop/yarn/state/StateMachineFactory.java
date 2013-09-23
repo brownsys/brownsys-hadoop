@@ -29,6 +29,9 @@ import java.util.Stack;
 import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.hadoop.classification.InterfaceStability.Evolving;
 
+import edu.brown.cs.systems.xtrace.Context;
+import edu.brown.cs.systems.xtrace.XTrace;
+
 /**
  * State machine topology.
  * This object is semantically immutable.  If you have a
@@ -46,6 +49,8 @@ import org.apache.hadoop.classification.InterfaceStability.Evolving;
 final public class StateMachineFactory
              <OPERAND, STATE extends Enum<STATE>,
               EVENTTYPE extends Enum<EVENTTYPE>, EVENT> {
+  
+  public enum Trace { NEVER, ALWAYS, KEEPALIVE, IGNORE }
 
   private final TransitionsListNode transitionsListNode;
 
@@ -55,18 +60,31 @@ final public class StateMachineFactory
   private STATE defaultInitialState;
 
   private final boolean optimized;
+  
+  /**
+   * X-Trace variables
+   */
+  private int xtrace_id_seed = 1;
+  private Trace xtrace_default = Trace.ALWAYS;
 
   /**
-   * Constructor
-   *
-   * This is the only constructor in the API.
+   * Constructor (Default MR)
    *
    */
   public StateMachineFactory(STATE defaultInitialState) {
+    this(defaultInitialState, Trace.ALWAYS);
+  }
+
+  /**
+   * Constructor (X-Trace)
+   *
+   */
+  public StateMachineFactory(STATE defaultInitialState, Trace xtrace_default) {
     this.transitionsListNode = null;
     this.defaultInitialState = defaultInitialState;
     this.optimized = false;
     this.stateMachineTable = null;
+    this.xtrace_default = xtrace_default;
   }
   
   private StateMachineFactory
@@ -77,6 +95,7 @@ final public class StateMachineFactory
         = new TransitionsListNode(t, that.transitionsListNode);
     this.optimized = false;
     this.stateMachineTable = null;
+    this.xtrace_default = that.xtrace_default;
   }
 
   private StateMachineFactory
@@ -90,6 +109,7 @@ final public class StateMachineFactory
     } else {
       stateMachineTable = null;
     }
+    this.xtrace_default = that.xtrace_default;
   }
 
   private interface ApplicableTransition
@@ -160,7 +180,28 @@ final public class StateMachineFactory
   public StateMachineFactory
              <OPERAND, STATE, EVENTTYPE, EVENT>
           addTransition(STATE preState, STATE postState, EVENTTYPE eventType) {
-    return addTransition(preState, postState, eventType, null);
+    return addTransition(preState, postState, eventType, xtrace_default);
+  }
+
+  /**
+   * @return a NEW StateMachineFactory just like {@code this} with the current
+   *          transition added as a new legal transition.  This overload
+   *          has no hook object.
+   *
+   *         Note that the returned StateMachineFactory is a distinct
+   *         object.
+   *
+   *         This method is part of the API.
+   *
+   * @param preState pre-transition state
+   * @param postState post-transition state
+   * @param eventType stimulus for the transition
+   * @param xtrace_process boolean flag, indicating whether the transition should be logged as an xtrace process with an edge to the previous transition (or not)
+   */
+  public StateMachineFactory
+             <OPERAND, STATE, EVENTTYPE, EVENT>
+          addTransition(STATE preState, STATE postState, EVENTTYPE eventType, Trace xtrace_process) {
+    return addTransition(preState, postState, eventType, null, xtrace_process);
   }
 
   /**
@@ -180,7 +221,28 @@ final public class StateMachineFactory
    */
   public StateMachineFactory<OPERAND, STATE, EVENTTYPE, EVENT> addTransition(
       STATE preState, STATE postState, Set<EVENTTYPE> eventTypes) {
-    return addTransition(preState, postState, eventTypes, null);
+    return addTransition(preState, postState, eventTypes, xtrace_default);
+  }
+
+  /**
+   * @return a NEW StateMachineFactory just like {@code this} with the current
+   *          transition added as a new legal transition.  This overload
+   *          has no hook object.
+   *
+   *
+   *         Note that the returned StateMachineFactory is a distinct
+   *         object.
+   *
+   *         This method is part of the API.
+   *
+   * @param preState pre-transition state
+   * @param postState post-transition state
+   * @param eventTypes List of stimuli for the transitions
+   * @param xtrace_process boolean flag, indicating whether the transition should be logged as an xtrace process with an edge to the previous transition (or not)
+   */
+  public StateMachineFactory<OPERAND, STATE, EVENTTYPE, EVENT> addTransition(
+      STATE preState, STATE postState, Set<EVENTTYPE> eventTypes, Trace xtrace_process) {
+    return addTransition(preState, postState, eventTypes, null, xtrace_process);
   }
 
   /**
@@ -200,12 +262,33 @@ final public class StateMachineFactory
   public StateMachineFactory<OPERAND, STATE, EVENTTYPE, EVENT> addTransition(
       STATE preState, STATE postState, Set<EVENTTYPE> eventTypes,
       SingleArcTransition<OPERAND, EVENT> hook) {
+    return addTransition(preState, postState, eventTypes, hook, xtrace_default);
+  }
+
+  /**
+   * @return a NEW StateMachineFactory just like {@code this} with the current
+   *          transition added as a new legal transition
+   *
+   *         Note that the returned StateMachineFactory is a distinct
+   *         object.
+   *
+   *         This method is part of the API.
+   *
+   * @param preState pre-transition state
+   * @param postState post-transition state
+   * @param eventTypes List of stimuli for the transitions
+   * @param hook transition hook
+   * @param xtrace_process boolean flag, indicating whether the transition should be logged as an xtrace process with an edge to the previous transition (or not)
+   */
+  public StateMachineFactory<OPERAND, STATE, EVENTTYPE, EVENT> addTransition(
+      STATE preState, STATE postState, Set<EVENTTYPE> eventTypes,
+      SingleArcTransition<OPERAND, EVENT> hook, Trace xtrace_process) {
     StateMachineFactory<OPERAND, STATE, EVENTTYPE, EVENT> factory = null;
     for (EVENTTYPE event : eventTypes) {
       if (factory == null) {
-        factory = addTransition(preState, postState, event, hook);
+        factory = addTransition(preState, postState, event, hook, xtrace_process);
       } else {
-        factory = factory.addTransition(preState, postState, event, hook);
+        factory = factory.addTransition(preState, postState, event, hook, xtrace_process);
       }
     }
     return factory;
@@ -229,9 +312,31 @@ final public class StateMachineFactory
           addTransition(STATE preState, STATE postState,
                         EVENTTYPE eventType,
                         SingleArcTransition<OPERAND, EVENT> hook){
+    return addTransition(preState, postState, eventType, hook, xtrace_default);
+  }
+
+  /**
+   * @return a NEW StateMachineFactory just like {@code this} with the current
+   *          transition added as a new legal transition
+   *
+   *         Note that the returned StateMachineFactory is a distinct object.
+   *
+   *         This method is part of the API.
+   *
+   * @param preState pre-transition state
+   * @param postState post-transition state
+   * @param eventType stimulus for the transition
+   * @param hook transition hook
+   * @param xtrace_process boolean flag, indicating whether the transition should be logged as an xtrace process with an edge to the previous transition (or not)
+   */
+  public StateMachineFactory
+             <OPERAND, STATE, EVENTTYPE, EVENT>
+          addTransition(STATE preState, STATE postState,
+                        EVENTTYPE eventType,
+                        SingleArcTransition<OPERAND, EVENT> hook, Trace xtrace_process){
     return new StateMachineFactory<OPERAND, STATE, EVENTTYPE, EVENT>
         (this, new ApplicableSingleOrMultipleTransition<OPERAND, STATE, EVENTTYPE, EVENT>
-           (preState, eventType, new SingleInternalArc(postState, hook)));
+           (preState, eventType, new SingleInternalArc(postState, hook, xtrace_process)));
   }
 
   /**
@@ -252,10 +357,32 @@ final public class StateMachineFactory
           addTransition(STATE preState, Set<STATE> postStates,
                         EVENTTYPE eventType,
                         MultipleArcTransition<OPERAND, EVENT, STATE> hook){
+    return addTransition(preState, postStates, eventType, hook, xtrace_default);
+  }
+
+  /**
+   * @return a NEW StateMachineFactory just like {@code this} with the current
+   *          transition added as a new legal transition
+   *
+   *         Note that the returned StateMachineFactory is a distinct object.
+   *
+   *         This method is part of the API.
+   *
+   * @param preState pre-transition state
+   * @param postStates valid post-transition states
+   * @param eventType stimulus for the transition
+   * @param hook transition hook
+   * @param xtrace_process boolean flag, indicating whether the transition should be logged as an xtrace process with an edge to the previous transition (or not)
+   */
+  public StateMachineFactory
+             <OPERAND, STATE, EVENTTYPE, EVENT>
+          addTransition(STATE preState, Set<STATE> postStates,
+                        EVENTTYPE eventType,
+                        MultipleArcTransition<OPERAND, EVENT, STATE> hook, Trace xtrace_process){
     return new StateMachineFactory<OPERAND, STATE, EVENTTYPE, EVENT>
         (this,
          new ApplicableSingleOrMultipleTransition<OPERAND, STATE, EVENTTYPE, EVENT>
-           (preState, eventType, new MultipleInternalArc(postStates, hook)));
+           (preState, eventType, new MultipleInternalArc(postStates, hook, xtrace_process)));
   }
 
   /**
@@ -304,6 +431,40 @@ final public class StateMachineFactory
     }
     throw new InvalidStateTransitonException(oldState, eventType);
   }
+  
+  private boolean logXTraceTransition(STATE oldState, EVENTTYPE eventType) {
+    Map<EVENTTYPE, Transition<OPERAND, STATE, EVENTTYPE, EVENT>> transitionMap
+    = stateMachineTable.get(oldState);
+    if (transitionMap != null) {
+      Transition<OPERAND, STATE, EVENTTYPE, EVENT> transition
+          = transitionMap.get(eventType);
+      if (transition != null) {
+        Trace trace_type = transition.getTraceType();
+        return trace_type!=Trace.IGNORE;
+      }
+    }
+    return true;    
+  }
+  
+  /**
+   * Tells us whether the transition should link back to the previous transition event
+   * @param oldState current state
+   * @param eventType trigger to initiate the transition
+   * @return true if the transition should link the previous xtrace context with this one
+   */
+  private boolean logTransitionAsXTraceProcess(STATE oldState, EVENTTYPE eventType) {
+    Map<EVENTTYPE, Transition<OPERAND, STATE, EVENTTYPE, EVENT>> transitionMap
+    = stateMachineTable.get(oldState);
+    if (transitionMap != null) {
+      Transition<OPERAND, STATE, EVENTTYPE, EVENT> transition
+          = transitionMap.get(eventType);
+      if (transition != null) {
+        Trace trace_type = transition.getTraceType();
+        return trace_type==Trace.ALWAYS || (trace_type==Trace.KEEPALIVE && !XTrace.active());
+      }
+    }
+    return false;
+  }
 
   private synchronized void maybeMakeStateMachineTable() {
     if (stateMachineTable == null) {
@@ -341,6 +502,8 @@ final public class StateMachineFactory
           EVENTTYPE extends Enum<EVENTTYPE>, EVENT> {
     STATE doTransition(OPERAND operand, STATE oldState,
                        EVENT event, EVENTTYPE eventType);
+
+    Trace getTraceType();
   }
 
   private class SingleInternalArc
@@ -348,11 +511,14 @@ final public class StateMachineFactory
 
     private STATE postState;
     private SingleArcTransition<OPERAND, EVENT> hook; // transition hook
+    private Trace xtrace_process;
 
     SingleInternalArc(STATE postState,
-        SingleArcTransition<OPERAND, EVENT> hook) {
+        SingleArcTransition<OPERAND, EVENT> hook,
+        Trace xtrace_process) {
       this.postState = postState;
       this.hook = hook;
+      this.xtrace_process = xtrace_process;
     }
 
     @Override
@@ -363,6 +529,11 @@ final public class StateMachineFactory
       }
       return postState;
     }
+
+    @Override
+    public Trace getTraceType() {
+      return xtrace_process;
+    }
   }
 
   private class MultipleInternalArc
@@ -371,11 +542,14 @@ final public class StateMachineFactory
     // Fields
     private Set<STATE> validPostStates;
     private MultipleArcTransition<OPERAND, EVENT, STATE> hook;  // transition hook
+    private Trace xtrace_process;
 
     MultipleInternalArc(Set<STATE> postStates,
-                   MultipleArcTransition<OPERAND, EVENT, STATE> hook) {
+                   MultipleArcTransition<OPERAND, EVENT, STATE> hook,
+                   Trace xtrace_process) {
       this.validPostStates = postStates;
       this.hook = hook;
+      this.xtrace_process = xtrace_process;
     }
 
     @Override
@@ -388,6 +562,11 @@ final public class StateMachineFactory
         throw new InvalidStateTransitonException(oldState, eventType);
       }
       return postState;
+    }
+
+    @Override
+    public Trace getTraceType() {
+      return xtrace_process;
     }
   }
 
@@ -406,7 +585,7 @@ final public class StateMachineFactory
    */
   public StateMachine<STATE, EVENTTYPE, EVENT>
         make(OPERAND operand, STATE initialState) {
-    return new InternalStateMachine(operand, initialState);
+    return new InternalStateMachine(operand, initialState, xtrace_id_seed++);
   }
 
   /* 
@@ -421,32 +600,71 @@ final public class StateMachineFactory
    *                
    */
   public StateMachine<STATE, EVENTTYPE, EVENT> make(OPERAND operand) {
-    return new InternalStateMachine(operand, defaultInitialState);
+    return new InternalStateMachine(operand, defaultInitialState, xtrace_id_seed++);
+  }
+  
+  private String xtraceStateName(STATE state) {
+    return state.getDeclaringClass().getSimpleName() + "." + state.name();
   }
 
   private class InternalStateMachine
         implements StateMachine<STATE, EVENTTYPE, EVENT> {
+    private final XTrace.Logger xtrace;
     private final OPERAND operand;
     private STATE currentState;
 
-    InternalStateMachine(OPERAND operand, STATE initialState) {
+    private String state_machine_id;
+    private Context previous_transition_context;
+
+    InternalStateMachine(OPERAND operand, STATE initialState, int xtrace_id_seed) {
       this.operand = operand;
+      xtrace = XTrace.getLogger(operand.getClass());
       this.currentState = initialState;
       if (!optimized) {
         maybeMakeStateMachineTable();
       }
+      this.state_machine_id = operand.getClass().getSimpleName()+"-"+xtrace_id_seed;
+      xtrace.log(operand.getClass().getSimpleName() + " StateMachine initialized", 
+          "StartState", xtraceStateName(currentState), "StateMachineID", state_machine_id);
+      this.previous_transition_context = XTrace.get();
     }
 
     @Override
     public synchronized STATE getCurrentState() {
       return currentState;
     }
-
-    @Override
+    
+    public void joinPreviousTransitionXTraceContext() {
+      XTrace.join(this.previous_transition_context);
+    }
+    
     public synchronized STATE doTransition(EVENTTYPE eventType, EVENT event)
-         throws InvalidStateTransitonException  {
-      currentState = StateMachineFactory.this.doTransition
-          (operand, currentState, eventType, event);
+        throws InvalidStateTransitonException {
+      // Add an edge to the previous state machine transition if the transition is to be treated as an xtrace process
+      boolean set_previous_transition_context = false;
+      if (StateMachineFactory.this.logXTraceTransition(currentState, eventType)) {
+        if (StateMachineFactory.this.logTransitionAsXTraceProcess(currentState, eventType)) {
+          joinPreviousTransitionXTraceContext();
+        }
+        
+        // Create an event for the transition
+        xtrace.log(operand.getClass().getSimpleName()+event.toString(), 
+            "StartState", xtraceStateName(currentState), "Operand", operand.toString(), "StateMachineID", state_machine_id);
+        
+        set_previous_transition_context = true;
+      }
+      
+      // Do the transition
+      try {
+        currentState = StateMachineFactory.this.doTransition(operand, currentState, eventType, event);
+      } catch (InvalidStateTransitonException e) {
+        throw e;
+      }
+
+      if (set_previous_transition_context && XTrace.active()) {
+        this.previous_transition_context = XTrace.get();
+      }
+      
       return currentState;
     }
   }

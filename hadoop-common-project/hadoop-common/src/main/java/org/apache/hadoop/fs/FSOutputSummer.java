@@ -103,6 +103,7 @@ abstract public class FSOutputSummer extends OutputStream {
 
     for (int n=0;n<len;n+=write1(b, off+n, len-n)) {
     }
+    
   }
   
   /**

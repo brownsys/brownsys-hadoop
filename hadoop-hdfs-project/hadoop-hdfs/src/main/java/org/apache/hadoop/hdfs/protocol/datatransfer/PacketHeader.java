@@ -28,9 +28,12 @@ import org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.PacketHeaderProt
 import org.apache.hadoop.hdfs.util.ByteBufferOutputStream;
 
 import com.google.common.base.Preconditions;
-import com.google.common.primitives.Shorts;
 import com.google.common.primitives.Ints;
+import com.google.common.primitives.Shorts;
+import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+
+import edu.brown.cs.systems.xtrace.XTrace;
 
 /**
  * Header data for each packet that goes through the read/write pipelines.
@@ -51,14 +54,18 @@ import com.google.protobuf.InvalidProtocolBufferException;
 @InterfaceAudience.Private
 @InterfaceStability.Evolving
 public class PacketHeader {
-  private static final int MAX_PROTO_SIZE = 
-    PacketHeaderProto.newBuilder()
-      .setOffsetInBlock(0)
-      .setSeqno(0)
-      .setLastPacketInBlock(false)
-      .setDataLen(0)
-      .setSyncBlock(false)
-      .build().getSerializedSize();
+  private static final XTrace.Logger xtrace = XTrace.getLogger(PacketHeader.class);
+  private static final int MAX_PROTO_SIZE;
+  static {
+    MAX_PROTO_SIZE = PacketHeaderProto.newBuilder()
+        .setOffsetInBlock(0)
+        .setSeqno(0)
+        .setLastPacketInBlock(false)
+        .setDataLen(0)
+        .setSyncBlock(false)
+        .setXtrace(ByteString.copyFrom(XTrace.XTRACE_BYTES_EXAMPLE))
+        .build().getSerializedSize();
+  }
   public static final int PKT_LENGTHS_LEN =
       Ints.BYTES + Shorts.BYTES;
   public static final int PKT_MAX_HEADER_LEN =
@@ -82,6 +89,11 @@ public class PacketHeader {
       .setSeqno(seqno)
       .setLastPacketInBlock(lastPacketInBlock)
       .setDataLen(dataLen);
+    
+    if (XTrace.active()) {
+      xtrace.log("Constructing packet header");
+      builder.setXtrace(ByteString.copyFrom(XTrace.bytesBounded()));
+    }
       
     if (syncBlock) {
       // Only set syncBlock if it is specified.
@@ -116,6 +128,15 @@ public class PacketHeader {
 
   public boolean getSyncBlock() {
     return proto.getSyncBlock();
+  }
+  
+  public boolean hasXTraceContext() {
+    return proto.hasXtrace();
+  }
+  
+  public void joinXTraceContext() {
+    if (proto.hasXtrace())
+      XTrace.join(proto.getXtrace().toByteArray());
   }
 
   @Override

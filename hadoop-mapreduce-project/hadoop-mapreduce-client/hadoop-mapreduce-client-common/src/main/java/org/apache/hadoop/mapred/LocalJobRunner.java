@@ -68,12 +68,15 @@ import org.apache.hadoop.util.ReflectionUtils;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
+import edu.brown.cs.systems.xtrace.Context;
+import edu.brown.cs.systems.xtrace.XTrace;
+
 /** Implements MapReduce locally, in-process, for debugging. */
 @InterfaceAudience.Private
 @InterfaceStability.Unstable
 public class LocalJobRunner implements ClientProtocol {
-  public static final Log LOG =
-    LogFactory.getLog(LocalJobRunner.class);
+  public static final XTrace.Logger xtrace = XTrace.getLogger(LocalJobRunner.class);
+  public static final Log LOG = LogFactory.getLog(LocalJobRunner.class);
 
   /** The maximum number of map tasks to run in parallel in LocalJobRunner */
   public static final String LOCAL_MAX_MAPS =
@@ -128,6 +131,7 @@ public class LocalJobRunner implements ClientProtocol {
     boolean killed = false;
     
     private LocalDistributedCacheManager localDistributedCacheManager;
+    private final Context xtrace_context;
 
     public long getProtocolVersion(String protocol, long clientVersion) {
       return TaskUmbilicalProtocol.versionID;
@@ -178,6 +182,8 @@ public class LocalJobRunner implements ClientProtocol {
           profile.getURL().toString());
 
       jobs.put(id, this);
+      
+      this.xtrace_context = XTrace.get();
 
       this.start();
     }
@@ -197,6 +203,7 @@ public class LocalJobRunner implements ClientProtocol {
       private final Map<TaskAttemptID, MapOutputFile> mapOutputFiles;
 
       public volatile Throwable storedException;
+      private Context runnable_end_context;
 
       public MapTaskRunnable(TaskSplitMetaInfo info, int taskId, JobID jobId,
           Map<TaskAttemptID, MapOutputFile> mapOutputFiles) {
@@ -240,6 +247,8 @@ public class LocalJobRunner implements ClientProtocol {
         } catch (Throwable e) {
           this.storedException = e;
         }
+        this.runnable_end_context = XTrace.get();
+        XTrace.stop();
       }
     }
 
@@ -342,6 +351,8 @@ public class LocalJobRunner implements ClientProtocol {
 
     @Override
     public void run() {
+      XTrace.set(xtrace_context);
+      
       JobID jobId = profile.getJobID();
       JobContext jContext = new JobContextImpl(job, jobId);
       
@@ -391,7 +402,13 @@ public class LocalJobRunner implements ClientProtocol {
           mapService.shutdownNow();
           throw ie;
         }
-
+        
+        XTrace.stop();
+        for (MapTaskRunnable r : taskRunnables) {
+          XTrace.join(r.runnable_end_context);
+        }
+        
+        xtrace.log("Map tasks complete");
         LOG.info("Map task executor complete.");
 
         // After waiting for the map tasks to complete, if any of these

@@ -58,6 +58,9 @@ import org.apache.hadoop.util.VersionUtil;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Maps;
 
+import edu.brown.cs.systems.resourcetracing.backgroundtasks.HDFSBackgroundTask;
+import edu.brown.cs.systems.xtrace.XTrace;
+
 /**
  * A thread per active or standby namenode to perform:
  * <ul>
@@ -70,6 +73,7 @@ import com.google.common.collect.Maps;
 @InterfaceAudience.Private
 class BPServiceActor implements Runnable {
   
+  static final XTrace.Logger xtrace = XTrace.getLogger(BPServiceActor.class);
   static final Log LOG = DataNode.LOG;
   final InetSocketAddress nnAddr;
 
@@ -313,6 +317,7 @@ class BPServiceActor implements Runnable {
       pendingIncrementalBR.put(
           bInfo.getBlock().getBlockId(), bInfo);
       pendingReceivedRequests++;
+      xtrace.log("Triggering block report to namenode");
       pendingIncrementalBR.notifyAll();
     }
   }
@@ -522,7 +527,15 @@ class BPServiceActor implements Runnable {
           //
           lastHeartbeat = startTime;
           if (!dn.areHeartbeatsDisabledForTests()) {
-            HeartbeatResponse resp = sendHeartBeat();
+            HDFSBackgroundTask.HEARTBEAT.start();
+            long begin = System.nanoTime();
+            HeartbeatResponse resp;
+            try {
+              resp = sendHeartBeat();
+            } finally {
+              HDFSBackgroundTask.HEARTBEAT.end(System.nanoTime() - begin);
+            }
+            
             assert resp != null;
             dn.getMetrics().addHeartbeat(now() - startTime);
 
@@ -535,6 +548,7 @@ class BPServiceActor implements Runnable {
             bpos.updateActorStatesFromHeartbeat(
                 this, resp.getNameNodeHaState());
 
+            begin = System.nanoTime();
             long startProcessCommands = now();
             if (!processCommand(resp.getCommands()))
               continue;

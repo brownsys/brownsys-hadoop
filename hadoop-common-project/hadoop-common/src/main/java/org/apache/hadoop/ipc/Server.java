@@ -18,6 +18,11 @@
 
 package org.apache.hadoop.ipc;
 
+import static org.apache.hadoop.ipc.RpcConstants.AUTHORIZATION_FAILED_CALL_ID;
+import static org.apache.hadoop.ipc.RpcConstants.CONNECTION_CONTEXT_CALL_ID;
+import static org.apache.hadoop.ipc.RpcConstants.CURRENT_VERSION;
+import static org.apache.hadoop.ipc.RpcConstants.PING_CALL_ID;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -71,8 +76,6 @@ import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 import org.apache.hadoop.io.DataOutputBuffer;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableUtils;
-import static org.apache.hadoop.ipc.RpcConstants.*;
-
 import org.apache.hadoop.ipc.ProtobufRpcEngine.RpcResponseMessageWrapper;
 import org.apache.hadoop.ipc.ProtobufRpcEngine.RpcResponseWrapper;
 import org.apache.hadoop.ipc.RPC.RpcInvoker;
@@ -112,6 +115,13 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.CodedOutputStream;
 import com.google.protobuf.Message;
 import com.google.protobuf.Message.Builder;
+
+import edu.brown.cs.systems.resourcethrottling.LocalThrottlingPoints;
+import edu.brown.cs.systems.resourcetracing.resources.Network;
+import edu.brown.cs.systems.resourcetracing.resources.QueueResource;
+import edu.brown.cs.systems.xtrace.Context;
+import edu.brown.cs.systems.xtrace.Reporter.Utils;
+import edu.brown.cs.systems.xtrace.XTrace;
 
 /** An abstract IPC service.  IPC calls take a single {@link Writable} as a
  * parameter, and return a {@link Writable} as their value.  A service runs on
@@ -235,7 +245,7 @@ public abstract class Server {
     return (val == null) ? null : val.rpcInvoker; 
   }
   
-
+  public static final XTrace.Logger xtrace = XTrace.getLogger(Server.class);
   public static final Log LOG = LogFactory.getLog(Server.class);
   public static final Log AUDITLOG = 
     LogFactory.getLog("SecurityLogger."+Server.class.getName());
@@ -368,6 +378,8 @@ public abstract class Server {
   private final boolean tcpNoDelay; // if T then disable Nagle's Algorithm
 
   volatile private boolean running = true;         // true while server runs
+  
+  private QueueResource callQueueInstrumentation = null; // xresourcetracing instrumentation for the callqueue.  could be better but will do for now
   private BlockingQueue<Call> callQueue; // queued calls
 
   private List<Connection> connectionList = 
@@ -477,6 +489,10 @@ public abstract class Server {
     private ByteBuffer rpcResponse;       // the response for this call
     private final RPC.RpcKind rpcKind;
     private final byte[] clientId;
+    
+    private Context start_context;  // the X-Trace context this was received with
+    public long enqueue, dequeue, complete; // Timers for queue instrumentation; hacky but quick
+	private Context response_context; // the X-Trace context before sending the response
 
     public Call(int id, int retryCount, Writable param, 
         Connection connection) {
@@ -494,6 +510,8 @@ public abstract class Server {
       this.rpcResponse = null;
       this.rpcKind = kind;
       this.clientId = clientId;
+      Server.xtrace.log("Received RPC call", "CallID", id);
+      this.start_context = XTrace.get();
     }
     
     @Override
@@ -859,6 +877,7 @@ public abstract class Server {
     @Override
     public void run() {
       LOG.info(getName() + ": starting");
+      XTrace.stop();
       SERVER.set(Server.this);
       try {
         doRunLoop();
@@ -987,6 +1006,10 @@ public abstract class Server {
       boolean done = false;       // there is more data for this channel.
       int numElements = 0;
       Call call = null;
+      
+      if (!inHandler)
+        XTrace.stop();
+      
       try {
         synchronized (responseQueue) {
           //
@@ -1001,6 +1024,7 @@ public abstract class Server {
           // Extract the first call
           //
           call = responseQueue.removeFirst();
+          XTrace.join(call.response_context);
           SocketChannel channel = call.connection.channel;
           if (LOG.isDebugEnabled()) {
             LOG.debug(getName() + ": responding to " + call);
@@ -1013,6 +1037,7 @@ public abstract class Server {
             return true;
           }
           if (!call.rpcResponse.hasRemaining()) {
+            xtrace.log("Finished writing RPC response");
             //Clear out the response buffer so it can be collected
             call.rpcResponse = null;
             call.connection.decRpcCount();
@@ -1026,6 +1051,7 @@ public abstract class Server {
                   + " Wrote " + numBytes + " bytes.");
             }
           } else {
+            xtrace.log("Wrote partial RPC response, enqueueing for later finish");
             //
             // If we were unable to write the entire response out, then 
             // insert in Selector queue. 
@@ -1062,6 +1088,8 @@ public abstract class Server {
           done = true;               // error. no more data for this channel.
           closeConnection(call.connection);
         }
+        if (!inHandler)
+          XTrace.stop();
       }
       return done;
     }
@@ -1782,6 +1810,10 @@ public abstract class Server {
         }
         checkRpcHeaders(header);
         
+        // XTrace: one of the few places in hdfs source code where we have to explicitly call resource instrumentation code
+        Network.Read.alreadyStarted(this);
+        Network.Read.alreadyFinished(this, buf.length);
+        
         if (callId < 0) { // callIds typically used during connection setup
           processRpcOutOfBandRequest(header, dis);
         } else if (!connectionContextRead) {
@@ -1799,6 +1831,8 @@ public abstract class Server {
             ioe.getClass().getName(), ioe.getMessage());
         responder.doRespond(call);
         throw wrse;
+      } finally {
+        XTrace.stop();
       }
     }
 
@@ -1809,6 +1843,9 @@ public abstract class Server {
      */
     private void checkRpcHeaders(RpcRequestHeaderProto header)
         throws WrappedRpcServerException {
+      if (header.hasXtrace())
+        XTrace.set(header.getXtrace().toByteArray());
+      
       if (!header.hasRpcOp()) {
         String err = " IPC Server: No rpc op in rpcRequestHeader";
         throw new WrappedRpcServerException(
@@ -1870,6 +1907,9 @@ public abstract class Server {
       Call call = new Call(header.getCallId(), header.getRetryCount(),
           rpcRequest, this, ProtoUtil.convert(header.getRpcKind()), header
               .getClientId().toByteArray());
+      if (callQueueInstrumentation!=null)
+        callQueueInstrumentation.enqueue();
+      call.enqueue = System.nanoTime();
       callQueue.put(call);              // queue the call; maybe blocked here
       incRpcCount();  // Increment the rpc count
     }
@@ -2012,8 +2052,16 @@ public abstract class Server {
       ByteArrayOutputStream buf = 
         new ByteArrayOutputStream(INITIAL_RESP_BUF_SIZE);
       while (running) {
+        XTrace.stop();
         try {
           final Call call = callQueue.take(); // pop the queue; maybe blocked here
+          call.dequeue = System.nanoTime();
+          XTrace.set(call.start_context);
+          if (callQueueInstrumentation!=null)
+            callQueueInstrumentation.starting(call.enqueue, call.dequeue);
+
+          try { // xtrace try
+            
           if (LOG.isDebugEnabled()) {
             LOG.debug(getName() + ": " + call + " for RpcKind " + call.rpcKind);
           }
@@ -2095,6 +2143,12 @@ public abstract class Server {
             }
             responder.doRespond(call);
           }
+          
+          } finally { // xtrace finally
+            call.complete = System.nanoTime();
+            if (callQueueInstrumentation!=null)
+              callQueueInstrumentation.finished(call.enqueue, call.dequeue, call.complete);
+          }
         } catch (InterruptedException e) {
           if (running) {                          // unexpected -- log it
             LOG.info(getName() + " unexpectedly interrupted", e);
@@ -2172,7 +2226,13 @@ public abstract class Server {
           CommonConfigurationKeys.IPC_SERVER_RPC_READ_THREADS_KEY,
           CommonConfigurationKeys.IPC_SERVER_RPC_READ_THREADS_DEFAULT);
     }
-    this.callQueue  = new LinkedBlockingQueue<Call>(maxQueueSize); 
+    if ("NameNode".equals(Utils.getProcessName())) {
+      // Hack; put a throttling queue on NN only for now
+      this.callQueue = LocalThrottlingPoints.getThrottlingQueue(Utils.getProcessName()+"-"+serverName);
+      this.callQueueInstrumentation = new QueueResource("Server-"+System.identityHashCode(this)+"-callQueue", handlerCount);
+    } else {
+      this.callQueue  = new LinkedBlockingQueue<Call>(maxQueueSize);
+    }
     this.maxIdleTime = 2 * conf.getInt(
         CommonConfigurationKeysPublic.IPC_CLIENT_CONNECTION_MAXIDLETIME_KEY,
         CommonConfigurationKeysPublic.IPC_CLIENT_CONNECTION_MAXIDLETIME_DEFAULT);
@@ -2291,6 +2351,16 @@ public abstract class Server {
     headerBuilder.setRetryCount(call.retryCount);
     headerBuilder.setStatus(status);
     headerBuilder.setServerIpcVersionNum(CURRENT_VERSION);
+    if (XTrace.active())
+      headerBuilder.setXtrace(ByteString.copyFrom(XTrace.bytes()));
+    
+    /* X-Trace: we have to send in the response the last event in the server
+     * before the data is sent, and this is not it, there can be more events
+     * later, related to enqueuing and sending this call. To log them correctly
+     * here, we'd have to write the metadata after all these events, maybe
+     * having the X-Trace metadata as a writable after the response. Alternatively,
+     * we could use the clock within a span to log these.
+     */
 
     if (status == RpcStatusProto.SUCCESS) {
       RpcResponseHeaderProto header = headerBuilder.build();
@@ -2340,6 +2410,7 @@ public abstract class Server {
       wrapWithSasl(responseBuf, call);
     }
     call.setResponse(ByteBuffer.wrap(responseBuf.toByteArray()));
+    call.response_context = XTrace.get();
   }
   
   /**
@@ -2579,7 +2650,7 @@ public abstract class Server {
    * This is a wrapper around {@link ReadableByteChannel#read(ByteBuffer)}.
    * If the amount of data is large, it writes to channel in smaller chunks. 
    * This is to avoid jdk from creating many direct buffers as the size of 
-   * ByteBuffer increases. There should not be any performance degredation.
+   * ByteBuffer increases. There should not be any performance degradation.
    * 
    * @see ReadableByteChannel#read(ByteBuffer)
    */

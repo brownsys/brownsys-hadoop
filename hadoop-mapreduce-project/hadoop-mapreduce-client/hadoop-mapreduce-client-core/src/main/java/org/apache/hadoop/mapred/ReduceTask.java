@@ -40,10 +40,10 @@ import org.apache.hadoop.io.DataInputBuffer;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.io.RawComparator;
 import org.apache.hadoop.io.SequenceFile;
+import org.apache.hadoop.io.SequenceFile.CompressionType;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableFactories;
 import org.apache.hadoop.io.WritableFactory;
-import org.apache.hadoop.io.SequenceFile.CompressionType;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.io.compress.DefaultCodec;
 import org.apache.hadoop.mapred.SortedRanges.SkipRangeIterator;
@@ -55,6 +55,8 @@ import org.apache.hadoop.mapreduce.task.reduce.Shuffle;
 import org.apache.hadoop.util.Progress;
 import org.apache.hadoop.util.Progressable;
 import org.apache.hadoop.util.ReflectionUtils;
+
+import edu.brown.cs.systems.xtrace.XTrace;
 
 /** A Reduce task. */
 @InterfaceAudience.Private
@@ -69,6 +71,7 @@ public class ReduceTask extends Task {
        });
   }
   
+  private static final XTrace.Logger xtrace = XTrace.getLogger(ReduceTask.class);
   private static final Log LOG = LogFactory.getLog(ReduceTask.class.getName());
   private int numMaps;
 
@@ -311,6 +314,9 @@ public class ReduceTask extends Task {
   @SuppressWarnings("unchecked")
   public void run(JobConf job, final TaskUmbilicalProtocol umbilical)
     throws IOException, InterruptedException, ClassNotFoundException {
+
+    xtrace.log("ReduceTask running");
+    
     job.setBoolean(JobContext.SKIP_RECORDS, isSkipping());
 
     if (isMapOrReduce()) {
@@ -641,10 +647,12 @@ public class ReduceTask extends Task {
                                                committer,
                                                reporter, comparator, keyClass,
                                                valueClass);
+    xtrace.log("Running reduce start");
     try {
       reducer.run(reducerContext);
     } finally {
       trackedRW.close(reducerContext);
+      xtrace.log("Running reduce end");
     }
   }
   

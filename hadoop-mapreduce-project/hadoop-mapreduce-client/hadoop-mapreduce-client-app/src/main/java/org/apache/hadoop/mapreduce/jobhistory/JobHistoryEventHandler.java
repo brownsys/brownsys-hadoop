@@ -56,6 +56,8 @@ import org.apache.hadoop.service.AbstractService;
 import org.apache.hadoop.yarn.event.EventHandler;
 import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 
+import edu.brown.cs.systems.xtrace.XTrace;
+
 /**
  * The job history events get routed to this class. This class writes the Job
  * history events to the DFS directly into a staging dir and then moved to a
@@ -259,12 +261,15 @@ public class JobHistoryEventHandler extends AbstractService
             eventCounter++;
           }
 
+          XTrace.stop();
           try {
             event = eventQueue.take();
           } catch (InterruptedException e) {
             LOG.info("EventQueue take interrupted. Returning");
             return;
           }
+          event.joinContext();
+          
           // If an event has been removed from the queue. Handle it.
           // The rest of the queue is handled via stop()
           // Clear the interrupt status if it's set before calling handleEvent
@@ -480,6 +485,7 @@ public class JobHistoryEventHandler extends AbstractService
   }
 
   protected void handleEvent(JobHistoryEvent event) {
+    event.joinContext();
     synchronized (lock) {
 
       // If this is JobSubmitted Event, setup the writer

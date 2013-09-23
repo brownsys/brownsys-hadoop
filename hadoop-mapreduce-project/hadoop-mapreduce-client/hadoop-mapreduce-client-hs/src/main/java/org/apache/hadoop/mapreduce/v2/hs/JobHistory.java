@@ -172,6 +172,7 @@ public class JobHistory extends AbstractService implements HistoryContext {
   }
 
   private class MoveIntermediateToDoneRunnable implements Runnable {
+    
     @Override
     public void run() {
       try {
@@ -184,6 +185,7 @@ public class JobHistory extends AbstractService implements HistoryContext {
   }
   
   private class HistoryCleaner implements Runnable {
+    
     public void run() {
       LOG.info("History Cleaner started");
       try {

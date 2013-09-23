@@ -38,7 +38,9 @@ import org.apache.hadoop.mapreduce.v2.app.AppContext;
 import org.apache.hadoop.mapreduce.v2.app.client.ClientService;
 import org.apache.hadoop.yarn.api.protocolrecords.AllocateRequest;
 import org.apache.hadoop.yarn.api.protocolrecords.AllocateResponse;
+import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerId;
+import org.apache.hadoop.yarn.api.records.ContainerStatus;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.api.records.ResourceRequest;
@@ -47,12 +49,14 @@ import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 import org.apache.hadoop.yarn.factories.RecordFactory;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
 
+import edu.brown.cs.systems.xtrace.XTrace;
 
 /**
  * Keeps the data structures to send container requests to RM.
  */
 public abstract class RMContainerRequestor extends RMCommunicator {
   
+  private static final XTrace.Logger xtrace = XTrace.getLogger(RMContainerRequestor.class);
   private static final Log LOG = LogFactory.getLog(RMContainerRequestor.class);
 
   private int lastResponseID;
@@ -98,10 +102,12 @@ public abstract class RMContainerRequestor extends RMCommunicator {
     final String[] racks;
     //final boolean earlierAttemptFailed;
     final Priority priority;
+    private ContainerRequestEvent event;
     
     public ContainerRequest(ContainerRequestEvent event, Priority priority) {
       this(event.getAttemptID(), event.getCapability(), event.getHosts(),
           event.getRacks(), priority);
+      this.event = event;
     }
     
     public ContainerRequest(TaskAttemptId attemptID,
@@ -121,6 +127,19 @@ public abstract class RMContainerRequestor extends RMCommunicator {
       sb.append("Priority[").append(priority).append("]");
       return sb.toString();
     }
+    
+    public void joinContext() {
+      if (event!=null) {
+        event.joinContext();
+      }
+    }
+    
+    public void rememberContext() {
+      if (event!=null) {
+        event.rememberContext();
+      }
+    }
+    
   }
 
   @Override
@@ -145,6 +164,23 @@ public abstract class RMContainerRequestor extends RMCommunicator {
   }
 
   protected AllocateResponse makeRemoteRequest() throws IOException {
+    
+    for (ResourceRequest r : ask) {
+      XTrace.stop();
+      r.joinContext();
+      xtrace.log("Requesting container from RM");
+      r.rememberContext();
+    }
+    
+    for (ContainerId i : release) {
+      XTrace.stop();
+      i.joinContext();
+      xtrace.log("Requesting RM release container", "Container ID", i);
+      i.rememberContext();
+    }
+    XTrace.stop();
+    
+    
     AllocateRequest allocateRequest =
         AllocateRequest.newInstance(lastResponseID,
           super.getApplicationProgress(), new ArrayList<ResourceRequest>(ask),
@@ -169,6 +205,22 @@ public abstract class RMContainerRequestor extends RMCommunicator {
           + " resourcelimit=" + availableResources + " knownNMs="
           + clusterNmCount);
     }
+    
+    for (Container x : allocateResponse.getAllocatedContainers()) {
+      XTrace.stop();
+      x.getId().joinContext();
+      xtrace.log("Container allocated by RM");
+      x.getId().rememberContext();
+    }
+    
+    for (ContainerStatus x : allocateResponse.getCompletedContainersStatuses()) {
+      XTrace.stop();
+      x.getContainerId().joinContext();
+      xtrace.log("RM acknowledged completed container");
+      x.getContainerId().rememberContext();
+      
+    }
+    XTrace.stop();
 
     ask.clear();
     release.clear();
@@ -325,7 +377,14 @@ public abstract class RMContainerRequestor extends RMCommunicator {
       remoteRequest.setResourceName(resourceName);
       remoteRequest.setCapability(capability);
       remoteRequest.setNumContainers(0);
+//      remoteRequest.rememberContext();
       reqMap.put(capability, remoteRequest);
+    } else {
+      // XTrace - if multiple people request containers at once, this creates unwanted cross-products
+//      Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
+//      remoteRequest.joinContext();
+//      remoteRequest.rememberContext();
+//      XTraceContext.setThreadContext(start_context);
     }
     remoteRequest.setNumContainers(remoteRequest.getNumContainers() + 1);
 
@@ -368,7 +427,6 @@ public abstract class RMContainerRequestor extends RMCommunicator {
       // than requested. so guard for that.
       remoteRequest.setNumContainers(remoteRequest.getNumContainers() -1);
     }
-    
     if (remoteRequest.getNumContainers() == 0) {
       reqMap.remove(capability);
       if (reqMap.size() == 0) {
@@ -398,10 +456,12 @@ public abstract class RMContainerRequestor extends RMCommunicator {
     if(ask.contains(remoteRequest)) {
       ask.remove(remoteRequest);
     }
+    remoteRequest.rememberContext();
     ask.add(remoteRequest);    
   }
 
   protected void release(ContainerId containerId) {
+    containerId.rememberContext();
     release.add(containerId);
   }
   

@@ -29,6 +29,9 @@ import org.apache.hadoop.io.ReadaheadPool.ReadaheadRequest;
 import org.apache.hadoop.io.nativeio.NativeIO;
 import org.jboss.netty.handler.stream.ChunkedFile;
 
+import edu.brown.cs.systems.xtrace.Context;
+import edu.brown.cs.systems.xtrace.XTrace;
+
 public class FadvisedChunkedFile extends ChunkedFile {
 
   private static final Log LOG = LogFactory.getLog(FadvisedChunkedFile.class);
@@ -40,6 +43,8 @@ public class FadvisedChunkedFile extends ChunkedFile {
   private final String identifier;
 
   private ReadaheadRequest readaheadRequest;
+  
+  private Context xtrace;
 
   public FadvisedChunkedFile(RandomAccessFile file, long position, long count,
       int chunkSize, boolean manageOsCache, int readaheadLength,
@@ -50,16 +55,25 @@ public class FadvisedChunkedFile extends ChunkedFile {
     this.readaheadPool = readaheadPool;
     this.fd = file.getFD();
     this.identifier = identifier;
+    this.xtrace = XTrace.get();
   }
 
   @Override
   public Object nextChunk() throws Exception {
+    Context before = XTrace.get();
+    if (before==null)
+      XTrace.set(xtrace);
     if (manageOsCache && readaheadPool != null) {
       readaheadRequest = readaheadPool
           .readaheadStream(identifier, fd, getCurrentOffset(), readaheadLength,
               getEndOffset(), readaheadRequest);
     }
-    return super.nextChunk();
+    try {
+      return super.nextChunk();
+    } finally {
+      if (before==null)
+        XTrace.stop();
+    }
   }
 
   @Override

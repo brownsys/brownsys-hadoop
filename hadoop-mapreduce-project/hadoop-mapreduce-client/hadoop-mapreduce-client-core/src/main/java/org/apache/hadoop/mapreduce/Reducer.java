@@ -25,6 +25,8 @@ import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.task.annotation.Checkpointable;
 
+import edu.brown.cs.systems.resourcetracing.CPUTracking;
+
 import java.util.Iterator;
 
 /** 
@@ -168,6 +170,7 @@ public class Reducer<KEYIN,VALUEIN,KEYOUT,VALUEOUT> {
     setup(context);
     try {
       while (context.nextKey()) {
+        CPUTracking.continueTracking();
         reduce(context.getCurrentKey(), context.getValues(), context);
         // If a back up store is used, reset it
         Iterator<VALUEIN> iter = context.getValues().iterator();

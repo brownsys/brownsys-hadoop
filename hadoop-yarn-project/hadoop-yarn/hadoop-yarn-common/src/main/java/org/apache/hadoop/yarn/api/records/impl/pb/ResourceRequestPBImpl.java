@@ -29,6 +29,10 @@ import org.apache.hadoop.yarn.proto.YarnProtos.ResourceProto;
 import org.apache.hadoop.yarn.proto.YarnProtos.ResourceRequestProto;
 import org.apache.hadoop.yarn.proto.YarnProtos.ResourceRequestProtoOrBuilder;
 
+import com.google.protobuf.ByteString;
+
+import edu.brown.cs.systems.xtrace.XTrace;
+
 @Private
 @Unstable
 public class ResourceRequestPBImpl extends  ResourceRequest {
@@ -161,6 +165,20 @@ public class ResourceRequestPBImpl extends  ResourceRequest {
   public void setRelaxLocality(boolean relaxLocality) {
     maybeInitBuilder();
     builder.setRelaxLocality(relaxLocality);
+  }
+
+  @Override
+  public void rememberContext() {
+    maybeInitBuilder();
+    if (XTrace.active())
+      builder.setXtrace(ByteString.copyFrom(XTrace.bytes()));
+  }
+  
+  @Override
+  public void joinContext() {
+    ResourceRequestProtoOrBuilder p = viaProto ? proto : builder;
+    if (p.hasXtrace())
+      XTrace.join(p.getXtrace().toByteArray());
   }
 
   private PriorityPBImpl convertFromProtoFormat(PriorityProto p) {

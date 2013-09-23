@@ -32,6 +32,8 @@ import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
 import org.apache.hadoop.hdfs.server.datanode.DataNode;
 import org.apache.hadoop.hdfs.server.protocol.BlockCommand;
 
+import edu.brown.cs.systems.resourcetracing.backgroundtasks.HDFSBackgroundTask;
+
 /**
  * This class is a container of multiple thread pools, each for a volume,
  * so that we can schedule async disk operations easily.
@@ -153,11 +155,11 @@ class FsDatasetAsyncDiskService {
    * dfsUsed statistics accordingly.
    */
   void deleteAsync(FsVolumeImpl volume, File blockFile, File metaFile,
-      ExtendedBlock block) {
+      ExtendedBlock block, long begin) {
     LOG.info("Scheduling " + block.getLocalBlock()
         + " file " + blockFile + " for deletion");
     ReplicaFileDeleteTask deletionTask = new ReplicaFileDeleteTask(
-        volume, blockFile, metaFile, block);
+        volume, blockFile, metaFile, block, begin);
     execute(volume.getCurrentDir(), deletionTask);
   }
   
@@ -169,13 +171,15 @@ class FsDatasetAsyncDiskService {
     final File blockFile;
     final File metaFile;
     final ExtendedBlock block;
+    final long begin;
     
     ReplicaFileDeleteTask(FsVolumeImpl volume, File blockFile,
-        File metaFile, ExtendedBlock block) {
+        File metaFile, ExtendedBlock block, long deleteBegin) {
       this.volume = volume;
       this.blockFile = blockFile;
       this.metaFile = metaFile;
       this.block = block;
+      this.begin = deleteBegin;
     }
 
     @Override
@@ -201,6 +205,7 @@ class FsDatasetAsyncDiskService {
         LOG.info("Deleted " + block.getBlockPoolId() + " "
             + block.getLocalBlock() + " file " + blockFile);
       }
+      HDFSBackgroundTask.INVALIDATE.end(System.nanoTime() - begin);
     }
   }
 }

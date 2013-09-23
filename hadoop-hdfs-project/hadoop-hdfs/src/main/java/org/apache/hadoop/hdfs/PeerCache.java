@@ -22,16 +22,19 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.hdfs.net.Peer;
+import org.apache.hadoop.hdfs.protocol.DatanodeID;
+import org.apache.hadoop.io.IOUtils;
+import org.apache.hadoop.util.Daemon;
+import org.apache.hadoop.util.Time;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.LinkedListMultimap;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.hdfs.protocol.DatanodeID;
-import org.apache.hadoop.io.IOUtils;
-import org.apache.hadoop.hdfs.net.Peer;
-import org.apache.hadoop.util.Daemon;
-import org.apache.hadoop.util.Time;
+
+import edu.brown.cs.systems.xtrace.XTrace;
 
 /**
  * A cache of input stream sockets to Data Node.
@@ -131,6 +134,7 @@ class PeerCache {
     daemon = new Daemon(new Runnable() {
       @Override
       public void run() {
+        XTrace.stop(); // Long-lived, don't attribute to a task
         try {
           PeerCache.this.run();
         } catch(InterruptedException e) {

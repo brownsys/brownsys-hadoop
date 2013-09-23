@@ -80,6 +80,8 @@ import org.apache.hadoop.yarn.server.utils.Lock;
 import org.apache.hadoop.yarn.util.resource.ResourceCalculator;
 import org.apache.hadoop.yarn.util.resource.Resources;
 
+import edu.brown.cs.systems.xtrace.XTrace;
+
 @LimitedPrivate("yarn")
 @Evolving
 @SuppressWarnings("unchecked")
@@ -87,6 +89,7 @@ public class CapacityScheduler
   implements PreemptableResourceScheduler, CapacitySchedulerContext,
              Configurable {
 
+  private static final XTrace.Logger xtrace = XTrace.getLogger(CapacityScheduler.class);
   private static final Log LOG = LogFactory.getLog(CapacityScheduler.class);
 
   private CSQueue root;
@@ -637,9 +640,13 @@ public class CapacityScheduler
     // Process completed containers
     for (ContainerStatus completedContainer : completedContainers) {
       ContainerId containerId = completedContainer.getContainerId();
+      XTrace.stop();
+      containerId.joinContext();
       LOG.debug("Container FINISHED: " + containerId);
+      xtrace.log("Container Finished", "Container ID",containerId);
       completedContainer(getRMContainer(containerId), 
           completedContainer, RMContainerEventType.FINISHED);
+      XTrace.stop();
     }
 
     // Now node data structures are upto date and ready for scheduling.
@@ -691,6 +698,9 @@ public class CapacityScheduler
   }
 
   private void containerLaunchedOnNode(ContainerId containerId, FiCaSchedulerNode node) {
+    XTrace.stop();
+    containerId.joinContext();
+    
     // Get the application for the finished container
     ApplicationAttemptId applicationAttemptId = containerId.getApplicationAttemptId();
     FiCaSchedulerApp application = getApplication(applicationAttemptId);
@@ -704,10 +714,12 @@ public class CapacityScheduler
     }
     
     application.containerLaunchedOnNode(containerId, node.getNodeID());
+    XTrace.stop();
   }
 
   @Override
   public void handle(SchedulerEvent event) {
+    event.joinContext();
     switch(event.getType()) {
     case NODE_ADDED:
     {

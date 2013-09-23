@@ -146,7 +146,7 @@ public abstract class TaskImpl implements Task, EventHandler<TaskEvent> {
                <TaskImpl, TaskStateInternal, TaskEventType, TaskEvent> 
             stateMachineFactory 
            = new StateMachineFactory<TaskImpl, TaskStateInternal, TaskEventType, TaskEvent>
-               (TaskStateInternal.NEW)
+               (TaskStateInternal.NEW, StateMachineFactory.Trace.KEEPALIVE)
 
     // define the state machine of Task
 
@@ -621,6 +621,7 @@ public abstract class TaskImpl implements Task, EventHandler<TaskEvent> {
 
   @Override
   public void handle(TaskEvent event) {
+    event.joinContext();
     if (LOG.isDebugEnabled()) {
       LOG.debug("Processing " + event.getTaskID() + " of type "
           + event.getType());

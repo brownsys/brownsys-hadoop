@@ -64,6 +64,8 @@ public interface Job {
   int getTotalReduces();
   int getCompletedMaps();
   int getCompletedReduces();
+  int getAndJoinCompletedMaps();
+  int getAndJoinCompletedReduces();
   float getProgress();
   boolean isUber();
   String getUserName();

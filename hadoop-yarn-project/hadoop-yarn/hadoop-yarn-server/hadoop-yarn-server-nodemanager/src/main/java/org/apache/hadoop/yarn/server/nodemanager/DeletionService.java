@@ -149,7 +149,7 @@ public class DeletionService extends AbstractService {
     // the dependent task fails then it will be marked as false in
     // fileDeletionTaskFinished().
     private boolean success;
-    
+
     private FileDeletionTask(DeletionService delService, String user,
         Path subDir, List<Path> baseDirs) {
       this.delService = delService;

@@ -71,7 +71,7 @@ public class LocalizedResource implements EventHandler<ResourceEvent> {
   private static final StateMachineFactory<LocalizedResource,ResourceState,
       ResourceEventType,ResourceEvent> stateMachineFactory =
         new StateMachineFactory<LocalizedResource,ResourceState,
-          ResourceEventType,ResourceEvent>(ResourceState.INIT)
+          ResourceEventType,ResourceEvent>(ResourceState.INIT, StateMachineFactory.Trace.KEEPALIVE)
 
     // From INIT (ref == 0, awaiting req)
     .addTransition(ResourceState.INIT, ResourceState.DOWNLOADING,
@@ -81,7 +81,7 @@ public class LocalizedResource implements EventHandler<ResourceEvent> {
     .addTransition(ResourceState.DOWNLOADING, ResourceState.DOWNLOADING,
         ResourceEventType.REQUEST, new FetchResourceTransition()) // TODO: Duplicate addition!!
     .addTransition(ResourceState.DOWNLOADING, ResourceState.LOCALIZED,
-        ResourceEventType.LOCALIZED, new FetchSuccessTransition())
+        ResourceEventType.LOCALIZED, new FetchSuccessTransition(), StateMachineFactory.Trace.ALWAYS)
     .addTransition(ResourceState.DOWNLOADING,ResourceState.DOWNLOADING,
         ResourceEventType.RELEASE, new ReleaseTransition())
     .addTransition(ResourceState.DOWNLOADING, ResourceState.FAILED,
@@ -180,6 +180,7 @@ public class LocalizedResource implements EventHandler<ResourceEvent> {
   @Override
   public void handle(ResourceEvent event) {
     try {
+      event.joinContext();
       this.writeLock.lock();
 
       Path resourcePath = event.getLocalResourceRequest().getPath();

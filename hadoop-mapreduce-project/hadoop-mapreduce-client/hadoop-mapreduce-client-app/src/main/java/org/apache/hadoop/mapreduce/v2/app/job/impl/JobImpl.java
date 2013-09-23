@@ -24,6 +24,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -125,6 +126,9 @@ import org.apache.hadoop.yarn.state.StateMachine;
 import org.apache.hadoop.yarn.state.StateMachineFactory;
 import org.apache.hadoop.yarn.util.Clock;
 
+import edu.brown.cs.systems.xtrace.Context;
+import edu.brown.cs.systems.xtrace.XTrace;
+
 /** Implementation of Job interface. Maintains the state machines of Job.
  * The read and write calls use ReadWriteLock for concurrency.
  */
@@ -138,6 +142,7 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
   private static final TaskCompletionEvent[]
     EMPTY_TASK_COMPLETION_EVENTS = new TaskCompletionEvent[0];
 
+  private static final XTrace.Logger xtrace = XTrace.getLogger(JobImpl.class);
   private static final Log LOG = LogFactory.getLog(JobImpl.class);
 
   //The maximum fraction of fetch failures allowed for a map
@@ -233,7 +238,7 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
     StateMachineFactory<JobImpl, JobStateInternal, JobEventType, JobEvent> 
        stateMachineFactory
      = new StateMachineFactory<JobImpl, JobStateInternal, JobEventType, JobEvent>
-              (JobStateInternal.NEW)
+              (JobStateInternal.NEW, StateMachineFactory.Trace.KEEPALIVE)
 
           // Transitions from NEW state
           .addTransition(JobStateInternal.NEW, JobStateInternal.NEW,
@@ -595,6 +600,14 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
   private boolean isUber = false;
 
   private Credentials jobCredentials;
+  private Collection<Context> completedTaskContexts = new HashSet<Context>();
+  private Collection<Context> succeededMapTaskContexts = new HashSet<Context>();
+  private Collection<Context> succeededReduceTaskContexts = new HashSet<Context>();
+  private Collection<Context> failedMapTaskContexts = new HashSet<Context>();
+  private Collection<Context> failedReduceTaskContexts = new HashSet<Context>();
+  private Collection<Context> killedMapTaskContexts = new HashSet<Context>();
+  private Collection<Context> killedReduceTaskContexts = new HashSet<Context>();
+  
   private Token<JobTokenIdentifier> jobToken;
   private JobTokenSecretManager jobTokenSecretManager;
   
@@ -692,11 +705,45 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
       readLock.unlock();
     }
   }
+  
+  @Override
+  public int getAndJoinCompletedMaps() {
+    readLock.lock();
+    try {
+      for (Context ctx : succeededMapTaskContexts)
+        XTrace.join(ctx);
+      for (Context ctx : failedMapTaskContexts)
+        XTrace.join(ctx);
+      for (Context ctx : killedMapTaskContexts)
+        XTrace.join(ctx);
+      return succeededMapTaskCount + failedMapTaskCount + killedMapTaskCount;
+    } finally {
+      readLock.unlock();
+    }
+  }
+  
 
   @Override
   public int getCompletedReduces() {
     readLock.lock();
     try {
+      return succeededReduceTaskCount + failedReduceTaskCount 
+                  + killedReduceTaskCount;
+    } finally {
+      readLock.unlock();
+    }
+  }
+  
+  @Override
+  public int getAndJoinCompletedReduces() {
+    readLock.lock();
+    try {
+      for (Context ctx : succeededReduceTaskContexts)
+        XTrace.join(ctx);
+      for (Context ctx : failedReduceTaskContexts)
+        XTrace.join(ctx);
+      for (Context ctx : killedReduceTaskContexts)
+        XTrace.join(ctx);
       return succeededReduceTaskCount + failedReduceTaskCount 
                   + killedReduceTaskCount;
     } finally {
@@ -790,6 +837,7 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
     readLock.lock();
     try {
       JobState state = getState();
+      joinStateMachineXTraceContext();
 
       // jobFile can be null if the job is not yet inited.
       String jobFile =
@@ -911,6 +959,7 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
    * The only entry point to change the Job.
    */
   public void handle(JobEvent event) {
+    event.joinContext();
     if (LOG.isDebugEnabled()) {
       LOG.debug("Processing " + event.getJobId() + " of type "
           + event.getType());
@@ -969,6 +1018,15 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
     }
   }
   
+  private void joinStateMachineXTraceContext() {
+    readLock.lock();
+    try {
+      getStateMachine().joinPreviousTransitionXTraceContext();
+    } finally {
+      readLock.unlock();
+    }    
+  }
+  
   
   //helpful in testing
   protected void addTask(Task task) {
@@ -1012,8 +1070,10 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
   
   protected JobStateInternal checkReadyForCommit() {
     JobStateInternal currentState = getInternalState();
+    joinStateMachineXTraceContext();
     if (completedTaskCount == tasks.size()
         && currentState == JobStateInternal.RUNNING) {
+      xtrace.log("Job ready for commit.", "Completed Tasks", tasks.size(), "Current State", currentState);
       eventHandler.handle(new CommitterJobCommitEvent(jobId, getJobContext()));
       return JobStateInternal.COMMITTING;
     }
@@ -1025,6 +1085,7 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
     if (getInternalState() == JobStateInternal.RUNNING) {
       metrics.endRunningJob(this);
     }
+    joinStateMachineXTraceContext();
     if (finishTime == 0) setFinishTime();
     eventHandler.handle(new JobFinishEvent(jobId));
 
@@ -1368,6 +1429,7 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
         // create the Tasks but don't start them yet
         createMapTasks(job, inputLength, taskSplitMetaInfo);
         createReduceTasks(job);
+        xtrace.log("Created map and reduce tasks");
 
         job.metrics.endPreparingJob(job);
         return JobStateInternal.INITED;
@@ -1424,7 +1486,11 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
 
     private void createMapTasks(JobImpl job, long inputLength,
                                 TaskSplitMetaInfo[] splits) {
+
+      xtrace.log("Creating Map Tasks", "Input Length", inputLength, "Num Splits", splits.length);
+      Context start_context = XTrace.get();
       for (int i=0; i < job.numMapTasks; ++i) {
+        XTrace.set(start_context);
         TaskImpl task =
             new MapTaskImpl(job.jobId, i,
                 job.eventHandler, 
@@ -1442,7 +1508,10 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
     }
 
     private void createReduceTasks(JobImpl job) {
+      xtrace.log("Creating Reduce Tasks", "Num Reduces", job.numReduceTasks);
+      Context start_context = XTrace.get();
       for (int i = 0; i < job.numReduceTasks; i++) {
+        XTrace.set(start_context);
         TaskImpl task =
             new ReduceTaskImpl(job.jobId, i,
                 job.eventHandler, 
@@ -1543,6 +1612,10 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
   private void unsuccessfulFinish(JobStateInternal finalState) {
       if (finishTime == 0) setFinishTime();
       cleanupProgress = 1.0f;
+      for (Context ctx : succeededMapTaskContexts)
+        XTrace.join(ctx);
+      for (Context ctx : succeededReduceTaskContexts)
+        XTrace.join(ctx);
       JobUnsuccessfulCompletionEvent unsuccessfulJobEvent =
           new JobUnsuccessfulCompletionEvent(oldJobId,
               finishTime,
@@ -1571,6 +1644,14 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
 
     job.mayBeConstructFinalFullCounters();
 
+    for (Context ctx : job.succeededMapTaskContexts)
+      XTrace.join(ctx);
+    for (Context ctx : job.succeededReduceTaskContexts)
+      XTrace.join(ctx);
+    for (Context ctx : job.failedMapTaskContexts)
+      XTrace.join(ctx);
+    for (Context ctx : job.failedReduceTaskContexts)
+      XTrace.join(ctx);
     JobFinishedEvent jfe = new JobFinishedEvent(
         job.oldJobId, job.finishTime,
         job.succeededMapTaskCount, job.succeededReduceTaskCount,
@@ -1807,6 +1888,14 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
         String diagnosticMsg = "Job failed as tasks failed. " +
             "failedMaps:" + job.failedMapTaskCount + 
             " failedReduces:" + job.failedReduceTaskCount;
+        
+        for (Context ctx : job.failedMapTaskContexts)
+          XTrace.join(ctx);
+        for (Context ctx : job.failedReduceTaskContexts)
+          XTrace.join(ctx);
+        
+        xtrace.log("Job failed as tasks failed.", "Failed Maps", job.failedMapTaskCount, "Failed Reduces", job.failedReduceTaskCount);
+        
         LOG.info(diagnosticMsg);
         job.addDiagnostic(diagnosticMsg);
         job.eventHandler.handle(new CommitterJobAbortEvent(job.jobId,
@@ -1820,8 +1909,10 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
 
     private void taskSucceeded(JobImpl job, Task task) {
       if (task.getType() == TaskType.MAP) {
+        job.succeededMapTaskContexts.add(XTrace.get());
         job.succeededMapTaskCount++;
       } else {
+        job.succeededReduceTaskContexts.add(XTrace.get());
         job.succeededReduceTaskCount++;
       }
       job.metrics.completedTask(task);
@@ -1829,8 +1920,10 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
   
     private void taskFailed(JobImpl job, Task task) {
       if (task.getType() == TaskType.MAP) {
+        job.failedMapTaskContexts.add(XTrace.get());
         job.failedMapTaskCount++;
       } else if (task.getType() == TaskType.REDUCE) {
+        job.failedReduceTaskContexts.add(XTrace.get());
         job.failedReduceTaskCount++;
       }
       job.addDiagnostic("Task failed " + task.getID());
@@ -1839,8 +1932,10 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
 
     private void taskKilled(JobImpl job, Task task) {
       if (task.getType() == TaskType.MAP) {
+        job.killedMapTaskContexts.add(XTrace.get());
         job.killedMapTaskCount++;
       } else if (task.getType() == TaskType.REDUCE) {
+        job.killedReduceTaskContexts.add(XTrace.get());
         job.killedReduceTaskCount++;
       }
       job.metrics.killedTask(task);
@@ -1902,6 +1997,8 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
     @Override
     public void transition(JobImpl job, JobEvent event) {
       //succeeded map task is restarted back
+      job.succeededMapTaskContexts.add(XTrace.get());
+      job.completedTaskContexts.add(XTrace.get());
       job.completedTaskCount--;
       job.succeededMapTaskCount--;
     }

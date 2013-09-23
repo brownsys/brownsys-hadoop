@@ -98,6 +98,7 @@ public class NonAggregatingLogHandler extends AbstractService implements
   @SuppressWarnings("unchecked")
   @Override
   public void handle(LogHandlerEvent event) {
+    event.joinContext();
     switch (event.getType()) {
       case APPLICATION_STARTED:
         LogHandlerAppStartedEvent appStartedEvent =

@@ -26,6 +26,10 @@ import org.apache.hadoop.yarn.proto.YarnProtos.ApplicationAttemptIdProto;
 import org.apache.hadoop.yarn.proto.YarnProtos.ContainerIdProto;
 
 import com.google.common.base.Preconditions;
+import com.google.protobuf.ByteString;
+
+import edu.brown.cs.systems.xtrace.Context;
+import edu.brown.cs.systems.xtrace.XTrace;
 
 @Private
 @Unstable
@@ -33,6 +37,7 @@ public class ContainerIdPBImpl extends ContainerId {
   ContainerIdProto proto = null;
   ContainerIdProto.Builder builder = null;
   private ApplicationAttemptId applicationAttemptId = null;
+  Context xmd = null;
 
   public ContainerIdPBImpl() {
     builder = ContainerIdProto.newBuilder();
@@ -41,6 +46,9 @@ public class ContainerIdPBImpl extends ContainerId {
   public ContainerIdPBImpl(ContainerIdProto proto) {
     this.proto = proto;
     this.applicationAttemptId = convertFromProtoFormat(proto.getAppAttemptId());
+    if (proto!=null && proto.hasXtrace()) {
+      xmd = Context.parse(proto.getXtrace().toByteArray());
+    }    
   }
   
   public ContainerIdProto getProto() {
@@ -74,6 +82,16 @@ public class ContainerIdPBImpl extends ContainerId {
     this.applicationAttemptId = atId;
   }
 
+  @Override
+  public void rememberContext() {
+    xmd = XTrace.get();
+  }
+  
+  @Override
+  public void joinContext() {
+    XTrace.join(xmd);
+  }
+
   private ApplicationAttemptIdPBImpl convertFromProtoFormat(
       ApplicationAttemptIdProto p) {
     return new ApplicationAttemptIdPBImpl(p);
@@ -86,6 +104,9 @@ public class ContainerIdPBImpl extends ContainerId {
 
   @Override
   protected void build() {
+    if (xmd!=null) {
+      builder.setXtrace(ByteString.copyFrom(xmd.bytes()));
+    }
     proto = builder.build();
     builder = null;
   }

@@ -37,16 +37,18 @@ import org.apache.hadoop.yarn.event.Dispatcher;
 import org.apache.hadoop.yarn.server.nodemanager.ContainerExecutor;
 import org.apache.hadoop.yarn.server.nodemanager.Context;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.container.ContainerKillEvent;
-import org.apache.hadoop.yarn.util.ResourceCalculatorProcessTree;
 import org.apache.hadoop.yarn.util.ResourceCalculatorPlugin;
+import org.apache.hadoop.yarn.util.ResourceCalculatorProcessTree;
 
 import com.google.common.base.Preconditions;
+
+import edu.brown.cs.systems.xtrace.XTrace;
 
 public class ContainersMonitorImpl extends AbstractService implements
     ContainersMonitor {
 
-  final static Log LOG = LogFactory
-      .getLog(ContainersMonitorImpl.class);
+  final static XTrace.Logger xtrace = XTrace.getLogger(ContainersMonitorImpl.class);
+  final static Log LOG = LogFactory.getLog(ContainersMonitorImpl.class);
 
   private long monitoringInterval;
   private MonitoringThread monitoringThread;
@@ -308,13 +310,14 @@ public class ContainersMonitorImpl extends AbstractService implements
   }
 
   private class MonitoringThread extends Thread {
+
     public MonitoringThread() {
       super("Container Monitor");
     }
 
     @Override
     public void run() {
-
+      xtrace.log("Container Monitor Thread started");
       while (true) {
 
         // Print the processTrees for debugging.
@@ -525,6 +528,7 @@ public class ContainersMonitorImpl extends AbstractService implements
 
   @Override
   public void handle(ContainersMonitorEvent monitoringEvent) {
+    monitoringEvent.joinContext();
 
     if (!isEnabled()) {
       return;

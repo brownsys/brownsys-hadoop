@@ -30,7 +30,10 @@ import org.apache.hadoop.yarn.proto.YarnProtos.LocalResourceTypeProto;
 import org.apache.hadoop.yarn.proto.YarnProtos.LocalResourceVisibilityProto;
 import org.apache.hadoop.yarn.proto.YarnProtos.URLProto;
 
+import com.google.protobuf.ByteString;
 import com.google.protobuf.TextFormat;
+
+import edu.brown.cs.systems.xtrace.XTrace;
 
 @Private
 @Unstable
@@ -190,6 +193,20 @@ public class LocalResourcePBImpl extends LocalResource {
       return;
     }
     builder.setPattern(pattern);
+  }
+
+  @Override
+  public void rememberContext() {
+    maybeInitBuilder();
+    if (XTrace.active())
+      builder.setXtrace(ByteString.copyFrom(XTrace.bytes()));
+  }
+
+  @Override
+  public void joinContext() {
+    LocalResourceProtoOrBuilder p = viaProto ? proto : builder;
+    if (p.hasXtrace())
+      XTrace.join(p.getXtrace().toByteArray());
   }
 
   private LocalResourceTypeProto convertToProtoFormat(LocalResourceType e) {

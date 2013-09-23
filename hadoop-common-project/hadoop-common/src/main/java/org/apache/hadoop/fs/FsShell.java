@@ -34,10 +34,15 @@ import org.apache.hadoop.fs.shell.FsCommand;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 
+import com.google.common.base.Joiner;
+
+import edu.brown.cs.systems.xtrace.XTrace;
+
 /** Provide command line access to a FileSystem. */
 @InterfaceAudience.Private
 public class FsShell extends Configured implements Tool {
   
+  static final XTrace.Logger XTRACE = XTrace.getLogger(FsShell.class);
   static final Log LOG = LogFactory.getLog(FsShell.class);
 
   private FileSystem fs;
@@ -247,22 +252,28 @@ public class FsShell extends Configured implements Tool {
     } else {
       String cmd = argv[0];
       Command instance = null;
+      XTrace.startTask(true);
+      XTrace.setTenantClass(0);
+      XTRACE.tag("Executing command", Joiner.on(" ").join(argv));
       try {
         instance = commandFactory.getInstance(cmd);
         if (instance == null) {
           throw new UnknownCommandException();
         }
         exitCode = instance.run(Arrays.copyOfRange(argv, 1, argv.length));
+        XTRACE.log("Finished executing command");
       } catch (IllegalArgumentException e) {
         displayError(cmd, e.getLocalizedMessage());
         if (instance != null) {
           printInstanceUsage(System.err, instance);
         }
+        XTRACE.log("Command failed due to illegal argument");
       } catch (Exception e) {
         // instance.run catches IOE, so something is REALLY wrong if here
         LOG.debug("Error", e);
         displayError(cmd, "Fatal internal error");
         e.printStackTrace(System.err);
+        XTRACE.log("Fatal internal error", "Message", e.getMessage());
       }
     }
     return exitCode;

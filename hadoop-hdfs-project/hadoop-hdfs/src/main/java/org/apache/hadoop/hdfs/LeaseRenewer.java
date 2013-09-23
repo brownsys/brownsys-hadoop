@@ -35,7 +35,10 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.util.Daemon;
 import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.util.Time;
+
 import com.google.common.annotations.VisibleForTesting;
+
+import edu.brown.cs.systems.xtrace.XTrace;
 
 /**
  * <p>
@@ -69,6 +72,7 @@ import com.google.common.annotations.VisibleForTesting;
  * </p>
  */
 class LeaseRenewer {
+  static final XTrace.Logger xtrace = XTrace.getLogger(LeaseRenewer.class);
   static final Log LOG = LogFactory.getLog(LeaseRenewer.class);
 
   static final long LEASE_RENEWER_GRACE_DEFAULT = 60*1000L;
@@ -290,6 +294,9 @@ class LeaseRenewer {
         daemon = new Daemon(new Runnable() {
           @Override
           public void run() {
+        	xtrace.log("Lease renewer daemon started");
+        	XTrace.stop(); // don't let the task id leak to lease renewer.
+        	// if lease renewer tracing desired, should start a new task here and maybe log an event.
             try {
               if (LOG.isDebugEnabled()) {
                 LOG.debug("Lease renewer daemon for " + clientsString()

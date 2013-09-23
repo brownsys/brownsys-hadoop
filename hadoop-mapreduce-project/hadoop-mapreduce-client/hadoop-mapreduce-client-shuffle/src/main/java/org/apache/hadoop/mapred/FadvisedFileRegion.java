@@ -30,6 +30,9 @@ import org.apache.hadoop.io.ReadaheadPool.ReadaheadRequest;
 import org.apache.hadoop.io.nativeio.NativeIO;
 import org.jboss.netty.channel.DefaultFileRegion;
 
+import edu.brown.cs.systems.xtrace.Context;
+import edu.brown.cs.systems.xtrace.XTrace;
+
 public class FadvisedFileRegion extends DefaultFileRegion {
 
   private static final Log LOG = LogFactory.getLog(FadvisedFileRegion.class);
@@ -41,6 +44,8 @@ public class FadvisedFileRegion extends DefaultFileRegion {
   private final String identifier;
 
   private ReadaheadRequest readaheadRequest;
+  
+  private Context xtrace;
 
   public FadvisedFileRegion(RandomAccessFile file, long position, long count,
       boolean manageOsCache, int readaheadLength, ReadaheadPool readaheadPool,
@@ -51,17 +56,26 @@ public class FadvisedFileRegion extends DefaultFileRegion {
     this.readaheadPool = readaheadPool;
     this.fd = file.getFD();
     this.identifier = identifier;
+    this.xtrace = XTrace.get();
   }
 
   @Override
   public long transferTo(WritableByteChannel target, long position)
       throws IOException {
+    Context before = XTrace.get();
+    if (before==null)
+      XTrace.set(xtrace);
     if (manageOsCache && readaheadPool != null) {
       readaheadRequest = readaheadPool.readaheadStream(identifier, fd,
           getPosition() + position, readaheadLength,
           getPosition() + getCount(), readaheadRequest);
     }
-    return super.transferTo(target, position);
+    try {
+      return super.transferTo(target, position);
+    } finally {
+      if (before==null)
+        XTrace.stop();
+    }
   }
 
   @Override

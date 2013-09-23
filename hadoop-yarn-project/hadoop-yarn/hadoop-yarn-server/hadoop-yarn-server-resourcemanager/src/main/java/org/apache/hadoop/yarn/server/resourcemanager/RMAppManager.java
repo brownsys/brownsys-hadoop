@@ -54,12 +54,15 @@ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.YarnScheduler;
 import org.apache.hadoop.yarn.server.security.ApplicationACLsManager;
 import org.apache.hadoop.yarn.server.utils.BuilderUtils;
 
+import edu.brown.cs.systems.xtrace.XTrace;
+
 /**
  * This class manages the list of applications for the resource manager. 
  */
 public class RMAppManager implements EventHandler<RMAppManagerEvent>, 
                                         Recoverable {
 
+  private static final XTrace.Logger xtrace = XTrace.getLogger(RMAppManager.class);
   private static final Log LOG = LogFactory.getLog(RMAppManager.class);
 
   private int completedAppsMax = YarnConfiguration.DEFAULT_RM_MAX_COMPLETED_APPLICATIONS;
@@ -241,6 +244,7 @@ public class RMAppManager implements EventHandler<RMAppManagerEvent>,
       ApplicationSubmissionContext submissionContext, long submitTime,
       boolean isRecovered, String user) throws YarnException {
     ApplicationId applicationId = submissionContext.getApplicationId();
+    xtrace.log("Submitting application", "Application ID", applicationId.getId());
 
     // Validation of the ApplicationSubmissionContext needs to be completed
     // here. Only those fields that are dependent on RM's configuration are
@@ -383,6 +387,7 @@ public class RMAppManager implements EventHandler<RMAppManagerEvent>,
 
   @Override
   public void handle(RMAppManagerEvent event) {
+    event.joinContext();
     ApplicationId applicationId = event.getApplicationId();
     LOG.debug("RMAppManager processing event for " 
         + applicationId + " of type " + event.getType());

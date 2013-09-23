@@ -27,6 +27,7 @@ import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.hdfs.DFSUtil;
 
+
 /** A map from host names to datanode descriptors. */
 @InterfaceAudience.Private
 @InterfaceStability.Evolving
@@ -34,6 +35,22 @@ class Host2NodesMap {
   private HashMap<String, DatanodeDescriptor[]> map
     = new HashMap<String, DatanodeDescriptor[]>();
   private ReadWriteLock hostmapLock = new ReentrantReadWriteLock();
+  
+  private void lockReadLock() {
+    hostmapLock.readLock().lock();
+  }
+  
+  private void unlockReadLock() {
+    hostmapLock.readLock().unlock();
+  }
+  
+  private void lockWriteLock() {
+    hostmapLock.writeLock().lock();
+  }
+  
+  private void unlockWriteLock() {
+    hostmapLock.writeLock().unlock();
+  }
 
   /** Check if node is already in the map. */
   boolean contains(DatanodeDescriptor node) {
@@ -42,7 +59,7 @@ class Host2NodesMap {
     }
       
     String ipAddr = node.getIpAddr();
-    hostmapLock.readLock().lock();
+    lockReadLock();
     try {
       DatanodeDescriptor[] nodes = map.get(ipAddr);
       if (nodes != null) {
@@ -53,7 +70,7 @@ class Host2NodesMap {
         }
       }
     } finally {
-      hostmapLock.readLock().unlock();
+      unlockReadLock();
     }
     return false;
   }
@@ -62,7 +79,7 @@ class Host2NodesMap {
    * return true if the node is added; false otherwise.
    */
   boolean add(DatanodeDescriptor node) {
-    hostmapLock.writeLock().lock();
+    lockWriteLock();
     try {
       if (node==null || contains(node)) {
         return false;
@@ -82,7 +99,7 @@ class Host2NodesMap {
       map.put(ipAddr, newNodes);
       return true;
     } finally {
-      hostmapLock.writeLock().unlock();
+      unlockWriteLock();
     }
   }
     
@@ -95,7 +112,7 @@ class Host2NodesMap {
     }
       
     String ipAddr = node.getIpAddr();
-    hostmapLock.writeLock().lock();
+    lockWriteLock();
     try {
 
       DatanodeDescriptor[] nodes = map.get(ipAddr);
@@ -128,7 +145,7 @@ class Host2NodesMap {
         return true;
       }
     } finally {
-      hostmapLock.writeLock().unlock();
+      unlockWriteLock();
     }
   }
     
@@ -141,7 +158,7 @@ class Host2NodesMap {
       return null;
     }
       
-    hostmapLock.readLock().lock();
+    lockReadLock();
     try {
       DatanodeDescriptor[] nodes = map.get(ipAddr);
       // no entry
@@ -155,7 +172,7 @@ class Host2NodesMap {
       // more than one node
       return nodes[DFSUtil.getRandom().nextInt(nodes.length)];
     } finally {
-      hostmapLock.readLock().unlock();
+      unlockReadLock();
     }
   }
   
@@ -170,7 +187,7 @@ class Host2NodesMap {
       return null;
     }
 
-    hostmapLock.readLock().lock();
+    lockReadLock();
     try {
       DatanodeDescriptor[] nodes = map.get(ipAddr);
       // no entry
@@ -184,7 +201,7 @@ class Host2NodesMap {
       }
       return null;
     } finally {
-      hostmapLock.readLock().unlock();
+      unlockReadLock();
     }
   }
 

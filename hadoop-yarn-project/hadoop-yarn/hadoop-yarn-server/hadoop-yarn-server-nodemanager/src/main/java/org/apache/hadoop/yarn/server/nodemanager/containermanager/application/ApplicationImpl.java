@@ -18,8 +18,10 @@
 
 package org.apache.hadoop.yarn.server.nodemanager.containermanager.application;
 
+import java.util.Collection;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock.ReadLock;
@@ -51,6 +53,8 @@ import org.apache.hadoop.yarn.state.MultipleArcTransition;
 import org.apache.hadoop.yarn.state.SingleArcTransition;
 import org.apache.hadoop.yarn.state.StateMachine;
 import org.apache.hadoop.yarn.state.StateMachineFactory;
+
+import edu.brown.cs.systems.xtrace.XTrace;
 
 /**
  * The state machine for the representation of an Application
@@ -124,7 +128,7 @@ public class ApplicationImpl implements Application {
   private static StateMachineFactory<ApplicationImpl, ApplicationState,
           ApplicationEventType, ApplicationEvent> stateMachineFactory =
       new StateMachineFactory<ApplicationImpl, ApplicationState,
-          ApplicationEventType, ApplicationEvent>(ApplicationState.NEW)
+          ApplicationEventType, ApplicationEvent>(ApplicationState.NEW, StateMachineFactory.Trace.KEEPALIVE)
 
            // Transitions from NEW state
            .addTransition(ApplicationState.NEW, ApplicationState.INITING,
@@ -299,10 +303,16 @@ public class ApplicationImpl implements Application {
     @Override
     public void transition(ApplicationImpl app, ApplicationEvent event) {
       // Start all the containers waiting for ApplicationInit
+      edu.brown.cs.systems.xtrace.Context start_context = XTrace.get();
+      Collection<edu.brown.cs.systems.xtrace.Context> end_contexts = new HashSet<edu.brown.cs.systems.xtrace.Context>();
       for (Container container : app.containers.values()) {
+        XTrace.set(start_context);
         app.dispatcher.getEventHandler().handle(new ContainerInitEvent(
               container.getContainerId()));
+        end_contexts.add(XTrace.get());
       }
+      for (edu.brown.cs.systems.xtrace.Context ctx : end_contexts)
+        XTrace.join(ctx);
     }
   }
 
@@ -411,6 +421,7 @@ public class ApplicationImpl implements Application {
 
   @Override
   public void handle(ApplicationEvent event) {
+    event.joinContext();
 
     this.writeLock.lock();
 

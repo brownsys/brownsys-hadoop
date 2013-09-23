@@ -19,14 +19,15 @@
 package org.apache.hadoop.mapreduce;
 
 import java.io.IOException;
+import java.io.StringWriter;
 import java.net.URI;
 import java.security.PrivilegedExceptionAction;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience;
-import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
+import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configuration.IntegerRanges;
 import org.apache.hadoop.fs.FileSystem;
@@ -38,6 +39,9 @@ import org.apache.hadoop.mapreduce.protocol.ClientProtocol;
 import org.apache.hadoop.mapreduce.task.JobContextImpl;
 import org.apache.hadoop.mapreduce.util.ConfigUtil;
 import org.apache.hadoop.util.StringUtils;
+
+import edu.brown.cs.systems.xtrace.Context;
+import edu.brown.cs.systems.xtrace.XTrace;
 
 /**
  * The job submitter's view of the Job.
@@ -75,6 +79,7 @@ import org.apache.hadoop.util.StringUtils;
 @InterfaceAudience.Public
 @InterfaceStability.Evolving
 public class Job extends JobContextImpl implements JobContext {  
+  private static final XTrace.Logger xtrace = XTrace.getLogger(Job.class);
   private static final Log LOG = LogFactory.getLog(Job.class);
 
   @InterfaceStability.Evolving
@@ -110,6 +115,7 @@ public class Job extends JobContextImpl implements JobContext {
 
   private JobState state = JobState.DEFINE;
   private JobStatus status;
+  private Context status_xtrace;
   private long statustime;
   private Cluster cluster;
 
@@ -134,6 +140,15 @@ public class Job extends JobContextImpl implements JobContext {
     // propagate existing user credentials to job
     this.credentials.mergeAll(this.ugi.getCredentials());
     this.cluster = null;
+    StringWriter partial = new StringWriter();
+    conf.writeXml(partial);
+    StringWriter full = new StringWriter();
+    Configuration.dumpConfiguration(conf, full);
+    if (!"".equals(conf.getJobName())) {
+      xtrace.log("Initializing Job", conf.getJobName());
+    } else {
+      xtrace.log("Initializing Job");
+    }
   }
 
   Job(JobStatus status, JobConf conf) throws IOException {
@@ -307,6 +322,8 @@ public class Job extends JobContextImpl implements JobContext {
    * @throws IOException
    */
   synchronized void updateStatus() throws IOException {
+    Context start_context = XTrace.get();
+    XTrace.stop();
     try {
       this.status = ugi.doAs(new PrivilegedExceptionAction<JobStatus>() {
         @Override
@@ -317,6 +334,9 @@ public class Job extends JobContextImpl implements JobContext {
     }
     catch (InterruptedException ie) {
       throw new IOException(ie);
+    } finally {
+      this.status_xtrace = XTrace.get();
+      XTrace.set(start_context);
     }
     if (this.status == null) {
       throw new IOException("Job status not available ");
@@ -328,6 +348,10 @@ public class Job extends JobContextImpl implements JobContext {
     ensureState(JobState.RUNNING);
     updateStatus();
     return status;
+  }
+  
+  public void joinStatusXTraceContext() {
+    XTrace.join(this.status_xtrace);
   }
   
   private void setStatus(JobStatus status) {
@@ -1282,9 +1306,12 @@ public class Job extends JobContextImpl implements JobContext {
   public boolean waitForCompletion(boolean verbose
                                    ) throws IOException, InterruptedException,
                                             ClassNotFoundException {
+	
+    xtrace.log("Preparing Job");
     if (state == JobState.DEFINE) {
       submit();
     }
+    xtrace.log("Submitted Job", "Job ID", getJobID());
     if (verbose) {
       monitorAndPrintJob();
     } else {
@@ -1297,6 +1324,15 @@ public class Job extends JobContextImpl implements JobContext {
         } catch (InterruptedException ie) {
         }
       }
+    }
+
+    long maps = getCounters().findCounter(JobCounter.TOTAL_LAUNCHED_MAPS).getValue();
+    long reds = getCounters().findCounter(JobCounter.TOTAL_LAUNCHED_REDUCES).getValue();
+    if (isSuccessful()) {
+      xtrace.log("Job finished successfully", "Tag", maps+" Maps", "Tag", reds+" Reduces");
+    } else {
+      xtrace.log("Job failed", "Tag", maps+" Maps", "Tag", reds+" Reduces");
+      
     }
     return isSuccessful();
   }
@@ -1351,12 +1387,15 @@ public class Job extends JobContextImpl implements JobContext {
       eventCounter += events.length;
       printTaskEvents(events, filter, profiling, mapRanges, reduceRanges);
     }
+    joinStatusXTraceContext();
     boolean success = isSuccessful();
     if (success) {
       LOG.info("Job " + jobId + " completed successfully");
+      xtrace.log("Job completed successfully");
     } else {
       LOG.info("Job " + jobId + " failed with state " + status.getState() + 
           " due to: " + status.getFailureInfo());
+      xtrace.log("Job failed with state "+status.getState());
     }
     Counters counters = getCounters();
     if (counters != null) {

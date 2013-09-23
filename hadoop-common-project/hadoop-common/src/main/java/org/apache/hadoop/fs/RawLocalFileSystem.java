@@ -49,6 +49,7 @@ import org.apache.hadoop.util.StringUtils;
 @InterfaceAudience.Public
 @InterfaceStability.Stable
 public class RawLocalFileSystem extends FileSystem {
+  
   static final URI NAME = URI.create("file:///");
   private Path workingDir;
   
@@ -123,7 +124,7 @@ public class RawLocalFileSystem extends FileSystem {
     private long position;
 
     public LocalFSFileInputStream(Path f) throws IOException {
-      this.fis = new TrackingFileInputStream(pathToFile(f));
+      this.fis = new FileInputStream(pathToFile(f));
     }
     
     @Override

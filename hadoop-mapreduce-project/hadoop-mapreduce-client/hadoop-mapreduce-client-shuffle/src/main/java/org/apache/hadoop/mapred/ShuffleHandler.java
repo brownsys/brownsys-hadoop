@@ -23,7 +23,6 @@ import static org.jboss.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
 import static org.jboss.netty.handler.codec.http.HttpMethod.GET;
 import static org.jboss.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static org.jboss.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
-import static org.jboss.netty.handler.codec.http.HttpResponseStatus.HTTP_VERSION_NOT_SUPPORTED;
 import static org.jboss.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static org.jboss.netty.handler.codec.http.HttpResponseStatus.METHOD_NOT_ALLOWED;
 import static org.jboss.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
@@ -114,9 +113,17 @@ import org.jboss.netty.util.CharsetUtil;
 import com.google.common.base.Charsets;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
+import edu.brown.cs.systems.resourcethrottling.LocalThrottlingPoints;
+import edu.brown.cs.systems.resourcethrottling.ThrottlingPoint;
+import edu.brown.cs.systems.resourcetracing.resources.Network;
+import edu.brown.cs.systems.xtrace.Context;
+import edu.brown.cs.systems.xtrace.XTrace;
+
 public class ShuffleHandler extends AuxiliaryService {
 
+  private static final XTrace.Logger xtrace = XTrace.getLogger(ShuffleHandler.class);
   private static final Log LOG = LogFactory.getLog(ShuffleHandler.class);
+  private static final ThrottlingPoint shuffle_throttler = LocalThrottlingPoints.getThrottlingPoint("ShuffleHandler");
   
   public static final String SHUFFLE_MANAGE_OS_CACHE = "mapreduce.shuffle.manage.os.cache";
   public static final boolean DEFAULT_SHUFFLE_MANAGE_OS_CACHE = true;
@@ -446,6 +453,11 @@ public class ShuffleHandler extends AuxiliaryService {
               request.getHeader(ShuffleHeader.HTTP_HEADER_VERSION))) {
         sendError(ctx, "Incompatible shuffle request version", BAD_REQUEST);
       }
+      
+      String xtrace_context = request.getHeader("X-Trace");
+      if (xtrace_context!=null)
+        XTrace.set(xtrace_context, XTrace.ENCODING.BASE16);
+      
       final Map<String,List<String>> q =
         new QueryStringDecoder(request.getUri()).getParameters();
       final List<String> mapIds = splitMaps(q.get("map"));
@@ -457,6 +469,8 @@ public class ShuffleHandler extends AuxiliaryService {
             "\n  reduceId: " + reduceQ +
             "\n  jobId: " + jobQ);
       }
+      xtrace.log("Handling map output retrieval request", "URI", request.getUri(), "Map IDs", mapIds,
+          "Reduce ID", reduceQ, "Job ID", jobQ);
 
       if (mapIds == null || reduceQ == null || jobQ == null) {
         sendError(ctx, "Required param job, map and reduce", BAD_REQUEST);
@@ -498,11 +512,13 @@ public class ShuffleHandler extends AuxiliaryService {
       ch.write(response);
       // TODO refactor the following into the pipeline
       ChannelFuture lastMap = null;
+      Context start_context = XTrace.get();
       for (String mapId : mapIds) {
         try {
           lastMap =
             sendMapOutput(ctx, ch, userRsrc.get(jobId), jobId, mapId, reduceId);
           if (null == lastMap) {
+            xtrace.log("Error: "+NOT_FOUND);
             sendError(ctx, NOT_FOUND);
             return;
           }
@@ -514,9 +530,11 @@ public class ShuffleHandler extends AuxiliaryService {
             sb.append(t.getCause().getMessage());
             t = t.getCause();
           }
+          xtrace.log("Shuffle error: "+e.getClass().getName(), "Message", e.getMessage());
           sendError(ctx,sb.toString() , INTERNAL_SERVER_ERROR);
           return;
         }
+        XTrace.set(start_context);
       }
       lastMap.addListener(metrics);
       lastMap.addListener(ChannelFutureListener.CLOSE);
@@ -566,6 +584,8 @@ public class ShuffleHandler extends AuxiliaryService {
     protected ChannelFuture sendMapOutput(ChannelHandlerContext ctx, Channel ch,
         String user, String jobId, String mapId, int reduce)
         throws IOException {
+      shuffle_throttler.throttle();
+      
       // TODO replace w/ rsrc alloc
       // $x/$user/appcache/$appId/output/$mapId
       // TODO: Once Shuffle is out of NM, this can use MR APIs to convert between App and Job
@@ -591,6 +611,8 @@ public class ShuffleHandler extends AuxiliaryService {
       }
       final IndexRecord info = 
         indexCache.getIndexInformation(mapId, reduce, indexFileName, user);
+      info.joinContext();
+      xtrace.log("Sending map output", "Reduce", reduce, "Map ID", mapId, "Job ID", jobID);
       final ShuffleHeader header =
         new ShuffleHeader(mapId, info.partLength, info.rawLength, reduce);
       final DataOutputBuffer dob = new DataOutputBuffer();
@@ -647,6 +669,7 @@ public class ShuffleHandler extends AuxiliaryService {
           ShuffleHeader.DEFAULT_HTTP_HEADER_VERSION);
       response.setContent(
         ChannelBuffers.copiedBuffer(message, CharsetUtil.UTF_8));
+      response.setHeader("X-Trace", XTrace.base64());
 
       // Close the connection as soon as the error message is sent.
       ctx.getChannel().write(response).addListener(ChannelFutureListener.CLOSE);

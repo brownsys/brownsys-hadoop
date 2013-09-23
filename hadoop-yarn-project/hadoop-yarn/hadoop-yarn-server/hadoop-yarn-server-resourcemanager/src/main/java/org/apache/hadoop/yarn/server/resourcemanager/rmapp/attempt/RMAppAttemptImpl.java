@@ -99,9 +99,12 @@ import org.apache.hadoop.yarn.state.StateMachine;
 import org.apache.hadoop.yarn.state.StateMachineFactory;
 import org.apache.hadoop.yarn.util.resource.Resources;
 
+import edu.brown.cs.systems.xtrace.XTrace;
+
 @SuppressWarnings({"unchecked", "rawtypes"})
 public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
 
+  private static final XTrace.Logger xtrace = XTrace.getLogger(RMAppAttemptImpl.class);
   private static final Log LOG = LogFactory.getLog(RMAppAttemptImpl.class);
 
   private static final RecordFactory recordFactory = RecordFactoryProvider
@@ -162,7 +165,7 @@ public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
        stateMachineFactory  = new StateMachineFactory<RMAppAttemptImpl,
                                             RMAppAttemptState,
                                             RMAppAttemptEventType,
-                                     RMAppAttemptEvent>(RMAppAttemptState.NEW)
+                                     RMAppAttemptEvent>(RMAppAttemptState.NEW, StateMachineFactory.Trace.NEVER)
 
        // Transitions from NEW State
       .addTransition(RMAppAttemptState.NEW, RMAppAttemptState.SUBMITTED,
@@ -587,6 +590,7 @@ public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
 
   @Override
   public void handle(RMAppAttemptEvent event) {
+    event.joinContext();
 
     this.writeLock.lock();
 
@@ -786,6 +790,8 @@ public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
             BuilderUtils.newResourceRequest(
                 AM_CONTAINER_PRIORITY, ResourceRequest.ANY, appAttempt
                     .getSubmissionContext().getResource(), 1);
+        xtrace.log("Requesting container for ApplicationMaster");
+        request.rememberContext();
 
         // SchedulerUtils.validateResourceRequests is not necessary because
         // AM resource has been checked when submission

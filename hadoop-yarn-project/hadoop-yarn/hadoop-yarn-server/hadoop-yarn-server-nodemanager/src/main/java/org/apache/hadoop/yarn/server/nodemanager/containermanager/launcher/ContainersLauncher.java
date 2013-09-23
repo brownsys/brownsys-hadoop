@@ -45,6 +45,8 @@ import org.apache.hadoop.yarn.server.nodemanager.containermanager.localizer.Reso
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
+import edu.brown.cs.systems.xtrace.XTrace;
+
 /**
  * The launcher for the containers. This service should be started only after
  * the {@link ResourceLocalizationService} is started as it depends on creation
@@ -54,6 +56,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 public class ContainersLauncher extends AbstractService
     implements EventHandler<ContainersLauncherEvent> {
 
+  private static final XTrace.Logger xtrace = XTrace.getLogger(ContainersLauncher.class);
   private static final Log LOG = LogFactory.getLog(ContainersLauncher.class);
 
   private final Context context;
@@ -109,11 +112,13 @@ public class ContainersLauncher extends AbstractService
 
   @Override
   public void handle(ContainersLauncherEvent event) {
+    event.joinContext();
     // TODO: ContainersLauncher launches containers one by one!!
     Container container = event.getContainer();
     ContainerId containerId = container.getContainerId();
     switch (event.getType()) {
       case LAUNCH_CONTAINER:
+        xtrace.log("Launching container");
         Application app =
           context.getApplications().get(
               containerId.getApplicationAttemptId().getApplicationId());
@@ -126,6 +131,7 @@ public class ContainersLauncher extends AbstractService
                 launch));
         break;
       case CLEANUP_CONTAINER:
+        xtrace.log("Cleanup container");
         RunningContainer rContainerDatum = running.remove(containerId);
         if (rContainerDatum == null) {
           // Container not launched. So nothing needs to be done.

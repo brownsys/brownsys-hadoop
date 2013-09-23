@@ -184,6 +184,9 @@ import com.google.common.collect.Sets;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.BlockingService;
 
+import edu.brown.cs.systems.resourcetracing.backgroundtasks.HDFSBackgroundTask;
+import edu.brown.cs.systems.xtrace.XTrace;
+
 /**********************************************************
  * DataNode is a class (and program) that stores a set of
  * blocks for a DFS deployment.  A single deployment can
@@ -219,6 +222,7 @@ import com.google.protobuf.BlockingService;
 public class DataNode extends Configured 
     implements InterDatanodeProtocol, ClientDatanodeProtocol,
     DataNodeMXBean {
+  public static final XTrace.Logger xtrace = XTrace.getLogger(DataNode.class);
   public static final Log LOG = LogFactory.getLog(DataNode.class);
   
   static{
@@ -1544,6 +1548,9 @@ public class DataNode extends Configured
      */
     @Override
     public void run() {
+      HDFSBackgroundTask.REPLICATION.start();
+      long begin = System.nanoTime();
+      
       xmitsInProgress.getAndIncrement();
       Socket sock = null;
       DataOutputStream out = null;
@@ -1635,6 +1642,8 @@ public class DataNode extends Configured
         IOUtils.closeStream(out);
         IOUtils.closeStream(in);
         IOUtils.closeSocket(sock);
+        
+        HDFSBackgroundTask.REPLICATION.end(System.nanoTime() - begin);
       }
     }
   }
@@ -1945,11 +1954,15 @@ public class DataNode extends Configured
       @Override
       public void run() {
         for(RecoveringBlock b : blocks) {
+          HDFSBackgroundTask.RECOVER.start();
+          long begin = System.nanoTime();
           try {
             logRecoverBlock(who, b);
             recoverBlock(b);
           } catch (IOException e) {
             LOG.warn("recoverBlocks FAILED: " + b, e);
+          } finally {
+            HDFSBackgroundTask.RECOVER.end(System.nanoTime() - begin);
           }
         }
       }

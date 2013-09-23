@@ -30,6 +30,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.net.Peer;
 import org.apache.hadoop.hdfs.protocol.DatanodeID;
 import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
+import org.apache.hadoop.hdfs.protocol.XTraceProtoUtils;
 import org.apache.hadoop.hdfs.protocol.datatransfer.DataTransferProtoUtil;
 import org.apache.hadoop.hdfs.protocol.datatransfer.PacketHeader;
 import org.apache.hadoop.hdfs.protocol.datatransfer.Sender;
@@ -383,6 +384,7 @@ public class RemoteBlockReader extends FSInputChecker implements BlockReader {
                                      DatanodeID datanodeID,
                                      PeerCache peerCache)
                                      throws IOException {
+    
     // in and out will be closed when sock is closed (by the caller)
     final DataOutputStream out =
         new DataOutputStream(new BufferedOutputStream(peer.getOutputStream()));
@@ -398,6 +400,7 @@ public class RemoteBlockReader extends FSInputChecker implements BlockReader {
     
     BlockOpResponseProto status = BlockOpResponseProto.parseFrom(
         PBHelper.vintPrefixed(in));
+    XTraceProtoUtils.join(status);
     RemoteBlockReader2.checkSuccess(status, peer, block, file);
     ReadOpChecksumInfoProto checksumInfo =
       status.getReadOpChecksumInfo();

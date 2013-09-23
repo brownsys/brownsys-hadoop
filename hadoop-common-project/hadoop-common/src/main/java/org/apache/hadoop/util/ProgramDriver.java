@@ -26,6 +26,8 @@ import java.util.TreeMap;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 
+import edu.brown.cs.systems.xtrace.XTrace;
+
 /** A driver that is used to run programs added to it
  */
 @InterfaceAudience.LimitedPrivate({"HDFS", "MapReduce"})
@@ -135,6 +137,10 @@ public class ProgramDriver {
       printUsage(programs);
       return -1;
     }
+    
+    XTrace.startTask(true);
+    XTrace.setTenantClass(55);
+    XTrace.getLogger("ProgramDriver").log("Executing example program", "ProgramName", args[0]);
 	
     // Remove the leading argument and call main
     String[] new_args = new String[args.length - 1];

@@ -23,6 +23,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
+import java.util.Random;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -71,7 +72,7 @@ public class DatanodeDescriptor extends DatanodeInfo {
     synchronized boolean offer(E e) { 
       return blockq.offer(e);
     }
-
+    
     /** Dequeue */
     synchronized List<E> poll(int numBlocks) {
       if (numBlocks <= 0 || blockq.isEmpty()) {
@@ -403,6 +404,46 @@ public class DatanodeDescriptor extends DatanodeInfo {
   
   public List<BlockTargetPair> getReplicationCommand(int maxTransfers) {
     return replicateBlocks.poll(maxTransfers);
+  }
+  
+  private static final Random r = new Random();
+  
+  public List<BlockTargetPair> getReplicationCommand(int maxTransfers, long maxBytes) {
+    long blocksRemainingforReplication = 0;
+    long totalBytes = 0;
+    long totalBlocks = 0;
+    List<BlockTargetPair> results = null;
+    synchronized(replicateBlocks) { // Jon: terrible but quick
+      blocksRemainingforReplication = replicateBlocks.blockq.size();
+      while (totalBytes < maxBytes && totalBlocks < maxTransfers) {
+        // Decide whether we're allowed the next block.  Shouldn't be probabilitic, but easiest for now
+        BlockTargetPair next = replicateBlocks.blockq.peek();
+        if (next==null)
+          break;
+        long nextsize = next.block.getNumBytes();
+        if (totalBytes + nextsize > maxBytes) {
+          double probability = (maxBytes - totalBytes) / (double) nextsize;
+          if (r.nextDouble() > probability)
+            break;
+        }
+        
+        // Get the next block
+        next = replicateBlocks.blockq.poll();
+        if (next==null) // shouldn't happen, but just in case
+          break;
+        
+        // Add the block
+        if (results==null)
+          results = new ArrayList<BlockTargetPair>();
+        results.add(next);
+        
+        // Increment counters
+        totalBytes+=next.block.getNumBytes();
+        totalBlocks++;
+      }
+    }
+    System.out.println("Replication: toReplicate="+blocksRemainingforReplication + " maxBlocks="+maxTransfers + " maxBytes="+maxBytes + " blocks="+totalBlocks+" bytes="+totalBytes);
+    return results;
   }
 
   public BlockInfoUnderConstruction[] getLeaseRecoveryCommand(int maxTransfers) {

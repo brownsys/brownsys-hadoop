@@ -33,6 +33,9 @@ import org.apache.hadoop.io.IOUtils;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 
+import edu.brown.cs.systems.xtrace.XTrace;
+
+
 /**
  * Class to handle reading packets one-at-a-time from the wire.
  * These packets are used both for reading and writing data to/from
@@ -47,11 +50,12 @@ public class PacketReceiver implements Closeable {
    */
   private static final int MAX_PACKET_SIZE = 16 * 1024 * 1024;
 
+  static XTrace.Logger xtrace = XTrace.getLogger(PacketReceiver.class);
   static Log LOG = LogFactory.getLog(PacketReceiver.class);
   
   private static final DirectBufferPool bufferPool = new DirectBufferPool();
   private final boolean useDirectBuffers;
-
+  
   /**
    * The entirety of the most recently read packet.
    * The first PKT_LENGTHS_LEN bytes of this buffer are the
@@ -127,6 +131,10 @@ public class PacketReceiver implements Closeable {
     // CHECKSUMS: the crcs for the data chunk. May be missing if
     //            checksums were not requested
     // DATA       the actual block data
+    
+    xtrace.log("Reading packet");
+    try { // xtrace try
+    
     Preconditions.checkState(curHeader == null || !curHeader.isLastPacketInBlock());
 
     curPacketBuf.clear();
@@ -178,7 +186,9 @@ public class PacketReceiver implements Closeable {
     if (curHeader == null) {
       curHeader = new PacketHeader();
     }
-    curHeader.setFieldsFromData(dataPlusChecksumLen, headerBuf);
+    curHeader.setFieldsFromData(payloadLen, headerBuf);
+    curHeader.joinXTraceContext();
+    xtrace.log("Finished reading packet");
     
     // Compute the sub-slices of the packet
     int checksumLen = dataPlusChecksumLen - curHeader.getDataLen();
@@ -189,6 +199,11 @@ public class PacketReceiver implements Closeable {
     }
     
     reslicePacket(headerLen, checksumLen, curHeader.getDataLen());
+    
+    } catch (IOException e) { // xtrace catch
+      xtrace.log("Exception reading packet", "Message", e.getMessage());
+      throw e;
+    }
   }
   
   /**
@@ -197,9 +212,39 @@ public class PacketReceiver implements Closeable {
   public void mirrorPacketTo(DataOutputStream mirrorOut) throws IOException {
     Preconditions.checkState(!useDirectBuffers,
         "Currently only supported for non-direct buffers");
+    
+    xtrace.log("Mirroring packet");
+    try { // xtrace try
+    
+    updateHeaderXTrace();
     mirrorOut.write(curPacketBuf.array(),
         curPacketBuf.arrayOffset(),
         curPacketBuf.remaining());
+    
+    xtrace.log("Packet mirrored successfully");    
+    } catch (IOException e) { // xtrace catch
+      xtrace.log("Exception writing block to mirror", "Message", e.getMessage());
+    }
+  }
+  
+  /**
+   * This updates the XTrace metadata in the packet header to the current context
+   */
+  private void updateHeaderXTrace() {
+    // Only update context if there was a previous one, and we assume they have the exact
+    // same length, so we can just drop in a new packet header.
+    if (XTrace.active() && curHeader.hasXTraceContext()) {
+      PacketHeader newHeader = new PacketHeader(curHeader.getPacketLen(), curHeader.getOffsetInBlock(),
+          curHeader.getSeqno(), curHeader.isLastPacketInBlock(), curHeader.getDataLen(),
+          curHeader.getSyncBlock());
+      int priorPosition = curPacketBuf.position();
+      int priorLimit = curPacketBuf.limit();
+      curPacketBuf.position(0);
+      curPacketBuf.limit(newHeader.getSerializedSize());
+      newHeader.putInBuffer(curPacketBuf);
+      curPacketBuf.position(priorPosition);
+      curPacketBuf.limit(priorLimit);
+    }
   }
 
   

@@ -53,15 +53,23 @@ import org.apache.hadoop.util.Daemon;
 import org.apache.hadoop.util.DataChecksum;
 import org.apache.hadoop.util.StringUtils;
 
+import edu.brown.cs.systems.resourcethrottling.LocalThrottlingPoints;
+import edu.brown.cs.systems.resourcethrottling.ThrottlingPoint;
+import edu.brown.cs.systems.xtrace.Context;
+import edu.brown.cs.systems.xtrace.XTrace;
+
 /** A class that receives a block and writes to its own disk, meanwhile
  * may copies it to another site. If a throttler is provided,
  * streaming throttling is also supported.
  **/
 class BlockReceiver implements Closeable {
+  public static final XTrace.Logger xtrace = XTrace.getLogger(BlockReceiver.class);
+  public static final ThrottlingPoint throttlingpoint = LocalThrottlingPoints.getThrottlingPoint("BlockReceiver");
   public static final Log LOG = DataNode.LOG;
   static final Log ClientTraceLog = DataNode.ClientTraceLog;
 
-  private static final long CACHE_DROP_LAG_BYTES = 8 * 1024 * 1024;
+//  private static final long CACHE_DROP_LAG_BYTES = 8 * 1024 * 1024;
+  private static final long CACHE_DROP_LAG_BYTES = 64 * 1024;
   
   private DataInputStream in = null; // from where data are read
   private DataChecksum clientChecksum; // checksum used by client
@@ -264,6 +272,7 @@ class BlockReceiver implements Closeable {
     // close checksum file
     try {
       if (checksumOut != null) {
+        xtrace.log("Closing checksum file");
         long flushStartNanos = System.nanoTime();
         checksumOut.flush();
         long flushEndNanos = System.nanoTime();
@@ -276,6 +285,7 @@ class BlockReceiver implements Closeable {
         measuredFlushTime = true;
         checksumOut.close();
         checksumOut = null;
+        xtrace.log("BlockReceiver", "Checksum file closed");
       }
     } catch(IOException e) {
       ioe = e;
@@ -286,6 +296,7 @@ class BlockReceiver implements Closeable {
     // close block file
     try {
       if (out != null) {
+        xtrace.log("Closing block file");
         long flushStartNanos = System.nanoTime();
         out.flush();
         long flushEndNanos = System.nanoTime();
@@ -298,6 +309,7 @@ class BlockReceiver implements Closeable {
         measuredFlushTime = true;
         out.close();
         out = null;
+        xtrace.log("Block file closed");
       }
     } catch (IOException e) {
       ioe = e;
@@ -336,6 +348,7 @@ class BlockReceiver implements Closeable {
       long flushStartNanos = System.nanoTime();
       out.flush();
       long flushEndNanos = System.nanoTime();
+      xtrace.log("Flushed file output stream");
       if (isSync && (out instanceof FileOutputStream)) {
         long fsyncStartNanos = flushEndNanos;
         ((FileOutputStream)out).getChannel().force(true);
@@ -425,6 +438,7 @@ class BlockReceiver implements Closeable {
    * returns the number of data bytes that the packet has.
    */
   private int receivePacket() throws IOException {
+    
     // read the next packet
     packetReceiver.receiveNextPacket(in);
 
@@ -558,6 +572,7 @@ class BlockReceiver implements Closeable {
           int numBytesToDisk = (int)(offsetInBlock-onDiskLen);
           
           // Write data to disk.
+          xtrace.log("Writing packet to file output stream", "start", startByteToDisk, "size", numBytesToDisk);
           out.write(dataBuf.array(), startByteToDisk, numBytesToDisk);
 
           // If this is a partial chunk, then verify that this is the only
@@ -617,6 +632,9 @@ class BlockReceiver implements Closeable {
       throttler.throttle(len);
     }
     
+    // Retro throttle
+    throttlingpoint.throttle();
+    
     return lastPacketInBlock?-1:len;
   }
 
@@ -648,6 +666,9 @@ class BlockReceiver implements Closeable {
       DataOutputStream replyOut,  // output to previous datanode
       String mirrAddr, DataTransferThrottler throttlerArg,
       DatanodeInfo[] downstreams) throws IOException {
+    
+    xtrace.log("Receiving Block");
+    try { // xtrace try
 
       syncOnClose = datanode.getDnConf().syncOnClose;
       boolean responderClosed = false;
@@ -720,6 +741,10 @@ class BlockReceiver implements Closeable {
         }
         responder = null;
       }
+    }
+    xtrace.log("Finished receiving block");
+    } catch (IOException e) { // xtrace catch
+      xtrace.log("IOException receiving block", "Message", e.getMessage());
     }
   }
 
@@ -834,8 +859,8 @@ class BlockReceiver implements Closeable {
     /** The type of this responder */
     private final PacketResponderType type;
     /** for log and error messages */
-    private final String myString; 
-
+    private final String myString;
+    
     @Override
     public String toString() {
       return myString;
@@ -899,7 +924,7 @@ class BlockReceiver implements Closeable {
       running = false;
       notifyAll();
     }
-
+    
     /**
      * Thread to process incoming acks.
      * @see java.lang.Runnable#run()
@@ -923,11 +948,14 @@ class BlockReceiver implements Closeable {
                   && !mirrorError) {
                 // read an ack from downstream datanode
                 ack.readFields(downstreamIn);
+                ack.joinXtraceContext();
                 ackRecvNanoTime = System.nanoTime();
                 if (LOG.isDebugEnabled()) {
                   LOG.debug(myString + " got " + ack);
                 }
+                
                 seqno = ack.getSeqno();
+                xtrace.log("Received ack", "seqno", seqno);
               }
               if (seqno != PipelineAck.UNKOWN_SEQNO
                   || type == PacketResponderType.LAST_IN_PIPELINE) {
@@ -943,7 +971,9 @@ class BlockReceiver implements Closeable {
                     break;
                   }
                   pkt = ackQueue.getFirst();
+                  pkt.joinXtraceContext();
                   expected = pkt.seqno;
+                  
                   if (type == PacketResponderType.HAS_DOWNSTREAM_IN_PIPELINE
                       && seqno != expected) {
                     throw new IOException(myString + "seqno: expected="
@@ -979,6 +1009,7 @@ class BlockReceiver implements Closeable {
                 // and wait for the client to shut down the pipeline
                 mirrorError = true;
                 LOG.info(myString, ioe);
+                xtrace.log("IOException from mirror", "Message", ioe.getMessage());
               }
             }
 
@@ -991,6 +1022,7 @@ class BlockReceiver implements Closeable {
                * will detect that this datanode is bad, and rightly so.
                */
               LOG.info(myString + ": Thread is interrupted.");
+              xtrace.log("Thread is interrupted");
               running = false;
               continue;
             }
@@ -1043,6 +1075,7 @@ class BlockReceiver implements Closeable {
                 continue;
               }
             }
+            xtrace.log("Acknowledging packet", "seqno", expected, "AckTimeNanos", totalAckTimeNanos);
             PipelineAck replyAck = new PipelineAck(expected, replies, totalAckTimeNanos);
             
             if (replyAck.isSuccess() && 
@@ -1060,6 +1093,7 @@ class BlockReceiver implements Closeable {
               removeAckHead();
               // update bytes acked
             }
+            xtrace.log("Packet ack sent.");
             // terminate after sending response if this node detected 
             // a checksum error
             if (myStatus == Status.ERROR_CHECKSUM) {
@@ -1070,6 +1104,7 @@ class BlockReceiver implements Closeable {
             }
         } catch (IOException e) {
           LOG.warn("IOException in BlockReceiver.run(): ", e);
+          xtrace.log("IOException in BlockReceiver.run", "Message", e.getMessage());
           if (running) {
             try {
               datanode.checkDiskError(e); // may throw an exception here
@@ -1113,6 +1148,9 @@ class BlockReceiver implements Closeable {
     final long offsetInBlock;
     final long ackEnqueueNanoTime;
     final Status ackStatus;
+    
+    /** Remember the XTrace context when this packet was created */
+    private final Context xtrace_context = XTrace.get();
 
     Packet(long seqno, boolean lastPacketInBlock, long offsetInBlock,
         long ackEnqueueNanoTime, Status ackStatus) {
@@ -1121,6 +1159,10 @@ class BlockReceiver implements Closeable {
       this.offsetInBlock = offsetInBlock;
       this.ackEnqueueNanoTime = ackEnqueueNanoTime;
       this.ackStatus = ackStatus;
+    }
+    
+    public void joinXtraceContext() {
+      XTrace.join(xtrace_context);
     }
 
     @Override

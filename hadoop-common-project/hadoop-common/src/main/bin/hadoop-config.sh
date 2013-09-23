@@ -293,3 +293,7 @@ if [ "$HADOOP_CLASSPATH" != "" ]; then
   fi
 fi
 
+#HADOOP_OPTS="$HADOOP_OPTS -Xbootclasspath/p:${HADOOP_COMMON_LIB_JARS_DIR}/xtrace-resource-tracing-1.0.jar"
+#HADOOP_OPTS="$HADOOP_OPTS -Xbootclasspath/p:${HADOOP_COMMON_LIB_JARS_DIR}/xtrace-2.1-20120824.jar"
+#HADOOP_OPTS="$HADOOP_OPTS -Xbootclasspath/p:${HADOOP_COMMON_LIB_JARS_DIR}/log4j-1.2.17.jar"
+#HADOOP_OPTS="$HADOOP_OPTS -Xbootclasspath/p:${HADOOP_COMMON_LIB_JARS_DIR}/aspectjrt-1.7.3.jar"

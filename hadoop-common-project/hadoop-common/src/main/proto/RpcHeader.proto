@@ -67,6 +67,7 @@ message RpcRequestHeaderProto { // the header for the RpcRequest
   // clientId + callId uniquely identifies a request
   // retry count, 1 means this is the first retry
   optional sint32 retryCount = 5 [default = -1];
+  optional bytes xtrace = 6; // X-Trace context
 }
 
 
@@ -132,6 +133,7 @@ message RpcResponseHeaderProto {
   optional RpcErrorCodeProto errorDetail = 6; // in case of error
   optional bytes clientId = 7; // Globally unique client ID
   optional sint32 retryCount = 8 [default = -1];
+  optional bytes xtrace = 9; // X-Trace context
 }
 
 message RpcSaslProto {

@@ -28,14 +28,20 @@ import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos;
 import org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.PipelineAckProto;
+import org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.PipelineAckProto.Builder;
 import org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.Status;
 
+import com.google.protobuf.ByteString;
 import com.google.protobuf.TextFormat;
+
+import edu.brown.cs.systems.xtrace.XTrace;
 
 /** Pipeline Acknowledgment **/
 @InterfaceAudience.Private
 @InterfaceStability.Evolving
 public class PipelineAck {
+  
+  private static final XTrace.Logger xtrace = XTrace.getLogger(PipelineAck.class);
   PipelineAckProto proto;
   public final static long UNKOWN_SEQNO = -2;
 
@@ -59,11 +65,15 @@ public class PipelineAck {
    * @param downstreamAckTimeNanos ack RTT in nanoseconds, 0 if no next DN in pipeline
    */
   public PipelineAck(long seqno, Status[] replies, long downstreamAckTimeNanos) {
-    proto = PipelineAckProto.newBuilder()
+    Builder builder = PipelineAckProto.newBuilder()
       .setSeqno(seqno)
       .addAllStatus(Arrays.asList(replies))
-      .setDownstreamAckTimeNanos(downstreamAckTimeNanos)
-      .build();
+      .setDownstreamAckTimeNanos(downstreamAckTimeNanos);
+    if (XTrace.active()) {
+      xtrace.log("creating pipelined ack");
+      builder.setXtrace(ByteString.copyFrom(XTrace.bytes()));
+    }
+    proto = builder.build();
   }
   
   /**
@@ -96,6 +106,15 @@ public class PipelineAck {
    */
   public long getDownstreamAckTimeNanos() {
     return proto.getDownstreamAckTimeNanos();
+  }
+  
+  public boolean hasXtrace() {
+    return proto.hasXtrace();
+  }
+  
+  public void joinXtraceContext() {
+    if (proto.hasXtrace())
+      XTrace.join(proto.getXtrace().toByteArray());
   }
 
   /**

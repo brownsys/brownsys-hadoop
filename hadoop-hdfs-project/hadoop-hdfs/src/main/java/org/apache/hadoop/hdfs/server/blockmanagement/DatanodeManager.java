@@ -1138,20 +1138,22 @@ public class DatanodeManager {
    * @return boolean true if name resolution successful or address is loopback
    */
   private static boolean isNameResolved(InetAddress address) {
-    String hostname = address.getHostName();
-    String ip = address.getHostAddress();
-    return !hostname.equals(ip) || address.isLoopbackAddress();
+//    String hostname = address.getHostName();
+//    String ip = address.getHostAddress();
+//    return !hostname.equals(ip) || address.isLoopbackAddress();
+    return true;
   }
   
   private void setDatanodeDead(DatanodeDescriptor node) {
     node.setLastUpdate(0);
   }
 
-  /** Handle heartbeat from datanodes. */
+  /** Handle heartbeat from datanodes. 
+   * @param maxBytes */
   public DatanodeCommand[] handleHeartbeat(DatanodeRegistration nodeReg,
       final String blockPoolId,
       long capacity, long dfsUsed, long remaining, long blockPoolUsed,
-      int xceiverCount, int maxTransfers, int failedVolumes
+      int xceiverCount, int maxTransfers, long maxBytes, int failedVolumes
       ) throws IOException {
     synchronized (heartbeatManager) {
       synchronized (datanodeMap) {
@@ -1223,7 +1225,7 @@ public class DatanodeManager {
         final List<DatanodeCommand> cmds = new ArrayList<DatanodeCommand>();
         //check pending replication
         List<BlockTargetPair> pendingList = nodeinfo.getReplicationCommand(
-              maxTransfers);
+              maxTransfers, maxBytes);
         if (pendingList != null) {
           cmds.add(new BlockCommand(DatanodeProtocol.DNA_TRANSFER, blockPoolId,
               pendingList));

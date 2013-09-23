@@ -18,13 +18,13 @@
 
 package org.apache.hadoop.yarn.server.nodemanager.containermanager.container;
 
-import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.locks.Lock;
@@ -70,6 +70,9 @@ import org.apache.hadoop.yarn.state.StateMachine;
 import org.apache.hadoop.yarn.state.StateMachineFactory;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 
+import edu.brown.cs.systems.xtrace.Context;
+import edu.brown.cs.systems.xtrace.XTrace;
+
 public class ContainerImpl implements Container {
 
   private final Lock readLock;
@@ -99,6 +102,8 @@ public class ContainerImpl implements Container {
     new ArrayList<LocalResourceRequest>();
   private final List<LocalResourceRequest> appRsrcs =
     new ArrayList<LocalResourceRequest>();
+  
+  private Collection<Context> xtrace_localizedresources = new HashSet<Context>();
 
   public ContainerImpl(Configuration conf, Dispatcher dispatcher,
       ContainerLaunchContext launchContext, Credentials creds,
@@ -131,7 +136,7 @@ public class ContainerImpl implements Container {
   private static StateMachineFactory
            <ContainerImpl, ContainerState, ContainerEventType, ContainerEvent>
         stateMachineFactory =
-      new StateMachineFactory<ContainerImpl, ContainerState, ContainerEventType, ContainerEvent>(ContainerState.NEW)
+      new StateMachineFactory<ContainerImpl, ContainerState, ContainerEventType, ContainerEvent>(ContainerState.NEW, StateMachineFactory.Trace.KEEPALIVE)
     // From NEW State
     .addTransition(ContainerState.NEW,
         EnumSet.of(ContainerState.LOCALIZING, ContainerState.LOCALIZED,
@@ -197,19 +202,19 @@ public class ContainerImpl implements Container {
     .addTransition(ContainerState.RUNNING,
         ContainerState.EXITED_WITH_SUCCESS,
         ContainerEventType.CONTAINER_EXITED_WITH_SUCCESS,
-        new ExitedWithSuccessTransition(true))
+        new ExitedWithSuccessTransition(true), StateMachineFactory.Trace.ALWAYS)
     .addTransition(ContainerState.RUNNING,
         ContainerState.EXITED_WITH_FAILURE,
         ContainerEventType.CONTAINER_EXITED_WITH_FAILURE,
-        new ExitedWithFailureTransition(true))
+        new ExitedWithFailureTransition(true), StateMachineFactory.Trace.ALWAYS)
     .addTransition(ContainerState.RUNNING, ContainerState.RUNNING,
        ContainerEventType.UPDATE_DIAGNOSTICS_MSG,
-       UPDATE_DIAGNOSTICS_TRANSITION)
+       UPDATE_DIAGNOSTICS_TRANSITION, StateMachineFactory.Trace.ALWAYS)
     .addTransition(ContainerState.RUNNING, ContainerState.KILLING,
-        ContainerEventType.KILL_CONTAINER, new KillTransition())
+        ContainerEventType.KILL_CONTAINER, new KillTransition(), StateMachineFactory.Trace.ALWAYS)
     .addTransition(ContainerState.RUNNING, ContainerState.EXITED_WITH_FAILURE,
         ContainerEventType.CONTAINER_KILLED_ON_REQUEST,
-        new KilledExternallyTransition()) 
+        new KilledExternallyTransition(), StateMachineFactory.Trace.ALWAYS) 
 
     // From CONTAINER_EXITED_WITH_SUCCESS State
     .addTransition(ContainerState.EXITED_WITH_SUCCESS, ContainerState.DONE,
@@ -599,9 +604,12 @@ public class ContainerImpl implements Container {
         return ContainerState.LOCALIZING;
       }
       container.localizedResources.put(rsrcEvent.getLocation(), syms);
+      container.xtrace_localizedresources.add(XTrace.get());
       if (!container.pendingResources.isEmpty()) {
         return ContainerState.LOCALIZING;
       }
+      for (Context ctx : container.xtrace_localizedresources)
+        XTrace.join(ctx);
       container.dispatcher.getEventHandler().handle(
           new ContainersLauncherEvent(container,
               ContainersLauncherEventType.LAUNCH_CONTAINER));
@@ -838,6 +846,7 @@ public class ContainerImpl implements Container {
 
   @Override
   public void handle(ContainerEvent event) {
+    event.joinContext();
     try {
       this.writeLock.lock();
 

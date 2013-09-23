@@ -33,6 +33,10 @@ import org.apache.hadoop.yarn.proto.YarnServerNodemanagerServiceProtos.ResourceS
 import org.apache.hadoop.yarn.server.nodemanager.api.protocolrecords.LocalResourceStatus;
 import org.apache.hadoop.yarn.server.nodemanager.api.protocolrecords.ResourceStatusType;
 
+import com.google.protobuf.ByteString;
+
+import edu.brown.cs.systems.xtrace.XTrace;
+
 public class LocalResourceStatusPBImpl
   extends ProtoBase<LocalResourceStatusProto> implements LocalResourceStatus {
 
@@ -219,6 +223,20 @@ public class LocalResourceStatusPBImpl
 
   private SerializedExceptionProto convertToProtoFormat(SerializedException t) {
     return ((SerializedExceptionPBImpl)t).getProto();
+  }
+
+  @Override
+  public void rememberContext() {
+    maybeInitBuilder();
+    if (XTrace.active())
+      builder.setXtrace(ByteString.copyFrom(XTrace.bytes()));
+  }
+
+  @Override
+  public void joinContext() {
+    LocalResourceStatusProtoOrBuilder p = viaProto ? proto : builder;
+    if (p.hasXtrace())
+      XTrace.join(p.getXtrace().toByteArray());
   }
 
 }

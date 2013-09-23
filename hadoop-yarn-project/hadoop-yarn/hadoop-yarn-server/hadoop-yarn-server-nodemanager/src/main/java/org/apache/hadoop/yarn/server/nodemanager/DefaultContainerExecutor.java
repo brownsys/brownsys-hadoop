@@ -53,8 +53,11 @@ import org.apache.hadoop.yarn.util.ConverterUtils;
 
 import com.google.common.annotations.VisibleForTesting;
 
+import edu.brown.cs.systems.xtrace.XTrace;
+
 public class DefaultContainerExecutor extends ContainerExecutor {
 
+  private static final XTrace.Logger xtrace = XTrace.getLogger(DefaultContainerExecutor.class);
   private static final Log LOG = LogFactory
       .getLog(DefaultContainerExecutor.class);
 
@@ -187,20 +190,23 @@ public class DefaultContainerExecutor extends ContainerExecutor {
         containerIdStr, this.getConf());
 
       LOG.info("launchContainer: " + Arrays.toString(command));
+      xtrace.log("Invoking command line", "args", Arrays.toString(command), "Container ID", containerIdStr);
       shExec = new ShellCommandExecutor(
           command,
           new File(containerWorkDir.toUri().getPath()),
           container.getLaunchContext().getEnvironment());      // sanitized env
       if (isContainerActive(containerId)) {
         shExec.execute();
-      }
-      else {
+        xtrace.log("Subprocess finished with exit code "+shExec.getExitCode());
+      } else {
         LOG.info("Container " + containerIdStr +
             " was marked as inactive. Returning terminated error");
+        xtrace.log("Container was marked as inactive; returning terminated error");
         return ExitCode.TERMINATED.getExitCode();
       }
     } catch (IOException e) {
       if (null == shExec) {
+        xtrace.log("DefaultContainerExecutor IOException: " + e.getClass().getName(), "Message", e.getMessage());
         return -1;
       }
       int exitCode = shExec.getExitCode();
@@ -221,6 +227,7 @@ public class DefaultContainerExecutor extends ContainerExecutor {
         container.handle(new ContainerDiagnosticsUpdateEvent(containerId,
             "Container killed on request. Exit code is " + exitCode));
       }
+      xtrace.log("Subprocess finished with exit code "+exitCode);
       return exitCode;
     } finally {
       ; //

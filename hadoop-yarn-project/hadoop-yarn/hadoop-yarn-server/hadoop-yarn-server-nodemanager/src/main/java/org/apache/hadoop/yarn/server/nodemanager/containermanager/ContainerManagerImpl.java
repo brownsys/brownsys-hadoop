@@ -115,10 +115,13 @@ import org.apache.hadoop.yarn.server.utils.BuilderUtils;
 
 import com.google.common.annotations.VisibleForTesting;
 
+import edu.brown.cs.systems.xtrace.XTrace;
+
 public class ContainerManagerImpl extends CompositeService implements
     ServiceStateChangeListener, ContainerManagementProtocol,
     EventHandler<ContainerManagerEvent> {
 
+  private static final XTrace.Logger xtrace = XTrace.getLogger(ContainerManagerImpl.class);
   private static final Log LOG = LogFactory.getLog(ContainerManagerImpl.class);
 
   final Context context;
@@ -454,7 +457,8 @@ public class ContainerManagerImpl extends CompositeService implements
     String user = containerTokenIdentifier.getApplicationSubmitter();
 
     LOG.info("Start request for " + containerIdStr + " by user " + user);
-
+    xtrace.log("Starting container", "User", user, "Container ID", containerIdStr);
+    
     ContainerLaunchContext launchContext = request.getContainerLaunchContext();
 
     Credentials credentials = parseCredentials(launchContext);
@@ -580,6 +584,8 @@ public class ContainerManagerImpl extends CompositeService implements
     LOG.info("Stopping container with container Id: " + containerIDStr);
     authorizeGetAndStopContainerRequest(containerID, container, true,
       nmTokenIdentifier);
+    if (container!=null)
+      container.getContainerId().rememberContext();
 
     dispatcher.getEventHandler().handle(
       new ContainerKillEvent(containerID,
@@ -674,6 +680,7 @@ public class ContainerManagerImpl extends CompositeService implements
   class ContainerEventDispatcher implements EventHandler<ContainerEvent> {
     @Override
     public void handle(ContainerEvent event) {
+      event.joinContext();
       Map<ContainerId,Container> containers =
         ContainerManagerImpl.this.context.getContainers();
       Container c = containers.get(event.getContainerID());
@@ -690,6 +697,7 @@ public class ContainerManagerImpl extends CompositeService implements
 
     @Override
     public void handle(ApplicationEvent event) {
+      event.joinContext();
       Application app =
           ContainerManagerImpl.this.context.getApplications().get(
               event.getApplicationID());
@@ -705,6 +713,7 @@ public class ContainerManagerImpl extends CompositeService implements
   @SuppressWarnings("unchecked")
   @Override
   public void handle(ContainerManagerEvent event) {
+    event.joinContext();
     switch (event.getType()) {
     case FINISH_APPS:
       CMgrCompletedAppsEvent appsFinishedEvent =
@@ -718,8 +727,10 @@ public class ContainerManagerImpl extends CompositeService implements
     case FINISH_CONTAINERS:
       CMgrCompletedContainersEvent containersFinishedEvent =
           (CMgrCompletedContainersEvent) event;
+      XTrace.stop();
       for (ContainerId container : containersFinishedEvent
           .getContainersToCleanup()) {
+        container.joinContext();
         String diagnostic = "";
         if (containersFinishedEvent.getReason() == 
             CMgrCompletedContainersEvent.Reason.ON_SHUTDOWN) {

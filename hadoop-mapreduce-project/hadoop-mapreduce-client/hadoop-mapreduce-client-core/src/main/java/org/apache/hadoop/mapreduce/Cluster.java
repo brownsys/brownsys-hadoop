@@ -75,10 +75,14 @@ public class Cluster {
   }
 
   public Cluster(InetSocketAddress jobTrackAddr, Configuration conf) 
-      throws IOException {
+      throws IOException {	    
     this.conf = conf;
     this.ugi = UserGroupInformation.getCurrentUser();
-    initialize(jobTrackAddr, conf);
+    try {
+    	initialize(jobTrackAddr, conf);
+    } catch (IOException e) {
+    	throw e;
+    } 
   }
   
   private void initialize(InetSocketAddress jobTrackAddr, Configuration conf)

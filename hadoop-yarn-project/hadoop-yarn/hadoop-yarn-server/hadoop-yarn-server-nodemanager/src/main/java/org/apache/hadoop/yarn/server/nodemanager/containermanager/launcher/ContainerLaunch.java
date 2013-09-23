@@ -71,6 +71,8 @@ import org.apache.hadoop.yarn.server.nodemanager.util.ProcessIdFileReader;
 import org.apache.hadoop.yarn.util.Apps;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 
+import edu.brown.cs.systems.xtrace.XTrace;
+
 public class ContainerLaunch implements Callable<Integer> {
 
   private static final Log LOG = LogFactory.getLog(ContainerLaunch.class);
@@ -98,6 +100,8 @@ public class ContainerLaunch implements Callable<Integer> {
 
   private final LocalDirsHandlerService dirsHandler;
 
+  private edu.brown.cs.systems.xtrace.Context xtrace_context;
+
   public ContainerLaunch(Context context, Configuration configuration,
       Dispatcher dispatcher, ContainerExecutor exec, Application app,
       Container container, LocalDirsHandlerService dirsHandler) {
@@ -114,11 +118,15 @@ public class ContainerLaunch implements Callable<Integer> {
     this.maxKillWaitTime =
         conf.getLong(YarnConfiguration.NM_PROCESS_KILL_WAIT_MS,
             YarnConfiguration.DEFAULT_NM_PROCESS_KILL_WAIT_MS);
+    xtrace_context = XTrace.get();
   }
-
+  
   @Override
   @SuppressWarnings("unchecked") // dispatcher not typed
   public Integer call() {
+
+    XTrace.set(xtrace_context);
+    
     final ContainerLaunchContext launchContext = container.getLaunchContext();
     final Map<Path,List<String>> localResources =
         container.getLocalizedResources();

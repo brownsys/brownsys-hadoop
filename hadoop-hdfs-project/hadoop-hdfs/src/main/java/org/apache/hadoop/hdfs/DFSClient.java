@@ -61,9 +61,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.NetworkInterface;
 import java.net.Socket;
-import java.net.SocketException;
 import java.net.SocketAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
@@ -99,6 +97,7 @@ import org.apache.hadoop.fs.MD5MD5CRC32GzipFileChecksum;
 import org.apache.hadoop.fs.Options;
 import org.apache.hadoop.fs.Options.ChecksumOpt;
 import org.apache.hadoop.fs.ParentNotDirectoryException;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.UnresolvedLinkException;
 import org.apache.hadoop.fs.VolumeId;
 import org.apache.hadoop.fs.permission.FsPermission;
@@ -112,16 +111,17 @@ import org.apache.hadoop.hdfs.protocol.DirectoryListing;
 import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
 import org.apache.hadoop.hdfs.protocol.HdfsBlocksMetadata;
 import org.apache.hadoop.hdfs.protocol.HdfsConstants;
-import org.apache.hadoop.hdfs.protocol.SnapshotAccessControlException;
 import org.apache.hadoop.hdfs.protocol.HdfsConstants.DatanodeReportType;
 import org.apache.hadoop.hdfs.protocol.HdfsConstants.SafeModeAction;
 import org.apache.hadoop.hdfs.protocol.HdfsFileStatus;
 import org.apache.hadoop.hdfs.protocol.LocatedBlock;
 import org.apache.hadoop.hdfs.protocol.LocatedBlocks;
 import org.apache.hadoop.hdfs.protocol.NSQuotaExceededException;
+import org.apache.hadoop.hdfs.protocol.SnapshotAccessControlException;
 import org.apache.hadoop.hdfs.protocol.SnapshotDiffReport;
 import org.apache.hadoop.hdfs.protocol.SnapshottableDirectoryStatus;
 import org.apache.hadoop.hdfs.protocol.UnresolvedPathException;
+import org.apache.hadoop.hdfs.protocol.XTraceProtoUtils;
 import org.apache.hadoop.hdfs.protocol.datatransfer.DataTransferEncryptor;
 import org.apache.hadoop.hdfs.protocol.datatransfer.IOStreamPair;
 import org.apache.hadoop.hdfs.protocol.datatransfer.Op;
@@ -130,8 +130,8 @@ import org.apache.hadoop.hdfs.protocol.datatransfer.Sender;
 import org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.BlockOpResponseProto;
 import org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.OpBlockChecksumResponseProto;
 import org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.Status;
-import org.apache.hadoop.hdfs.security.token.block.DataEncryptionKey;
 import org.apache.hadoop.hdfs.protocolPB.PBHelper;
+import org.apache.hadoop.hdfs.security.token.block.DataEncryptionKey;
 import org.apache.hadoop.hdfs.security.token.block.InvalidBlockTokenException;
 import org.apache.hadoop.hdfs.security.token.delegation.DelegationTokenIdentifier;
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants;
@@ -161,6 +161,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.net.InetAddresses;
+
 
 /********************************************************
  * DFSClient can connect to a Hadoop Filesystem and 
@@ -1165,6 +1166,7 @@ public class DFSClient implements java.io.Closeable {
   public DFSInputStream open(String src, int buffersize, boolean verifyChecksum)
       throws IOException, UnresolvedLinkException {
     checkOpen();
+    //XTraceContext.startTrace("DFSClient", "Open", "open", src);
     //    Get block info from namenode
     return new DFSInputStream(this, src, buffersize, verifyChecksum);
   }
@@ -1336,6 +1338,7 @@ public class DFSClient implements java.io.Closeable {
                          + favoredNodes[i].getPort();
       }
     }
+    //XTraceContext.startTrace("DFSClient", "Create", "create", src);
     final DFSOutputStream result = DFSOutputStream.newStreamForCreate(this,
         src, masked, flag, createParent, replication, blockSize, progress,
         buffersize, dfsClientConf.createChecksum(checksumOpt), favoredNodeStrs);
@@ -1358,6 +1361,7 @@ public class DFSClient implements java.io.Closeable {
         }
         return null;
       }
+      //XTraceContext.startTrace("DFSClient", "Append", "append", src);
       return callAppend(stat, src, buffersize, progress);
     }
     return null;
@@ -1382,6 +1386,7 @@ public class DFSClient implements java.io.Closeable {
     CreateFlag.validate(flag);
     DFSOutputStream result = primitiveAppend(src, flag, buffersize, progress);
     if (result == null) {
+      //XTraceContext.startTrace("DFSClient", "Create", "create", src);
       DataChecksum checksum = dfsClientConf.createChecksum(checksumOpt);
       result = DFSOutputStream.newStreamForCreate(this, src, absPermission,
           flag, createParent, replication, blockSize, progress, buffersize,
@@ -1462,6 +1467,7 @@ public class DFSClient implements java.io.Closeable {
   public HdfsDataOutputStream append(final String src, final int buffersize,
       final Progressable progress, final FileSystem.Statistics statistics
       ) throws IOException {
+    //XTraceContext.startTrace("DFSClient", "Append", "append", src);
     final DFSOutputStream out = append(src, buffersize, progress);
     return new HdfsDataOutputStream(out, statistics, out.getInitialLen());
   }
@@ -1789,6 +1795,7 @@ public class DFSClient implements java.io.Closeable {
 
           final BlockOpResponseProto reply =
             BlockOpResponseProto.parseFrom(PBHelper.vintPrefixed(in));
+          XTraceProtoUtils.join(reply);
 
           if (reply.getStatus() != Status.SUCCESS) {
             if (reply.getStatus() == Status.ERROR_ACCESS_TOKEN) {
@@ -1971,6 +1978,7 @@ public class DFSClient implements java.io.Closeable {
       new Sender(out).readBlock(lb.getBlock(), lb.getBlockToken(), clientName, 0, 1, true);
       final BlockOpResponseProto reply =
           BlockOpResponseProto.parseFrom(PBHelper.vintPrefixed(in));
+      XTraceProtoUtils.join(reply);
       
       if (reply.getStatus() != Status.SUCCESS) {
         if (reply.getStatus() == Status.ERROR_ACCESS_TOKEN) {

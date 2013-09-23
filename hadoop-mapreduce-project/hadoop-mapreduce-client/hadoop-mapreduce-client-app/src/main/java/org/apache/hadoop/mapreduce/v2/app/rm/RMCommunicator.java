@@ -54,6 +54,7 @@ import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 import org.apache.hadoop.yarn.factories.RecordFactory;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
 
+import edu.brown.cs.systems.xtrace.XTrace;
 /**
  * Registers/unregisters to RM and sends heartbeats to RM.
  */
@@ -247,6 +248,7 @@ public abstract class RMCommunicator extends AbstractService
             }
             return;
           }
+          XTrace.stop();
         }
       }
     });

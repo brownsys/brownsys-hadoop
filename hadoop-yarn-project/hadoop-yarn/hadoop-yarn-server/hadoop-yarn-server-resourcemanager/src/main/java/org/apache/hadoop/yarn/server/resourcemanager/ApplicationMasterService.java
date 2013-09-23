@@ -84,10 +84,13 @@ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.YarnScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.security.authorize.RMPolicyProvider;
 import org.apache.hadoop.yarn.server.utils.BuilderUtils;
 
+import edu.brown.cs.systems.xtrace.XTrace;
+
 @SuppressWarnings("unchecked")
 @Private
 public class ApplicationMasterService extends AbstractService implements
     ApplicationMasterProtocol {
+  private static final XTrace.Logger xtrace = XTrace.getLogger(ApplicationMasterService.class);
   private static final Log LOG = LogFactory.getLog(ApplicationMasterService.class);
   private final AMLivelinessMonitor amLivelinessMonitor;
   private YarnScheduler rScheduler;
@@ -530,6 +533,7 @@ public class ApplicationMasterService extends AbstractService implements
     // attemptID get registered
     response.setResponseId(-1);
     LOG.info("Registering app attempt : " + attemptId);
+    xtrace.log("Registering app attempt", "Attempt ID", attemptId);
     responseMap.put(attemptId, response);
     rmContext.getNMTokenSecretManager().registerApplicationAttempt(attemptId);
   }

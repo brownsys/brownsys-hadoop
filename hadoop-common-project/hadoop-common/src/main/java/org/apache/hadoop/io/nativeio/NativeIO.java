@@ -26,6 +26,8 @@ import java.io.RandomAccessFile;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
@@ -34,8 +36,7 @@ import org.apache.hadoop.io.SecureIOUtils.AlreadyExistsException;
 import org.apache.hadoop.util.NativeCodeLoader;
 import org.apache.hadoop.util.Shell;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import edu.brown.cs.systems.xtrace.XTrace;
 
 /**
  * JNI wrappers for various native IO-related calls not available in Java.
@@ -90,6 +91,7 @@ public class NativeIO {
        write.  */
     public static final int SYNC_FILE_RANGE_WAIT_AFTER = 4;
 
+    private static final XTrace.Logger xtrace = XTrace.getLogger(NativeIO.class);
     private static final Log LOG = LogFactory.getLog(NativeIO.class);
 
     private static boolean nativeLoaded = false;
@@ -184,6 +186,7 @@ public class NativeIO {
       if (nativeLoaded && fadvisePossible) {
         try {
           posix_fadvise(fd, offset, len, flags);
+          xtrace.log("posix_fadvise", "offset", offset, "len", len, "flags", flags);
         } catch (UnsupportedOperationException uoe) {
           fadvisePossible = false;
         } catch (UnsatisfiedLinkError ule) {
@@ -205,6 +208,7 @@ public class NativeIO {
       if (nativeLoaded && syncFileRangePossible) {
         try {
           sync_file_range(fd, offset, nbytes, flags);
+          xtrace.log("sync_file_range", "offset", offset, "nbytes", nbytes, "flags", flags);
         } catch (UnsupportedOperationException uoe) {
           syncFileRangePossible = false;
         } catch (UnsatisfiedLinkError ule) {

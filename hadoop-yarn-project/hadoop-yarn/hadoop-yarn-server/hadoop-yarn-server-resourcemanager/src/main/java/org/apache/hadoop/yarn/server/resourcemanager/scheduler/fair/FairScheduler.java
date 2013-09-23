@@ -35,10 +35,8 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience.LimitedPrivate;
 import org.apache.hadoop.classification.InterfaceStability.Unstable;
-import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerId;
@@ -51,6 +49,7 @@ import org.apache.hadoop.yarn.api.records.QueueUserACLInfo;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.api.records.ResourceRequest;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
+import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
 import org.apache.hadoop.yarn.server.resourcemanager.RMAuditLogger;
 import org.apache.hadoop.yarn.server.resourcemanager.RMAuditLogger.AuditConstants;
@@ -91,6 +90,8 @@ import org.apache.hadoop.yarn.util.resource.Resources;
 
 import com.google.common.annotations.VisibleForTesting;
 
+import edu.brown.cs.systems.xtrace.XTrace;
+
 /**
  * A scheduler that schedules resources between a set of queues. The scheduler
  * keeps track of the resources used by each queue, and attempts to maintain
@@ -123,6 +124,7 @@ public class FairScheduler implements ResourceScheduler {
   private QueueManager queueMgr;
   private Clock clock;
 
+  private static final XTrace.Logger xtrace = XTrace.getLogger();
   private static final Log LOG = LogFactory.getLog(FairScheduler.class);
   
   private static final ResourceCalculator RESOURCE_CALCULATOR =
@@ -852,6 +854,9 @@ public class FairScheduler implements ResourceScheduler {
    * Process a container which has launched on a node, as reported by the node.
    */
   private void containerLaunchedOnNode(ContainerId containerId, FSSchedulerNode node) {
+    XTrace.stop();
+    containerId.joinContext();
+    
     // Get the application for the finished container
     ApplicationAttemptId applicationAttemptId = containerId.getApplicationAttemptId();
     FSSchedulerApp application = applications.get(applicationAttemptId);
@@ -863,6 +868,7 @@ public class FairScheduler implements ResourceScheduler {
     }
 
     application.containerLaunchedOnNode(containerId, node.getNodeID());
+    XTrace.stop();
   }
 
   /**
@@ -890,9 +896,13 @@ public class FairScheduler implements ResourceScheduler {
     // Process completed containers
     for (ContainerStatus completedContainer : completedContainers) {
       ContainerId containerId = completedContainer.getContainerId();
+      XTrace.stop();
+      containerId.joinContext();
       LOG.debug("Container FINISHED: " + containerId);
+      xtrace.log("Container Finished", "Container ID", containerId);
       completedContainer(getRMContainer(containerId),
           completedContainer, RMContainerEventType.FINISHED);
+      XTrace.stop();
     }
 
     // Assign new containers...

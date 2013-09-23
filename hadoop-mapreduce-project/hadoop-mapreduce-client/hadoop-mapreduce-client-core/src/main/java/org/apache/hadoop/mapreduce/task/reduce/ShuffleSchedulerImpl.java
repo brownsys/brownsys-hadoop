@@ -18,10 +18,10 @@
 package org.apache.hadoop.mapreduce.task.reduce;
 
 import java.io.IOException;
-
 import java.net.URI;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -48,6 +48,9 @@ import org.apache.hadoop.mapreduce.TaskID;
 import org.apache.hadoop.mapreduce.task.reduce.MapHost.State;
 import org.apache.hadoop.util.Progress;
 
+import edu.brown.cs.systems.xtrace.Context;
+import edu.brown.cs.systems.xtrace.XTrace;
+
 @InterfaceAudience.Private
 @InterfaceStability.Unstable
 public class ShuffleSchedulerImpl<K,V> implements ShuffleScheduler<K,V> {
@@ -57,6 +60,7 @@ public class ShuffleSchedulerImpl<K,V> implements ShuffleScheduler<K,V> {
     }
   };
 
+  private static final XTrace.Logger xtrace = XTrace.getLogger(ShuffleSchedulerImpl.class);
   private static final Log LOG = LogFactory.getLog(ShuffleSchedulerImpl.class);
   private static final int MAX_MAPS_AT_ONCE = 20;
   private static final long INITIAL_PENALTY = 10000;
@@ -100,6 +104,8 @@ public class ShuffleSchedulerImpl<K,V> implements ShuffleScheduler<K,V> {
   private final boolean reportReadErrorImmediately;
   private long maxDelay = MRJobConfig.DEFAULT_MAX_SHUFFLE_FETCH_RETRY_DELAY;
 
+  private Collection<Context>  failure_contexts = new HashSet<Context>();
+    
   public ShuffleSchedulerImpl(JobConf job, TaskStatus status,
                           TaskAttemptID reduceId,
                           ExceptionReporter reporter,
@@ -195,6 +201,7 @@ public class ShuffleSchedulerImpl<K,V> implements ShuffleScheduler<K,V> {
       reduceShuffleBytes.increment(bytes);
       lastProgressTime = System.currentTimeMillis();
       LOG.debug("map " + mapId + " done " + status.getStateString());
+      xtrace.log("Shuffle from mapper complete", "Map ID", mapId, "Status", status.getStateString());
     }
   }
 
@@ -230,8 +237,11 @@ public class ShuffleSchedulerImpl<K,V> implements ShuffleScheduler<K,V> {
     } else {
       hostFailures.put(hostname, new IntWritable(1));
     }
+    failure_contexts.add(XTrace.get());
     if (failures >= abortFailureLimit) {
       try {
+        for (Context ctx : failure_contexts)
+          XTrace.join(ctx);
         throw new IOException(failures + " failures downloading " + mapId);
       } catch (IOException ie) {
         reporter.reportException(ie);
@@ -368,6 +378,8 @@ public class ShuffleSchedulerImpl<K,V> implements ShuffleScheduler<K,V> {
 
       LOG.info("Assigning " + host + " with " + host.getNumKnownMapOutputs() +
                " to " + Thread.currentThread().getName());
+      xtrace.log("Selected a host for shuffle", 
+          "Host", host, "Num Outputs", host.getNumKnownMapOutputs(), "Thread Name", Thread.currentThread().getName());
       shuffleStart.set(System.currentTimeMillis());
 
       return host;

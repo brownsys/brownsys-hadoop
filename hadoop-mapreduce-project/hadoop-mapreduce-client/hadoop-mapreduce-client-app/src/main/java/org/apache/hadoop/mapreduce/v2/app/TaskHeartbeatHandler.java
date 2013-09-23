@@ -35,6 +35,8 @@ import org.apache.hadoop.service.AbstractService;
 import org.apache.hadoop.yarn.event.EventHandler;
 import org.apache.hadoop.yarn.util.Clock;
 
+import edu.brown.cs.systems.xtrace.XTrace;
+
 
 /**
  * This class keeps track of tasks that have already been launched. It
@@ -115,11 +117,12 @@ public class TaskHeartbeatHandler extends AbstractService {
     ReportTime time = runningAttempts.get(attemptID);
     if(time != null) {
       time.setLastProgress(clock.getTime());
+      attemptID.rememberContext();
     }
   }
 
-  
   public void register(TaskAttemptId attemptID) {
+    attemptID.rememberContext();
     runningAttempts.put(attemptID, new ReportTime(clock.getTime()));
   }
 
@@ -145,12 +148,14 @@ public class TaskHeartbeatHandler extends AbstractService {
            
           if(taskTimedOut) {
             // task is lost, remove from the list and raise lost event
+            entry.getKey().joinContext();
             iterator.remove();
             eventHandler.handle(new TaskAttemptDiagnosticsUpdateEvent(entry
                 .getKey(), "AttemptID:" + entry.getKey().toString()
                 + " Timed out after " + taskTimeOut / 1000 + " secs"));
             eventHandler.handle(new TaskAttemptEvent(entry.getKey(),
                 TaskAttemptEventType.TA_TIMED_OUT));
+            XTrace.stop();
           }
         }
         try {

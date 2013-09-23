@@ -21,29 +21,27 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
-import org.apache.hadoop.classification.InterfaceAudience;
-import org.apache.hadoop.classification.InterfaceStability;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-
+import org.apache.hadoop.classification.InterfaceAudience;
+import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-
 import org.apache.hadoop.io.IOUtils;
-
 import org.apache.hadoop.mapred.JobConf;
-import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.mapred.MapOutputFile;
-
+import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.mapreduce.task.reduce.MergeManagerImpl.CompressAwarePath;
 
 import com.google.common.annotations.VisibleForTesting;
 
+import edu.brown.cs.systems.xtrace.XTrace;
+
 @InterfaceAudience.Private
 @InterfaceStability.Unstable
 class OnDiskMapOutput<K, V> extends MapOutput<K, V> {
+  private static final XTrace.Logger xtrace = XTrace.getLogger(OnDiskMapOutput.class);
   private static final Log LOG = LogFactory.getLog(OnDiskMapOutput.class);
   private final FileSystem fs;
   private final Path tmpOutputPath;
@@ -134,6 +132,7 @@ class OnDiskMapOutput<K, V> extends MapOutput<K, V> {
     CompressAwarePath compressAwarePath = new CompressAwarePath(outputPath,
         getSize(), this.compressedSize);
     merger.closeOnDiskFile(compressAwarePath);
+    xtrace.log("Map output committed", "tmpOutputPath", tmpOutputPath, "outputPath", outputPath);
   }
   
   @Override

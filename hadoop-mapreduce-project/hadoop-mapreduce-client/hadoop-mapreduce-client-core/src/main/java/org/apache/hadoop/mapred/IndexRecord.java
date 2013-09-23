@@ -20,18 +20,69 @@ package org.apache.hadoop.mapred;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 
+import edu.brown.cs.systems.xtrace.Context;
+import edu.brown.cs.systems.xtrace.Metadata.XTraceMetadata;
+import edu.brown.cs.systems.xtrace.Metadata.XTraceMetadata.Builder;
+import edu.brown.cs.systems.xtrace.XTrace;
+
 @InterfaceAudience.LimitedPrivate({"MapReduce"})
 @InterfaceStability.Unstable
 public class IndexRecord {
   public long startOffset;
   public long rawLength;
   public long partLength;
+  public Context ctx;
 
   public IndexRecord() { }
 
-  public IndexRecord(long startOffset, long rawLength, long partLength) {
+  public IndexRecord(long startOffset, long rawLength, long partLength, long xtrace_taskid, long xtrace_opid) {
     this.startOffset = startOffset;
     this.rawLength = rawLength;
     this.partLength = partLength;
+    if (xtrace_taskid!=0) {
+      Builder builder = XTraceMetadata.newBuilder().setTaskID(xtrace_taskid);
+      if (xtrace_opid != 0)
+        builder.addParentEventID(xtrace_opid);
+      ctx = Context.parse(builder.build().toByteArray());
+    }
   }
+  
+  public long getXTraceTaskID() {
+    if (ctx!=null) {
+      try {
+        return XTraceMetadata.parseFrom(ctx.bytes()).getTaskID();
+      } catch (Exception e) {
+      }
+    }
+    return 0L;
+  }
+  
+  public long getXTraceOpID() {
+    if (ctx!=null) {
+      try {
+        XTraceMetadata md = XTraceMetadata.parseFrom(ctx.bytes());
+        if (md.getParentEventIDCount() > 0)
+          return md.getParentEventID(0);
+      } catch (Exception e) {
+      }
+    }
+    return 0L;    
+  }
+  
+  public void rememberContext() {
+    ctx = XTrace.get();
+  }
+  
+  public void clearContext() {
+    ctx = null;
+  }
+  
+  public void joinContext() {
+    XTrace.join(ctx);
+  }
+  
+  public boolean hasContext() {
+    return ctx!=null;
+  }
+  
 }

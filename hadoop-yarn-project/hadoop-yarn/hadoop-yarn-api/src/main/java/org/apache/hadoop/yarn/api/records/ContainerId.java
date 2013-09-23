@@ -41,6 +41,7 @@ public abstract class ContainerId implements Comparable<ContainerId>{
     ContainerId id = Records.newRecord(ContainerId.class);
     id.setId(containerId);
     id.setApplicationAttemptId(appAttemptId);
+    id.rememberContext();
     id.build();
     return id;
   }
@@ -70,6 +71,9 @@ public abstract class ContainerId implements Comparable<ContainerId>{
   @Private
   @Unstable
   protected abstract void setId(int id);
+
+  public abstract void rememberContext();
+  public abstract void joinContext();
  
   
   // TODO: fail the app submission if attempts are more than 10 or something

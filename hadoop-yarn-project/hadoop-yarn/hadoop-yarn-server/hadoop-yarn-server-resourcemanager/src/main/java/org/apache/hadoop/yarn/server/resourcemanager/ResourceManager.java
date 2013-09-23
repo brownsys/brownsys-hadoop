@@ -67,18 +67,18 @@ import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainer;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNode;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNodeEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNodeEventType;
-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.PreemptableResourceScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ContainerPreemptEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ContainerPreemptEventType;
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.PreemptableResourceScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.SchedulerEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.SchedulerEventType;
 import org.apache.hadoop.yarn.server.resourcemanager.security.AMRMTokenSecretManager;
 import org.apache.hadoop.yarn.server.resourcemanager.security.ClientToAMTokenSecretManagerInRM;
 import org.apache.hadoop.yarn.server.resourcemanager.security.DelegationTokenRenewer;
+import org.apache.hadoop.yarn.server.resourcemanager.security.NMTokenSecretManagerInRM;
 import org.apache.hadoop.yarn.server.resourcemanager.security.RMContainerTokenSecretManager;
 import org.apache.hadoop.yarn.server.resourcemanager.security.RMDelegationTokenSecretManager;
-import org.apache.hadoop.yarn.server.resourcemanager.security.NMTokenSecretManagerInRM;
 import org.apache.hadoop.yarn.server.resourcemanager.webapp.RMWebApp;
 import org.apache.hadoop.yarn.server.security.ApplicationACLsManager;
 import org.apache.hadoop.yarn.server.webproxy.AppReportFetcher;
@@ -90,6 +90,8 @@ import org.apache.hadoop.yarn.webapp.WebApps;
 import org.apache.hadoop.yarn.webapp.WebApps.Builder;
 
 import com.google.common.annotations.VisibleForTesting;
+
+import edu.brown.cs.systems.xtrace.XTrace;
 
 /**
  * The ResourceManager is the main class that is a set of components.
@@ -401,12 +403,14 @@ public class ResourceManager extends CompositeService implements Recoverable {
         SchedulerEvent event;
 
         while (!stopped && !Thread.currentThread().isInterrupted()) {
+          XTrace.stop();
           try {
             event = eventQueue.take();
           } catch (InterruptedException e) {
             LOG.error("Returning, interrupted : " + e);
             return; // TODO: Kill RM.
           }
+          event.joinContext();
 
           try {
             scheduler.handle(event);
@@ -444,6 +448,7 @@ public class ResourceManager extends CompositeService implements Recoverable {
 
     @Override
     public void handle(SchedulerEvent event) {
+      event.joinContext();
       try {
         int qSize = eventQueue.size();
         if (qSize !=0 && qSize %1000 == 0) {
@@ -454,6 +459,7 @@ public class ResourceManager extends CompositeService implements Recoverable {
           LOG.info("Very low remaining capacity on scheduler event queue: "
               + remCapacity);
         }
+        event.rememberContext();
         this.eventQueue.put(event);
       } catch (InterruptedException e) {
         throw new YarnRuntimeException(e);
@@ -473,6 +479,7 @@ public class ResourceManager extends CompositeService implements Recoverable {
 
     @Override
     public void handle(RMAppEvent event) {
+      event.joinContext();
       ApplicationId appID = event.getApplicationId();
       RMApp rmApp = this.rmContext.getRMApps().get(appID);
       if (rmApp != null) {
@@ -528,6 +535,7 @@ public class ResourceManager extends CompositeService implements Recoverable {
 
     @Override
     public void handle(RMAppAttemptEvent event) {
+      event.joinContext();
       ApplicationAttemptId appAttemptID = event.getApplicationAttemptId();
       ApplicationId appAttemptId = appAttemptID.getApplicationId();
       RMApp rmApp = this.rmContext.getRMApps().get(appAttemptId);
@@ -557,6 +565,7 @@ public class ResourceManager extends CompositeService implements Recoverable {
 
     @Override
     public void handle(RMNodeEvent event) {
+      event.joinContext();
       NodeId nodeId = event.getNodeId();
       RMNode node = this.rmContext.getRMNodes().get(nodeId);
       if (node != null) {
@@ -815,6 +824,7 @@ public class ResourceManager extends CompositeService implements Recoverable {
   }
   
   public static void main(String argv[]) {
+    System.out.println("I am ResourceManager, king of kings. Look on my works ye mighty, and despair.");
     Thread.setDefaultUncaughtExceptionHandler(new YarnUncaughtExceptionHandler());
     StringUtils.startupShutdownMessage(ResourceManager.class, argv, LOG);
     try {
