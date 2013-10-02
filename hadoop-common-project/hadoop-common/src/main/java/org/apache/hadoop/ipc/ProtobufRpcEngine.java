@@ -61,7 +61,6 @@ import com.google.protobuf.TextFormat;
 
 import edu.berkeley.xtrace.XTraceContext;
 import edu.berkeley.xtrace.XTraceMetadata;
-import edu.berkeley.xtrace.XTraceProcess;
 
 /**
  * RPC Engine for for protobuf based RPCs.
