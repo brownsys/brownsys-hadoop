@@ -89,20 +89,20 @@ public abstract class Receiver implements DataTransferProtocol {
     }
   }
   
-  private static void XTraceJoin(BaseHeaderProto header) {
+  private static void XTraceJoinStart(String type, BaseHeaderProto header) {
     if (header!=null && header.hasXtrace()) {
       ByteString xbs = header.getXtrace();
       XTraceMetadata xmd = XTraceMetadata.createFromBytes(xbs.toByteArray(), 0, xbs.size());
       if (xmd!=null && xmd.isValid())
         XTraceContext.setThreadContext(xmd);
     }    
-    XTraceContext.logEvent("HDFS Receiver", "Hello mateys");
+    XTraceContext.startTrace("DataNode", type);
   }
 
   /** Receive OP_READ_BLOCK */
   private void opReadBlock() throws IOException {
     OpReadBlockProto proto = OpReadBlockProto.parseFrom(vintPrefixed(in));
-    XTraceJoin(proto.getHeader().getBaseHeader());
+    XTraceJoinStart("ReadBlock", proto.getHeader().getBaseHeader());
     readBlock(PBHelper.convert(proto.getHeader().getBaseHeader().getBlock()),
         PBHelper.convert(proto.getHeader().getBaseHeader().getToken()),
         proto.getHeader().getClientName(),
@@ -114,7 +114,7 @@ public abstract class Receiver implements DataTransferProtocol {
   /** Receive OP_WRITE_BLOCK */
   private void opWriteBlock(DataInputStream in) throws IOException {
     final OpWriteBlockProto proto = OpWriteBlockProto.parseFrom(vintPrefixed(in));
-    XTraceJoin(proto.getHeader().getBaseHeader());
+    XTraceJoinStart("WriteBlock", proto.getHeader().getBaseHeader());
     writeBlock(PBHelper.convert(proto.getHeader().getBaseHeader().getBlock()),
         PBHelper.convert(proto.getHeader().getBaseHeader().getToken()),
         proto.getHeader().getClientName(),
@@ -131,7 +131,7 @@ public abstract class Receiver implements DataTransferProtocol {
   private void opTransferBlock(DataInputStream in) throws IOException {
     final OpTransferBlockProto proto =
       OpTransferBlockProto.parseFrom(vintPrefixed(in));
-    XTraceJoin(proto.getHeader().getBaseHeader());
+    XTraceJoinStart("TransferBlock", proto.getHeader().getBaseHeader());
     transferBlock(PBHelper.convert(proto.getHeader().getBaseHeader().getBlock()),
         PBHelper.convert(proto.getHeader().getBaseHeader().getToken()),
         proto.getHeader().getClientName(),
@@ -142,7 +142,7 @@ public abstract class Receiver implements DataTransferProtocol {
   private void opRequestShortCircuitFds(DataInputStream in) throws IOException {
     final OpRequestShortCircuitAccessProto proto =
       OpRequestShortCircuitAccessProto.parseFrom(vintPrefixed(in));
-    XTraceJoin(proto.getHeader());
+    XTraceJoinStart("RequestShortCircuitFds", proto.getHeader());
     requestShortCircuitFds(PBHelper.convert(proto.getHeader().getBlock()),
         PBHelper.convert(proto.getHeader().getToken()),
         proto.getMaxVersion());
@@ -151,7 +151,7 @@ public abstract class Receiver implements DataTransferProtocol {
   /** Receive OP_REPLACE_BLOCK */
   private void opReplaceBlock(DataInputStream in) throws IOException {
     OpReplaceBlockProto proto = OpReplaceBlockProto.parseFrom(vintPrefixed(in));
-    XTraceJoin(proto.getHeader());
+    XTraceJoinStart("ReplaceBlock", proto.getHeader());
     replaceBlock(PBHelper.convert(proto.getHeader().getBlock()),
         PBHelper.convert(proto.getHeader().getToken()),
         proto.getDelHint(),
@@ -161,7 +161,7 @@ public abstract class Receiver implements DataTransferProtocol {
   /** Receive OP_COPY_BLOCK */
   private void opCopyBlock(DataInputStream in) throws IOException {
     OpCopyBlockProto proto = OpCopyBlockProto.parseFrom(vintPrefixed(in));
-    XTraceJoin(proto.getHeader());
+    XTraceJoinStart("CopyBlock", proto.getHeader());
     copyBlock(PBHelper.convert(proto.getHeader().getBlock()),
         PBHelper.convert(proto.getHeader().getToken()));
   }
@@ -169,7 +169,7 @@ public abstract class Receiver implements DataTransferProtocol {
   /** Receive OP_BLOCK_CHECKSUM */
   private void opBlockChecksum(DataInputStream in) throws IOException {
     OpBlockChecksumProto proto = OpBlockChecksumProto.parseFrom(vintPrefixed(in));
-    XTraceJoin(proto.getHeader());
+    XTraceJoinStart("BlockChecksum", proto.getHeader());
     blockChecksum(PBHelper.convert(proto.getHeader().getBlock()),
         PBHelper.convert(proto.getHeader().getToken()));
   }
