@@ -47,6 +47,7 @@ message DataTransferEncryptorMessageProto {
 message BaseHeaderProto {
   required ExtendedBlockProto block = 1;
   optional hadoop.common.TokenProto token = 2;
+  optional bytes xtrace = 3; // X-Trace metadata
 }
 
 message ClientOperationHeaderProto {
