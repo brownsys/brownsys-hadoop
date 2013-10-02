@@ -34,6 +34,10 @@ import org.apache.hadoop.fs.shell.FsCommand;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 
+import com.google.common.base.Joiner;
+
+import edu.berkeley.xtrace.XTraceContext;
+
 /** Provide command line access to a FileSystem. */
 @InterfaceAudience.Private
 public class FsShell extends Configured implements Tool {
@@ -247,22 +251,26 @@ public class FsShell extends Configured implements Tool {
     } else {
       String cmd = argv[0];
       Command instance = null;
+      XTraceContext.startTrace("FsShell", "Executing Command", Joiner.on(" ").join(argv));
       try {
         instance = commandFactory.getInstance(cmd);
         if (instance == null) {
           throw new UnknownCommandException();
         }
         exitCode = instance.run(Arrays.copyOfRange(argv, 1, argv.length));
+        XTraceContext.logEvent("FsShell", "Finished executing command");
       } catch (IllegalArgumentException e) {
         displayError(cmd, e.getLocalizedMessage());
         if (instance != null) {
           printInstanceUsage(System.err, instance);
         }
+        XTraceContext.logEvent("FsShell", "Command failed due to illegal argument");
       } catch (Exception e) {
         // instance.run catches IOE, so something is REALLY wrong if here
         LOG.debug("Error", e);
         displayError(cmd, "Fatal internal error");
         e.printStackTrace(System.err);
+        XTraceContext.logEvent("FsShell", "Fatal internal error", "Message", e.getMessage());
       }
     }
     return exitCode;
