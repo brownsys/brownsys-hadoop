@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
+import java.util.Collection;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -32,6 +33,9 @@ import org.apache.hadoop.io.IOUtils;
 
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
+
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
 
 /**
  * Class to handle reading packets one-at-a-time from the wire.
@@ -51,6 +55,8 @@ public class PacketReceiver implements Closeable {
   
   private static final DirectBufferPool bufferPool = new DirectBufferPool();
   private final boolean useDirectBuffers;
+  
+  private Collection<XTraceMetadata> previous_read_context = XTraceContext.getThreadContext();
 
   /**
    * The entirety of the most recently read packet.
@@ -127,6 +133,10 @@ public class PacketReceiver implements Closeable {
     // CHECKSUMS: the crcs for the data chunk. May be missing if
     //            checksums were not requested
     // DATA       the actual block data
+    XTraceContext.joinContext(previous_read_context);
+    XTraceContext.logEvent(PacketReceiver.class, "PacketReceiver", "Reading packet");
+    try { // xtrace try
+    
     Preconditions.checkState(curHeader == null || !curHeader.isLastPacketInBlock());
 
     curPacketBuf.clear();
@@ -179,6 +189,9 @@ public class PacketReceiver implements Closeable {
       curHeader = new PacketHeader();
     }
     curHeader.setFieldsFromData(dataPlusChecksumLen, headerBuf);
+    curHeader.joinXTraceContext();
+    XTraceContext.logEvent(PacketReceiver.class, "PacketReceiver", "Finished reading packet");
+    previous_read_context = XTraceContext.getThreadContext();
     
     // Compute the sub-slices of the packet
     int checksumLen = dataPlusChecksumLen - curHeader.getDataLen();
@@ -189,6 +202,11 @@ public class PacketReceiver implements Closeable {
     }
     
     reslicePacket(headerLen, checksumLen, curHeader.getDataLen());
+    
+    } catch (IOException e) { // xtrace catch
+      XTraceContext.logEvent(PacketReceiver.class, "PacketReceiver", "Exception reading packet", "Message", e.getMessage());
+      throw e;
+    }
   }
   
   /**

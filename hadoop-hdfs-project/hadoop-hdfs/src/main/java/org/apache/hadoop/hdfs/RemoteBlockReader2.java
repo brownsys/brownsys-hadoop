@@ -50,6 +50,8 @@ import org.apache.hadoop.util.DataChecksum;
 
 import com.google.common.annotations.VisibleForTesting;
 
+import edu.berkeley.xtrace.XTraceContext;
+
 /**
  * This is a wrapper around connection to datanode
  * and understands checksum, offset etc.
@@ -376,6 +378,9 @@ public class RemoteBlockReader2  implements BlockReader {
                                      String clientName,
                                      Peer peer, DatanodeID datanodeID,
                                      PeerCache peerCache) throws IOException {
+    XTraceContext.logEvent(RemoteBlockReader2.class, "RemoteBlockReader2", "Reading remote block", "file", file, "BlockName", block.getBlockName());
+    try { // xtrace try
+    
     // in and out will be closed when sock is closed (by the caller)
     final DataOutputStream out = new DataOutputStream(new BufferedOutputStream(
           peer.getOutputStream()));
@@ -409,6 +414,11 @@ public class RemoteBlockReader2  implements BlockReader {
     return new RemoteBlockReader2(file, block.getBlockPoolId(), block.getBlockId(),
         checksum, verifyChecksum, startOffset, firstChunkOffset, len, peer,
         datanodeID, peerCache);
+    
+    } catch (IOException e) {
+      XTraceContext.logEvent(RemoteBlockReader2.class, "RemoteBlockReader2", "IOException reading remote block", "Message", e.getMessage());
+      throw e;
+    }
   }
 
   static void checkSuccess(
