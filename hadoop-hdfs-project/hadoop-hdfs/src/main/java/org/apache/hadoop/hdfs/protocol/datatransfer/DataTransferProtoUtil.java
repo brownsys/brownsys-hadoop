@@ -22,6 +22,7 @@ import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
 import org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.BaseHeaderProto;
+import org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.BaseHeaderProto.Builder;
 import org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.ChecksumProto;
 import org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.ClientOperationHeaderProto;
 import org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.OpWriteBlockProto;
@@ -30,6 +31,8 @@ import org.apache.hadoop.hdfs.protocolPB.PBHelper;
 import org.apache.hadoop.hdfs.security.token.block.BlockTokenIdentifier;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.util.DataChecksum;
+import com.google.protobuf.ByteString;
+import edu.berkeley.xtrace.XTraceContext;
 
 
 /**
@@ -78,9 +81,11 @@ public abstract class DataTransferProtoUtil {
 
   static BaseHeaderProto buildBaseHeader(ExtendedBlock blk,
       Token<BlockTokenIdentifier> blockToken) {
-    return BaseHeaderProto.newBuilder()
+    Builder header = BaseHeaderProto.newBuilder()
       .setBlock(PBHelper.convert(blk))
-      .setToken(PBHelper.convert(blockToken))
-      .build();
+      .setToken(PBHelper.convert(blockToken));
+    if (XTraceContext.isValid())
+      header.setXtrace(ByteString.copyFrom(XTraceContext.logMerge().pack()));
+    return header.build();
   }
 }

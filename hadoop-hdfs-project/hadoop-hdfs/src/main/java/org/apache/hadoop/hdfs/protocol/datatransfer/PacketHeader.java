@@ -31,6 +31,11 @@ import com.google.common.base.Preconditions;
 import com.google.common.primitives.Shorts;
 import com.google.common.primitives.Ints;
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.ByteString;
+
+import edu.berkeley.xtrace.TaskID;
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
 
 /**
  * Header data for each packet that goes through the read/write pipelines.
@@ -58,6 +63,7 @@ public class PacketHeader {
       .setLastPacketInBlock(false)
       .setDataLen(0)
       .setSyncBlock(false)
+      .setXtrace(ByteString.copyFrom(new XTraceMetadata(new TaskID(8), 0L).pack()))
       .build().getSerializedSize();
   public static final int PKT_LENGTHS_LEN =
       Ints.BYTES + Shorts.BYTES;
@@ -82,6 +88,9 @@ public class PacketHeader {
       .setSeqno(seqno)
       .setLastPacketInBlock(lastPacketInBlock)
       .setDataLen(dataLen);
+    
+    if (XTraceContext.isValid())
+      builder.setXtrace(ByteString.copyFrom(XTraceContext.logMerge().pack()));
       
     if (syncBlock) {
       // Only set syncBlock if it is specified.
@@ -116,6 +125,13 @@ public class PacketHeader {
 
   public boolean getSyncBlock() {
     return proto.getSyncBlock();
+  }
+  
+  public void joinXTraceContext() {
+    ByteString xbs = proto.getXtrace();
+    XTraceMetadata xmd = XTraceMetadata.createFromBytes(xbs.toByteArray(), 0, xbs.size());
+    if (xmd.isValid())
+      XTraceContext.joinContext(xmd);
   }
 
   @Override

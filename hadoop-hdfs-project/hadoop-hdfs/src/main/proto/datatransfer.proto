@@ -140,6 +140,7 @@ message PacketHeaderProto {
   required bool lastPacketInBlock = 3;
   required sfixed32 dataLen = 4;
   optional bool syncBlock = 5 [default = false];
+  optional bytes xtrace = 6; // X-Trace metadata
 }
 
 enum Status {
