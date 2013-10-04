@@ -568,7 +568,7 @@ class BlockReceiver implements Closeable {
           int numBytesToDisk = (int)(offsetInBlock-onDiskLen);
           
           // Write data to disk.
-          XTraceContext.logEvent(BlockReceiver.class, "BlockReceiver", "Writing data to file output stream", "start", startByteToDisk, "size", numBytesToDisk);
+          XTraceContext.logEvent(BlockReceiver.class, "BlockReceiver", "Writing packet to file output stream", "start", startByteToDisk, "size", numBytesToDisk);
           out.write(dataBuf.array(), startByteToDisk, numBytesToDisk);
 
           // If this is a partial chunk, then verify that this is the only
@@ -1073,7 +1073,7 @@ class BlockReceiver implements Closeable {
                 continue;
               }
             }
-            XTraceContext.logEvent(PacketReceiver.class, "PacketReceiver", "Acknowledging packet", "seqno", seqno, "AckTimeNanos", totalAckTimeNanos);
+            XTraceContext.logEvent(PacketReceiver.class, "PacketResponder", "Acknowledging packet", "seqno", seqno, "AckTimeNanos", totalAckTimeNanos);
             PipelineAck replyAck = new PipelineAck(expected, replies, totalAckTimeNanos);
             
             if (replyAck.isSuccess() && 
@@ -1102,7 +1102,7 @@ class BlockReceiver implements Closeable {
             }
         } catch (IOException e) {
           LOG.warn("IOException in BlockReceiver.run(): ", e);
-          XTraceContext.logEvent(PacketReceiver.class, "PacketReceiver", "IOException in BlockReceiver.run", "Message", e.getMessage());
+          XTraceContext.logEvent(PacketReceiver.class, "PacketResponder", "IOException in BlockReceiver.run", "Message", e.getMessage());
           if (running) {
             try {
               datanode.checkDiskError(e); // may throw an exception here
