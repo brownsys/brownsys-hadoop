@@ -56,8 +56,6 @@ public class PacketReceiver implements Closeable {
   private static final DirectBufferPool bufferPool = new DirectBufferPool();
   private final boolean useDirectBuffers;
   
-  private Collection<XTraceMetadata> previous_read_context = XTraceContext.getThreadContext();
-
   /**
    * The entirety of the most recently read packet.
    * The first PKT_LENGTHS_LEN bytes of this buffer are the
@@ -133,7 +131,6 @@ public class PacketReceiver implements Closeable {
     // CHECKSUMS: the crcs for the data chunk. May be missing if
     //            checksums were not requested
     // DATA       the actual block data
-    XTraceContext.joinContext(previous_read_context);
     XTraceContext.logEvent(PacketReceiver.class, "PacketReceiver", "Reading packet");
     try { // xtrace try
     
@@ -191,7 +188,6 @@ public class PacketReceiver implements Closeable {
     curHeader.setFieldsFromData(dataPlusChecksumLen, headerBuf);
     curHeader.joinXTraceContext();
     XTraceContext.logEvent(PacketReceiver.class, "PacketReceiver", "Finished reading packet");
-    previous_read_context = XTraceContext.getThreadContext();
     
     // Compute the sub-slices of the packet
     int checksumLen = dataPlusChecksumLen - curHeader.getDataLen();
