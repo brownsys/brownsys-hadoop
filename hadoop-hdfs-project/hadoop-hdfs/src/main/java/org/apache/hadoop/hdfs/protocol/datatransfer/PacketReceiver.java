@@ -215,9 +215,34 @@ public class PacketReceiver implements Closeable {
   public void mirrorPacketTo(DataOutputStream mirrorOut) throws IOException {
     Preconditions.checkState(!useDirectBuffers,
         "Currently only supported for non-direct buffers");
+    
+    XTraceContext.logEvent(PacketReceiver.class, "PacketReceiver", "Mirroring packet");
+    try { // xtrace try
+    
+    updateHeaderXTrace();
     mirrorOut.write(curPacketBuf.array(),
         curPacketBuf.arrayOffset(),
         curPacketBuf.remaining());
+    
+    XTraceContext.logEvent(PacketReceiver.class, "PacketReceiver", "Packet mirrored successfully");    
+    } catch (IOException e) { // xtrace catch
+      XTraceContext.logEvent(PacketReceiver.class, "PacketReceiver", "Exception writing block to mirror", "Message", e.getMessage());
+    }
+  }
+  
+  /**
+   * This updates the XTrace metadata in the packet header to the current context
+   */
+  private void updateHeaderXTrace() {
+    // Only update context if there was a previous one, and we assume they have the exact
+    // same length, so we can just drop in a new packet header.
+    if (XTraceContext.isValid() && curHeader.hasXTraceContext()) {
+      PacketHeader newHeader = new PacketHeader(curHeader.getPacketLen(), curHeader.getOffsetInBlock(),
+          curHeader.getSeqno(), curHeader.isLastPacketInBlock(), curHeader.getDataLen(),
+          curHeader.getSyncBlock());
+      curPacketBuf.position(0);
+      newHeader.putInBuffer(curPacketBuf);
+    }
   }
 
   
