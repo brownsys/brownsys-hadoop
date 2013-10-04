@@ -96,7 +96,6 @@ public abstract class Receiver implements DataTransferProtocol {
       if (xmd!=null && xmd.isValid())
         XTraceContext.setThreadContext(xmd);
     }    
-    XTraceContext.startTrace("DataNode", type);
   }
 
   /** Receive OP_READ_BLOCK */

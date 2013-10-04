@@ -76,6 +76,8 @@ import org.apache.hadoop.util.DataChecksum;
 
 import com.google.protobuf.ByteString;
 
+import edu.berkeley.xtrace.XTraceContext;
+
 
 /**
  * Thread for processing incoming/outgoing data stream.
@@ -220,12 +222,14 @@ class DataXceiver extends Receiver implements Runnable {
         opStartTime = now();
         processOp(op);
         ++opsProcessed;
+        XTraceContext.clearThreadContext();
       } while (!peer.isClosed() && dnConf.socketKeepaliveTimeout > 0);
     } catch (Throwable t) {
       LOG.error(datanode.getDisplayName() + ":DataXceiver error processing " +
                 ((op == null) ? "unknown" : op.name()) + " operation " +
                 " src: " + remoteAddress +
                 " dest: " + localAddress, t);
+      XTraceContext.logEvent(DataXceiver.class, "DataXceiver", "Error processing", "Message", t.getMessage());
     } finally {
       if (LOG.isDebugEnabled()) {
         LOG.debug(datanode.getDisplayName() + ":Number of active connections is: "
@@ -241,6 +245,8 @@ class DataXceiver extends Receiver implements Runnable {
   public void requestShortCircuitFds(final ExtendedBlock blk,
       final Token<BlockTokenIdentifier> token,
       int maxVersion) throws IOException {
+    XTraceContext.startTrace("DataNode", "RequestShortCircuitFds");
+    
     updateCurrentThreadName("Passing file descriptors for block " + blk);
     BlockOpResponseProto.Builder bld = BlockOpResponseProto.newBuilder();
     FileInputStream fis[] = null;
@@ -300,6 +306,7 @@ class DataXceiver extends Receiver implements Runnable {
       final long blockOffset,
       final long length,
       final boolean sendChecksum) throws IOException {
+    XTraceContext.startTrace("DataNode", "ReadBlock");
     previousOpClientName = clientName;
 
     OutputStream baseStream = getOutputStream();
@@ -394,6 +401,7 @@ class DataXceiver extends Receiver implements Runnable {
       final long maxBytesRcvd,
       final long latestGenerationStamp,
       DataChecksum requestedChecksum) throws IOException {
+    XTraceContext.startTrace("DataNode", "WriteBlock");
     previousOpClientName = clientname;
     updateCurrentThreadName("Receiving block " + block);
     final boolean isDatanode = clientname.length() == 0;
@@ -467,6 +475,7 @@ class DataXceiver extends Receiver implements Runnable {
         if (LOG.isDebugEnabled()) {
           LOG.debug("Connecting to datanode " + mirrorNode);
         }
+        XTraceContext.logEvent(DataXceiver.class, "DataXceiver writeBlock", "Connecting to mirror node", "mirrorNode", mirrorNode);
         mirrorTarget = NetUtils.createSocketAddr(mirrorNode);
         mirrorSock = datanode.newSocket();
         try {
@@ -513,6 +522,7 @@ class DataXceiver extends Receiver implements Runnable {
                        " from downstream datanode with firstbadlink as " +
                        firstBadLink);
             }
+            XTraceContext.logEvent(DataXceiver.class, "DataXceiver", "Got response for connect ack from downstream datanode");
           }
 
         } catch (IOException e) {
@@ -545,6 +555,7 @@ class DataXceiver extends Receiver implements Runnable {
 
       // send connect-ack to source for clients and not transfer-RBW/Finalized
       if (isClient && !isTransfer) {
+        XTraceContext.logEvent(DataXceiver.class, "DataXceiver", "Forwarding connect ack to upstream");
         if (LOG.isDebugEnabled() || mirrorInStatus != SUCCESS) {
           LOG.info("Datanode " + targets.length +
                    " forwarding connect ack to upstream firstbadlink is " +
@@ -613,6 +624,7 @@ class DataXceiver extends Receiver implements Runnable {
       final Token<BlockTokenIdentifier> blockToken,
       final String clientName,
       final DatanodeInfo[] targets) throws IOException {
+    XTraceContext.startTrace("DataNode", "TransferBlock");
     checkAccess(socketOut, true, blk, blockToken,
         Op.TRANSFER_BLOCK, BlockTokenSecretManager.AccessMode.COPY);
     previousOpClientName = clientName;
@@ -631,6 +643,7 @@ class DataXceiver extends Receiver implements Runnable {
   @Override
   public void blockChecksum(final ExtendedBlock block,
       final Token<BlockTokenIdentifier> blockToken) throws IOException {
+    XTraceContext.startTrace("DataNode", "BlockChecksum");
     final DataOutputStream out = new DataOutputStream(
         getOutputStream());
     checkAccess(out, true, block, blockToken,
@@ -683,6 +696,7 @@ class DataXceiver extends Receiver implements Runnable {
   @Override
   public void copyBlock(final ExtendedBlock block,
       final Token<BlockTokenIdentifier> blockToken) throws IOException {
+    XTraceContext.startTrace("DataNode", "CopyBlock");
     updateCurrentThreadName("Copying block " + block);
     // Read in the header
     if (datanode.isBlockTokenEnabled) {
@@ -758,6 +772,7 @@ class DataXceiver extends Receiver implements Runnable {
       final Token<BlockTokenIdentifier> blockToken,
       final String delHint,
       final DatanodeInfo proxySource) throws IOException {
+    XTraceContext.startTrace("DataNode", "ReplaceBlock");
     updateCurrentThreadName("Replacing block " + block + " from " + delHint);
 
     /* read header */
