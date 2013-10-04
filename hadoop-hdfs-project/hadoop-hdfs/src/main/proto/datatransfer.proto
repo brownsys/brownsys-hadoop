@@ -158,6 +158,7 @@ message PipelineAckProto {
   required sint64 seqno = 1;
   repeated Status status = 2;
   optional uint64 downstreamAckTimeNanos = 3 [default = 0];
+  optional bytes xtrace = 4; // X-Trace metadata
 }
 
 /**

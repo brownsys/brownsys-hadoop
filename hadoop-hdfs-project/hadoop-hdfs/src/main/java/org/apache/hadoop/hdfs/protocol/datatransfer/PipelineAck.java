@@ -28,9 +28,15 @@ import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos;
 import org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.PipelineAckProto;
+import org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.PipelineAckProto.Builder;
 import org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.Status;
 
+import com.google.protobuf.ByteString;
 import com.google.protobuf.TextFormat;
+
+import edu.berkeley.xtrace.XTraceContext;
+import edu.berkeley.xtrace.XTraceMetadata;
+import edu.berkeley.xtrace.XTraceMetadataCollection;
 
 /** Pipeline Acknowledgment **/
 @InterfaceAudience.Private
@@ -59,11 +65,13 @@ public class PipelineAck {
    * @param downstreamAckTimeNanos ack RTT in nanoseconds, 0 if no next DN in pipeline
    */
   public PipelineAck(long seqno, Status[] replies, long downstreamAckTimeNanos) {
-    proto = PipelineAckProto.newBuilder()
+    Builder builder = PipelineAckProto.newBuilder()
       .setSeqno(seqno)
       .addAllStatus(Arrays.asList(replies))
-      .setDownstreamAckTimeNanos(downstreamAckTimeNanos)
-      .build();
+      .setDownstreamAckTimeNanos(downstreamAckTimeNanos);
+    if (XTraceContext.isValid())
+      builder.setXtrace(ByteString.copyFrom(XTraceContext.logMerge().pack()));
+    proto = builder.build();
   }
   
   /**
@@ -96,6 +104,20 @@ public class PipelineAck {
    */
   public long getDownstreamAckTimeNanos() {
     return proto.getDownstreamAckTimeNanos();
+  }
+  
+  public boolean hasXtrace() {
+    return proto.hasXtrace();
+  }
+  
+  public void joinXtraceContext() {
+    if (proto.hasXtrace()) {
+      ByteString xbs = proto.getXtrace();
+      XTraceMetadata xmd = XTraceMetadata.createFromBytes(xbs.toByteArray(),
+                                                              0, xbs.size());
+      if (xmd.isValid())
+        XTraceContext.joinContext(xmd);
+    }
   }
 
   /**
