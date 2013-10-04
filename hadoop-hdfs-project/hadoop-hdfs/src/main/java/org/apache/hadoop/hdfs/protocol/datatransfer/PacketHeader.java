@@ -127,6 +127,10 @@ public class PacketHeader {
     return proto.getSyncBlock();
   }
   
+  public boolean hasXTraceContext() {
+    return proto.hasXtrace();
+  }
+  
   public void joinXTraceContext() {
     ByteString xbs = proto.getXtrace();
     XTraceMetadata xmd = XTraceMetadata.createFromBytes(xbs.toByteArray(), 0, xbs.size());
