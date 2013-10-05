@@ -267,7 +267,7 @@ class BlockReceiver implements Closeable {
     boolean measuredFlushTime = false;
     // close checksum file
     try {
-      XTraceContext.logEvent(BlockReceiver.class, "BlockReceiver", "Closing checksum file");
+      XTraceContext.logEvent(BlockReceiver.class, "BlockReceiver", "Flushing checksum file");
       if (checksumOut != null) {
         long flushStartNanos = System.nanoTime();
         checksumOut.flush();
@@ -291,7 +291,7 @@ class BlockReceiver implements Closeable {
     }
     // close block file
     try {
-      XTraceContext.logEvent(BlockReceiver.class, "BlockReceiver", "Closing block file");
+      XTraceContext.logEvent(BlockReceiver.class, "BlockReceiver", "Flushing block file");
       if (out != null) {
         long flushStartNanos = System.nanoTime();
         out.flush();
@@ -1123,6 +1123,7 @@ class BlockReceiver implements Closeable {
           }
         } finally {
           xtrace = XTraceContext.getThreadContext();
+          XTraceContext.clearThreadContext();
         }
       }
       LOG.info(myString + " terminating");

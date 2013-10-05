@@ -580,6 +580,7 @@ class DataXceiver extends Receiver implements Runnable {
           if (LOG.isTraceEnabled()) {
             LOG.trace("TRANSFER: send close-ack");
           }
+          XTraceContext.logEvent(DataXceiver.class, "DataXceiver", "Sending close ack");
           writeResponse(SUCCESS, null, replyOut);
         }
       }
