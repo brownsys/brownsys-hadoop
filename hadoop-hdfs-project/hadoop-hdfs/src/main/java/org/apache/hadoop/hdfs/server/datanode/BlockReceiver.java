@@ -929,6 +929,8 @@ class BlockReceiver implements Closeable {
     @Override
     public void run() {
       XTraceContext.setThreadContext(xtrace); // set the start xtrace context
+      try { // xtrace try
+      
       boolean lastPacketInBlock = false;
       final long startTime = ClientTraceLog.isInfoEnabled() ? System.nanoTime() : 0;
       while (running && datanode.shouldRun && !lastPacketInBlock) {
@@ -1091,7 +1093,7 @@ class BlockReceiver implements Closeable {
               removeAckHead();
               // update bytes acked
             }
-            XTraceContext.logEvent(BlockReceiver.class, "BlockReceiver", "Packet ack sent.");
+            XTraceContext.logEvent(PacketReceiver.class, "PacketReceiver", "Packet ack sent.");
             // terminate after sending response if this node detected 
             // a checksum error
             if (myStatus == Status.ERROR_CHECKSUM) {
@@ -1121,10 +1123,11 @@ class BlockReceiver implements Closeable {
             running = false;
             receiverThread.interrupt();
           }
-        } finally {
-          xtrace = XTraceContext.getThreadContext();
-          XTraceContext.clearThreadContext();
         }
+      }
+      } finally { // xtrace finally
+        xtrace = XTraceContext.getThreadContext();
+        XTraceContext.clearThreadContext();
       }
       LOG.info(myString + " terminating");
     }
