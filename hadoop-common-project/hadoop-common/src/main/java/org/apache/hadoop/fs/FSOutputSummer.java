@@ -25,6 +25,8 @@ import java.util.zip.Checksum;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 
+import edu.berkeley.xtrace.XTraceContext;
+
 /**
  * This is a generic output stream for generating checksums for
  * data before it is written to the underlying stream
@@ -95,6 +97,8 @@ abstract public class FSOutputSummer extends OutputStream {
   public synchronized void write(byte b[], int off, int len)
       throws IOException {
     
+    try { // xtrace try
+    
     checkClosed();
     
     if (off < 0 || len < 0 || off > b.length - len) {
@@ -102,6 +106,11 @@ abstract public class FSOutputSummer extends OutputStream {
     }
 
     for (int n=0;n<len;n+=write1(b, off+n, len-n)) {
+    }
+    
+    } catch (IOException e) { // xtrace catch
+      XTraceContext.logEvent(FSOutputSummer.class, "FSOutputSummer", "IOException writing data to stream", "Message", e.getMessage());
+      throw e;
     }
   }
   

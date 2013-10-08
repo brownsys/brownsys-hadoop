@@ -382,6 +382,8 @@ class DataXceiver extends Receiver implements Runnable {
       throw ioe;
     } finally {
       IOUtils.closeStream(blockSender);
+      
+      XTraceContext.logEvent(DataXceiver.class, "DataNode", "ReadBlock Complete");
     }
 
     //update metrics
@@ -613,6 +615,8 @@ class DataXceiver extends Receiver implements Runnable {
       IOUtils.closeStream(replyOut);
       IOUtils.closeSocket(mirrorSock);
       IOUtils.closeStream(blockReceiver);
+      
+      XTraceContext.logEvent(DataXceiver.class, "DataNode", "WriteBlock Complete");
     }
 
     //update metrics
