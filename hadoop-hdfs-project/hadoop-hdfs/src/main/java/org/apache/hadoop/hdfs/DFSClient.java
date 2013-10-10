@@ -122,6 +122,7 @@ import org.apache.hadoop.hdfs.protocol.NSQuotaExceededException;
 import org.apache.hadoop.hdfs.protocol.SnapshotDiffReport;
 import org.apache.hadoop.hdfs.protocol.SnapshottableDirectoryStatus;
 import org.apache.hadoop.hdfs.protocol.UnresolvedPathException;
+import org.apache.hadoop.hdfs.protocol.XTraceProtoUtils;
 import org.apache.hadoop.hdfs.protocol.datatransfer.DataTransferEncryptor;
 import org.apache.hadoop.hdfs.protocol.datatransfer.IOStreamPair;
 import org.apache.hadoop.hdfs.protocol.datatransfer.Op;
@@ -1789,6 +1790,7 @@ public class DFSClient implements java.io.Closeable {
 
           final BlockOpResponseProto reply =
             BlockOpResponseProto.parseFrom(PBHelper.vintPrefixed(in));
+          XTraceProtoUtils.join(reply);
 
           if (reply.getStatus() != Status.SUCCESS) {
             if (reply.getStatus() == Status.ERROR_ACCESS_TOKEN) {
@@ -1971,6 +1973,7 @@ public class DFSClient implements java.io.Closeable {
       new Sender(out).readBlock(lb.getBlock(), lb.getBlockToken(), clientName, 0, 1, true);
       final BlockOpResponseProto reply =
           BlockOpResponseProto.parseFrom(PBHelper.vintPrefixed(in));
+      XTraceProtoUtils.join(reply);
       
       if (reply.getStatus() != Status.SUCCESS) {
         if (reply.getStatus() == Status.ERROR_ACCESS_TOKEN) {

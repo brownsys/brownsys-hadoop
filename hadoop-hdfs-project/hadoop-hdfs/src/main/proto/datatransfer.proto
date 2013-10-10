@@ -195,6 +195,7 @@ message BlockOpResponseProto {
    * read.
    */
   optional uint32 shortCircuitAccessVersion = 6;
+  optional bytes xtrace = 7; // X-Trace metadata
 }
 
 /**
@@ -203,10 +204,12 @@ message BlockOpResponseProto {
  */
 message ClientReadStatusProto {
   required Status status = 1;
+  optional bytes xtrace = 2; // X-Trace metadata
 }
 
 message DNTransferAckProto {
   required Status status = 1;
+  optional bytes xtrace = 2; // X-Trace metadata
 }
 
 message OpBlockChecksumResponseProto {

@@ -46,6 +46,7 @@ import org.apache.hadoop.hdfs.net.Peer;
 import org.apache.hadoop.hdfs.protocol.DatanodeInfo;
 import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
 import org.apache.hadoop.hdfs.protocol.HdfsConstants;
+import org.apache.hadoop.hdfs.protocol.XTraceProtoUtils;
 import org.apache.hadoop.hdfs.protocol.datatransfer.BlockConstructionStage;
 import org.apache.hadoop.hdfs.protocol.datatransfer.DataTransferEncryptor.InvalidMagicNumberException;
 import org.apache.hadoop.hdfs.protocol.datatransfer.DataTransferProtoUtil;
@@ -273,6 +274,7 @@ class DataXceiver extends Receiver implements Runnable {
       bld.setMessage(e.getMessage());
     }
     try {
+      XTraceProtoUtils.setXtrace(bld);
       bld.build().writeDelimitedTo(socketOut);
       if (fis != null) {
         FileDescriptor fds[] = new FileDescriptor[fis.length];
@@ -350,6 +352,7 @@ class DataXceiver extends Receiver implements Runnable {
         try {
           ClientReadStatusProto stat = ClientReadStatusProto.parseFrom(
               PBHelper.vintPrefixed(in));
+          XTraceProtoUtils.join(stat);
           if (!stat.hasStatus()) {
             LOG.warn("Client " + peer.getRemoteAddressString() +
                 " did not send a valid status code after reading. " +
@@ -518,6 +521,7 @@ class DataXceiver extends Receiver implements Runnable {
               BlockOpResponseProto.parseFrom(PBHelper.vintPrefixed(mirrorIn));
             mirrorInStatus = connectAck.getStatus();
             firstBadLink = connectAck.getFirstBadLink();
+            XTraceProtoUtils.join(connectAck);
             if (LOG.isDebugEnabled() || mirrorInStatus != SUCCESS) {
               LOG.info("Datanode " + targets.length +
                        " got response for connect ack " +
@@ -528,8 +532,9 @@ class DataXceiver extends Receiver implements Runnable {
           }
 
         } catch (IOException e) {
+          XTraceContext.logEvent(DataXceiver.class, "DataXceiver", "Exception transferring block");
           if (isClient) {
-            BlockOpResponseProto.newBuilder()
+            XTraceProtoUtils.newBlockOpResponseProtoBuilder()
               .setStatus(ERROR)
                // NB: Unconditionally using the xfer addr w/o hostname
               .setFirstBadLink(targets[0].getXferAddr())
@@ -563,7 +568,7 @@ class DataXceiver extends Receiver implements Runnable {
                    " forwarding connect ack to upstream firstbadlink is " +
                    firstBadLink);
         }
-        BlockOpResponseProto.newBuilder()
+        XTraceProtoUtils.newBlockOpResponseProtoBuilder()
           .setStatus(mirrorInStatus)
           .setFirstBadLink(firstBadLink)
           .build()
@@ -677,7 +682,7 @@ class DataXceiver extends Receiver implements Runnable {
       }
 
       //write reply
-      BlockOpResponseProto.newBuilder()
+      XTraceProtoUtils.newBlockOpResponseProtoBuilder()
         .setStatus(SUCCESS)
         .setChecksumResponse(OpBlockChecksumResponseProto.newBuilder()             
           .setBytesPerCrc(bytesPerCRC)
@@ -847,6 +852,7 @@ class DataXceiver extends Receiver implements Runnable {
       
       BlockOpResponseProto copyResponse = BlockOpResponseProto.parseFrom(
           PBHelper.vintPrefixed(proxyReply));
+      XTraceProtoUtils.join(copyResponse);
 
       if (copyResponse.getStatus() != SUCCESS) {
         if (copyResponse.getStatus() == ERROR_ACCESS_TOKEN) {
@@ -931,6 +937,7 @@ class DataXceiver extends Receiver implements Runnable {
     if (message != null) {
       response.setMessage(message);
     }
+    XTraceProtoUtils.setXtrace(response);
     response.build().writeDelimitedTo(out);
     out.flush();
   }
@@ -943,7 +950,7 @@ class DataXceiver extends Receiver implements Runnable {
       .setChunkOffset(blockSender.getOffset())
       .build();
       
-    BlockOpResponseProto response = BlockOpResponseProto.newBuilder()
+    BlockOpResponseProto response = XTraceProtoUtils.newBlockOpResponseProtoBuilder()
       .setStatus(SUCCESS)
       .setReadOpChecksumInfo(ckInfo)
       .build();
@@ -975,6 +982,7 @@ class DataXceiver extends Receiver implements Runnable {
               // NB: Unconditionally using the xfer addr w/o hostname
               resp.setFirstBadLink(dnR.getXferAddr());
             }
+            XTraceProtoUtils.setXtrace(resp);
             resp.build().writeDelimitedTo(out);
             out.flush();
           }

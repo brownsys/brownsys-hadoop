@@ -32,6 +32,7 @@ import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.hdfs.net.Peer;
 import org.apache.hadoop.hdfs.protocol.DatanodeID;
 import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
+import org.apache.hadoop.hdfs.protocol.XTraceProtoUtils;
 import org.apache.hadoop.hdfs.protocol.datatransfer.DataTransferProtoUtil;
 import org.apache.hadoop.hdfs.protocol.datatransfer.PacketHeader;
 import org.apache.hadoop.hdfs.protocol.datatransfer.PacketReceiver;
@@ -215,6 +216,7 @@ public class RemoteBlockReader2  implements BlockReader {
     // If we've now satisfied the whole client read, read one last packet
     // header, which should be empty
     if (bytesNeededToFinish <= 0) {
+      XTraceContext.logEvent(RemoteBlockReader2.class, "RemoteBlockReader2", "Block finished, reading trailing empty packet");
       readTrailingEmptyPacket();
       if (verifyChecksum) {
         sendReadResult(Status.CHECKSUM_OK);
@@ -323,7 +325,7 @@ public class RemoteBlockReader2  implements BlockReader {
   static void writeReadResult(OutputStream out, Status statusCode)
       throws IOException {
     
-    ClientReadStatusProto.newBuilder()
+    XTraceProtoUtils.newClientReadStatusProtoBuilder()
       .setStatus(statusCode)
       .build()
       .writeDelimitedTo(out);
@@ -394,6 +396,7 @@ public class RemoteBlockReader2  implements BlockReader {
 
     BlockOpResponseProto status = BlockOpResponseProto.parseFrom(
         PBHelper.vintPrefixed(in));
+    XTraceProtoUtils.join(status);
     checkSuccess(status, peer, block, file);
     ReadOpChecksumInfoProto checksumInfo =
       status.getReadOpChecksumInfo();

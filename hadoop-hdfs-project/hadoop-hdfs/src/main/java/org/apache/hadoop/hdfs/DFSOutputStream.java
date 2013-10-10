@@ -59,6 +59,7 @@ import org.apache.hadoop.hdfs.protocol.LocatedBlock;
 import org.apache.hadoop.hdfs.protocol.NSQuotaExceededException;
 import org.apache.hadoop.hdfs.protocol.SnapshotAccessControlException;
 import org.apache.hadoop.hdfs.protocol.UnresolvedPathException;
+import org.apache.hadoop.hdfs.protocol.XTraceProtoUtils;
 import org.apache.hadoop.hdfs.protocol.datatransfer.BlockConstructionStage;
 import org.apache.hadoop.hdfs.protocol.datatransfer.DataTransferProtocol;
 import org.apache.hadoop.hdfs.protocol.datatransfer.DataTransferEncryptor;
@@ -1021,6 +1022,7 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
         //ack
         BlockOpResponseProto response =
           BlockOpResponseProto.parseFrom(PBHelper.vintPrefixed(in));
+        XTraceProtoUtils.join(response);
         if (SUCCESS != response.getStatus()) {
           throw new IOException("Failed to add a datanode");
         }
@@ -1216,6 +1218,7 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
               PBHelper.vintPrefixed(blockReplyStream));
           pipelineStatus = resp.getStatus();
           firstBadLink = resp.getFirstBadLink();
+          XTraceProtoUtils.join(resp);
           
           if (pipelineStatus != SUCCESS) {
             if (pipelineStatus == Status.ERROR_ACCESS_TOKEN) {
