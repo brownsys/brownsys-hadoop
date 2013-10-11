@@ -722,6 +722,7 @@ class BlockReceiver implements Closeable {
       if (responder != null) {
         try {
           responder.join(datanode.getDnConf().getXceiverStopTimeout());
+          ((PacketResponder)responder.getRunnable()).joinXtraceContext();
           if (responder.isAlive()) {
             String msg = "Join on responder thread " + responder
                 + " timed out";
@@ -919,6 +920,9 @@ class BlockReceiver implements Closeable {
       }
       running = false;
       notifyAll();
+    }
+    
+    public void joinXtraceContext() {
       XTraceContext.joinContext(xtrace); // rejoin the end xtrace context
     }
 
@@ -1075,7 +1079,7 @@ class BlockReceiver implements Closeable {
                 continue;
               }
             }
-            XTraceContext.logEvent(PacketReceiver.class, "PacketResponder", "Acknowledging packet", "seqno", seqno, "AckTimeNanos", totalAckTimeNanos);
+            XTraceContext.logEvent(PacketReceiver.class, "PacketResponder", "Acknowledging packet", "seqno", expected, "AckTimeNanos", totalAckTimeNanos);
             PipelineAck replyAck = new PipelineAck(expected, replies, totalAckTimeNanos);
             
             if (replyAck.isSuccess() && 
