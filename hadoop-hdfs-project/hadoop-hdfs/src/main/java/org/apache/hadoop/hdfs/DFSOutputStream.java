@@ -95,6 +95,7 @@ import com.google.common.cache.RemovalNotification;
 
 import edu.berkeley.xtrace.XTraceContext;
 import edu.berkeley.xtrace.XTraceMetadata;
+import edu.berkeley.xtrace.XTraceResourceTracing;
 
 
 /****************************************************************
@@ -1533,7 +1534,12 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
   private void waitAndQueueCurrentPacket() throws IOException {
     synchronized (dataQueue) {
       // If queue is full, then wait till we have enough space
+      boolean loggedWait = false;
       while (!closed && dataQueue.size() + ackQueue.size()  > MAX_PACKETS) {
+        if (!loggedWait) {
+          XTraceResourceTracing.waitStart();
+          loggedWait = true;
+        }
         try {
           XTraceContext.logEvent(DFSOutputStream.class, "DFSOutputStream", "Output queues full, waiting for space...");
           dataQueue.wait();
@@ -1549,6 +1555,8 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
           break;
         }
       }
+      if (loggedWait)
+        XTraceResourceTracing.waitEnd();
       checkClosed();
       queueCurrentPacket();
     }
