@@ -448,6 +448,7 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
     private void initDataStreaming() {
       this.setName("DataStreamer for file " + src +
           " block " + block);
+      XTraceContext.logEvent(DataStreamer.class, "DataStreamer", "Kicking off response processor");
       response = new ResponseProcessor(nodes);
       response.start();
       stage = BlockConstructionStage.DATA_STREAMING;
