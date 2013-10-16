@@ -58,6 +58,8 @@ import org.apache.hadoop.util.VersionUtil;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Maps;
 
+import edu.berkeley.xtrace.XTraceContext;
+
 /**
  * A thread per active or standby namenode to perform:
  * <ul>
@@ -313,6 +315,7 @@ class BPServiceActor implements Runnable {
       pendingIncrementalBR.put(
           bInfo.getBlock().getBlockId(), bInfo);
       pendingReceivedRequests++;
+      XTraceContext.logEvent(BPServiceActor.class, "BPServiceActor", "Triggering block report to namenode");
       pendingIncrementalBR.notifyAll();
     }
   }
