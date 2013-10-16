@@ -2036,8 +2036,6 @@ public abstract class Server {
           final Call call = callQueue.take(); // pop the queue; maybe blocked here
           if (call.xtrace != null) {
         	  XTraceContext.setThreadContext(call.xtrace);
-        	  XTraceContext.logEvent(RPC.class, "RPC Server", "Processing RPC call", "From", call.connection,
-        			  "Protocol", call.connection.protocolName, "rpcKind", call.rpcKind);
           }
           if (LOG.isDebugEnabled()) {
             LOG.debug(getName() + ": " + call + " for RpcKind " + call.rpcKind);
@@ -2317,8 +2315,6 @@ public abstract class Server {
     headerBuilder.setStatus(status);
     headerBuilder.setServerIpcVersionNum(CURRENT_VERSION);
     if (XTraceContext.isValid()) {
-      XTraceContext.logEvent(RPC.class, "RPC Server", "Sending " + status + " response", 
-          "Connection", call.connection, "Call ID", call.callId);
       headerBuilder.setXtrace(ByteString.copyFrom(XTraceContext.logMerge().pack()));
     }
     /* X-Trace: we have to send in the response the last event in the server
