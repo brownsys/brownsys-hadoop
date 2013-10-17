@@ -857,7 +857,7 @@ class BlockReceiver implements Closeable {
     private final String myString;
     
     /** XTrace context when packet responder was created */
-    private Collection<XTraceMetadata> xtrace = XTraceContext.getThreadContext();
+    private Collection<XTraceMetadata> xtrace = XTraceResourceTracing.getContextForNewThread();
 
     @Override
     public String toString() {
@@ -935,7 +935,7 @@ class BlockReceiver implements Closeable {
      */
     @Override
     public void run() {
-      XTraceContext.setThreadContext(xtrace); // set the start xtrace context
+      XTraceContext.setThreadContext(xtrace, "DataNode Packet Responder Thread"); // set the start xtrace context
       try { // xtrace try
       
       boolean lastPacketInBlock = false;

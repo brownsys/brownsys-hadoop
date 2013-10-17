@@ -371,7 +371,7 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
     private final boolean isAppend;
     
     /** XTrace Context when streamer is created */
-    private Collection<XTraceMetadata> xtrace = XTraceContext.getThreadContext();
+    private Collection<XTraceMetadata> xtrace = XTraceResourceTracing.getContextForNewThread();
 
     /**
      * Default construction for file create
@@ -472,7 +472,7 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
      */
     @Override
     public void run() {
-      XTraceContext.joinContext(xtrace);
+      XTraceContext.setThreadContext(xtrace, "Client DataStreamer Thread");
       try { //xtrace try
       
       long lastPacket = Time.now();
@@ -748,7 +748,7 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
       private DatanodeInfo[] targets = null;
       private boolean isLastPacketInBlock = false;
       
-      private Collection<XTraceMetadata> xtrace = XTraceContext.getThreadContext();
+      private Collection<XTraceMetadata> xtrace = XTraceResourceTracing.getContextForNewThread();
 
       ResponseProcessor (DatanodeInfo[] targets) {
         this.targets = targets;
@@ -756,7 +756,7 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
 
       @Override
       public void run() {
-        XTraceContext.joinContext(xtrace);
+        XTraceContext.setThreadContext(xtrace, "Client Data Streamer Response Processor Thread");
         try { // xtrace try
 
         setName("ResponseProcessor for block " + block);

@@ -581,7 +581,7 @@ public class ProtobufRpcEngine implements RpcEngine {
         if (server.verbose)
           LOG.info("Call: protocol=" + protocol + ", method=" + methodName);
         
-        XTraceContext.logEvent(ProtoBufRpcInvoker.class, "ProtoBufRpcInvoker", "Invoking method "+methodName, "Protocol", protocol, "Name", methodName);
+        XTraceContext.logEvent(ProtoBufRpcInvoker.class, "ProtoBufRpcInvoker", "Invoking method "+methodName, "Protocol", protocol, "Name", "RPC: "+methodName);
         Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
         try { // xtrace try
         
