@@ -246,7 +246,7 @@ class DataXceiver extends Receiver implements Runnable {
   public void requestShortCircuitFds(final ExtendedBlock blk,
       final Token<BlockTokenIdentifier> token,
       int maxVersion) throws IOException {
-    XTraceContext.startTrace("DataNode", "RequestShortCircuitFds");
+    XTraceContext.logEvent(DataXceiver.class, "DataXceiver", "DataNode RequestShortCircuitFds");
     
     updateCurrentThreadName("Passing file descriptors for block " + blk);
     BlockOpResponseProto.Builder bld = BlockOpResponseProto.newBuilder();
@@ -308,7 +308,7 @@ class DataXceiver extends Receiver implements Runnable {
       final long blockOffset,
       final long length,
       final boolean sendChecksum) throws IOException {
-    XTraceContext.startTrace("DataNode", "ReadBlock");
+    XTraceContext.logEvent(DataXceiver.class, "DataXceiver", "DataNode ReadBlock");
     previousOpClientName = clientName;
 
     OutputStream baseStream = getOutputStream();
@@ -406,7 +406,7 @@ class DataXceiver extends Receiver implements Runnable {
       final long maxBytesRcvd,
       final long latestGenerationStamp,
       DataChecksum requestedChecksum) throws IOException {
-    XTraceContext.startTrace("DataNode", "WriteBlock");
+    XTraceContext.logEvent(DataXceiver.class, "DataXceiver", "DataNode WriteBlock");
     previousOpClientName = clientname;
     updateCurrentThreadName("Receiving block " + block);
     final boolean isDatanode = clientname.length() == 0;
@@ -634,7 +634,7 @@ class DataXceiver extends Receiver implements Runnable {
       final Token<BlockTokenIdentifier> blockToken,
       final String clientName,
       final DatanodeInfo[] targets) throws IOException {
-    XTraceContext.startTrace("DataNode", "TransferBlock");
+    XTraceContext.logEvent(DataXceiver.class, "DataXceiver", "DataNode TransferBlock");
     checkAccess(socketOut, true, blk, blockToken,
         Op.TRANSFER_BLOCK, BlockTokenSecretManager.AccessMode.COPY);
     previousOpClientName = clientName;
@@ -653,7 +653,7 @@ class DataXceiver extends Receiver implements Runnable {
   @Override
   public void blockChecksum(final ExtendedBlock block,
       final Token<BlockTokenIdentifier> blockToken) throws IOException {
-    XTraceContext.startTrace("DataNode", "BlockChecksum");
+    XTraceContext.logEvent(DataXceiver.class, "DataXceiver", "DataNode BlockChecksum");
     final DataOutputStream out = new DataOutputStream(
         getOutputStream());
     checkAccess(out, true, block, blockToken,
@@ -706,7 +706,7 @@ class DataXceiver extends Receiver implements Runnable {
   @Override
   public void copyBlock(final ExtendedBlock block,
       final Token<BlockTokenIdentifier> blockToken) throws IOException {
-    XTraceContext.startTrace("DataNode", "CopyBlock");
+    XTraceContext.logEvent(DataXceiver.class, "DataXceiver", "DataNode CopyBlock");
     updateCurrentThreadName("Copying block " + block);
     // Read in the header
     if (datanode.isBlockTokenEnabled) {
@@ -782,7 +782,7 @@ class DataXceiver extends Receiver implements Runnable {
       final Token<BlockTokenIdentifier> blockToken,
       final String delHint,
       final DatanodeInfo proxySource) throws IOException {
-    XTraceContext.startTrace("DataNode", "ReplaceBlock");
+    XTraceContext.logEvent(DataXceiver.class, "DataXceiver", "DataNode ReplaceBlock");
     updateCurrentThreadName("Replacing block " + block + " from " + delHint);
 
     /* read header */
