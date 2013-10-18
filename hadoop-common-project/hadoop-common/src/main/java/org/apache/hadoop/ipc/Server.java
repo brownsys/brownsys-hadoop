@@ -503,8 +503,6 @@ public abstract class Server {
     	  XTraceContext.logEvent(RPC.class, "RPC Server", "Received RPC call", "CallID", id);
     	  this.xtrace = XTraceContext.getThreadContext();
       }
-      XTraceContext.clearThreadContext(); //nothing happens until call gets dequeued
-                                          //we use call.xtrace to keep track
     }
     
     @Override
@@ -1810,6 +1808,8 @@ public abstract class Server {
             ioe.getClass().getName(), ioe.getMessage());
         responder.doRespond(call);
         throw wrse;
+      } finally {
+        XTraceContext.clearThreadContext();
       }
     }
 
