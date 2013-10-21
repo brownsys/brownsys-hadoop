@@ -49,10 +49,20 @@
       <scope>provided</scope>
     </dependency>
     
+        <dependency>
+            <groupId>org.aspectj</groupId>
+            <artifactId>aspectjrt</artifactId>
+            <version>1.7.3</version>
+        </dependency>
 		<dependency>
 			<groupId>edu.berkeley.xtrace</groupId>
 			<artifactId>xtrace</artifactId>
 			<version>2.1-20120824</version>
+		</dependency>
+		<dependency>
+			<groupId>edu.brown.cs.systems</groupId>
+			<artifactId>xtrace-resource-tracing</artifactId>
+			<version>1.0</version>
 		</dependency>
   </dependencies>
 
