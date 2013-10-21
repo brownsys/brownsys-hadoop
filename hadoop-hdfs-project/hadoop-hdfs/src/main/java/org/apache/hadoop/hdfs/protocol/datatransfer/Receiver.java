@@ -94,7 +94,7 @@ public abstract class Receiver implements DataTransferProtocol {
       ByteString xbs = header.getXtrace();
       XTraceMetadata xmd = XTraceMetadata.createFromBytes(xbs.toByteArray(), 0, xbs.size());
       if (xmd!=null && xmd.isValid())
-        XTraceContext.setThreadContext(xmd, "DataNode Receiver Thread: "+type+" Request");
+        XTraceContext.setThreadContext(xmd);
     }    
   }
 

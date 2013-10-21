@@ -56,7 +56,6 @@ import org.apache.hadoop.util.StringUtils;
 
 import edu.berkeley.xtrace.XTraceContext;
 import edu.berkeley.xtrace.XTraceMetadata;
-import edu.berkeley.xtrace.XTraceResourceTracing;
 
 /** A class that receives a block and writes to its own disk, meanwhile
  * may copies it to another site. If a throttler is provided,
@@ -856,8 +855,7 @@ class BlockReceiver implements Closeable {
     /** for log and error messages */
     private final String myString;
     
-    /** XTrace context when packet responder was created */
-    private Collection<XTraceMetadata> xtrace = XTraceResourceTracing.getContextForNewThread();
+    private Collection<XTraceMetadata> xtrace = null;
 
     @Override
     public String toString() {
@@ -908,7 +906,6 @@ class BlockReceiver implements Closeable {
      */
     @Override
     public synchronized void close() {
-      XTraceResourceTracing.waitStart();
       while (running && ackQueue.size() != 0 && datanode.shouldRun) {
         try {
           wait();
@@ -922,7 +919,6 @@ class BlockReceiver implements Closeable {
       }
       running = false;
       notifyAll();
-      XTraceResourceTracing.waitEnd();
     }
     
     public void joinXtraceContext() {
@@ -935,7 +931,6 @@ class BlockReceiver implements Closeable {
      */
     @Override
     public void run() {
-      XTraceContext.setThreadContext(xtrace, "DataNode Packet Responder Thread"); // set the start xtrace context
       try { // xtrace try
       
       boolean lastPacketInBlock = false;
@@ -967,20 +962,13 @@ class BlockReceiver implements Closeable {
               if (seqno != PipelineAck.UNKOWN_SEQNO
                   || type == PacketResponderType.LAST_IN_PIPELINE) {
                 synchronized (this) {
-                  boolean loggedWait = false;
                   while (running && datanode.shouldRun && ackQueue.size() == 0) {
-                    if (!loggedWait) {
-                      XTraceResourceTracing.waitStart();
-                      loggedWait = true;
-                    }
                     if (LOG.isDebugEnabled()) {
                       LOG.debug(myString + ": seqno=" + seqno +
                                 " waiting for local datanode to finish write.");
                     }
                     wait();
                   }
-                  if (loggedWait)
-                    XTraceResourceTracing.waitEnd();
                   if (!running || !datanode.shouldRun) {
                     break;
                   }
@@ -1141,7 +1129,6 @@ class BlockReceiver implements Closeable {
       }
       } finally { // xtrace finally
         xtrace = XTraceContext.getThreadContext();
-        XTraceContext.clearThreadContext();
       }
       LOG.info(myString + " terminating");
     }

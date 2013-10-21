@@ -27,7 +27,6 @@ import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.hdfs.DFSUtil;
 
-import edu.berkeley.xtrace.XTraceResourceTracing;
 
 /** A map from host names to datanode descriptors. */
 @InterfaceAudience.Private
@@ -38,25 +37,19 @@ class Host2NodesMap {
   private ReadWriteLock hostmapLock = new ReentrantReadWriteLock();
   
   private void lockReadLock() {
-    XTraceResourceTracing.requestLock(hostmapLock.readLock());
     hostmapLock.readLock().lock();
-    XTraceResourceTracing.acquiredLock(hostmapLock.readLock());
   }
   
   private void unlockReadLock() {
     hostmapLock.readLock().unlock();
-    XTraceResourceTracing.releasedLock(hostmapLock.readLock());
   }
   
   private void lockWriteLock() {
-    XTraceResourceTracing.requestLock(hostmapLock.writeLock());
     hostmapLock.writeLock().lock();
-    XTraceResourceTracing.acquiredLock(hostmapLock.writeLock());
   }
   
   private void unlockWriteLock() {
     hostmapLock.writeLock().unlock();
-    XTraceResourceTracing.releasedLock(hostmapLock.writeLock());
   }
 
   /** Check if node is already in the map. */

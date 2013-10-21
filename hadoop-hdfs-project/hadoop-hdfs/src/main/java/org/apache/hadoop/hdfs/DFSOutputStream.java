@@ -95,7 +95,6 @@ import com.google.common.cache.RemovalNotification;
 
 import edu.berkeley.xtrace.XTraceContext;
 import edu.berkeley.xtrace.XTraceMetadata;
-import edu.berkeley.xtrace.XTraceResourceTracing;
 
 
 /****************************************************************
@@ -371,7 +370,7 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
     private final boolean isAppend;
     
     /** XTrace Context when streamer is created */
-    private Collection<XTraceMetadata> xtrace = XTraceResourceTracing.getContextForNewThread();
+    private Collection<XTraceMetadata> xtrace = null;
 
     /**
      * Default construction for file create
@@ -472,7 +471,6 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
      */
     @Override
     public void run() {
-      XTraceContext.setThreadContext(xtrace, "Client DataStreamer Thread");
       try { //xtrace try
       
       long lastPacket = Time.now();
@@ -747,8 +745,6 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
       private volatile boolean responderClosed = false;
       private DatanodeInfo[] targets = null;
       private boolean isLastPacketInBlock = false;
-      
-      private Collection<XTraceMetadata> xtrace = XTraceResourceTracing.getContextForNewThread();
 
       ResponseProcessor (DatanodeInfo[] targets) {
         this.targets = targets;
@@ -756,7 +752,6 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
 
       @Override
       public void run() {
-        XTraceContext.setThreadContext(xtrace, "Client Data Streamer Response Processor Thread");
         try { // xtrace try
 
         setName("ResponseProcessor for block " + block);
@@ -1535,14 +1530,8 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
   private void waitAndQueueCurrentPacket() throws IOException {
     synchronized (dataQueue) {
       // If queue is full, then wait till we have enough space
-      boolean loggedWait = false;
       while (!closed && dataQueue.size() + ackQueue.size()  > MAX_PACKETS) {
-        if (!loggedWait) {
-          XTraceResourceTracing.waitStart();
-          loggedWait = true;
-        }
         try {
-          XTraceContext.logEvent(DFSOutputStream.class, "DFSOutputStream", "Output queues full, waiting for space...");
           dataQueue.wait();
         } catch (InterruptedException e) {
           // If we get interrupted while waiting to queue data, we still need to get rid
@@ -1556,8 +1545,6 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
           break;
         }
       }
-      if (loggedWait)
-        XTraceResourceTracing.waitEnd();
       checkClosed();
       queueCurrentPacket();
     }

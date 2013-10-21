@@ -74,8 +74,6 @@ import org.apache.hadoop.hdfs.util.ReadOnlyList;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
-import edu.berkeley.xtrace.XTraceResourceTracing;
-
 /*************************************************
  * FSDirectory stores the filesystem directory state.
  * It handles writing/loading values to disk, and logging
@@ -121,26 +119,19 @@ public class FSDirectory implements Closeable {
 
   // utility methods to acquire and release read lock and write lock
   void readLock() {
-    XTraceResourceTracing.requestLock(this.dirLock.readLock(), "dirLock readLock");
     this.dirLock.readLock().lock();
-    XTraceResourceTracing.acquiredLock(this.dirLock.readLock());
   }
 
   void readUnlock() {
     this.dirLock.readLock().unlock();
-    XTraceResourceTracing.releasedLock(this.dirLock.readLock());
   }
 
   void writeLock() {
-    
-    XTraceResourceTracing.requestLock(this.dirLock.writeLock(), "dirLock writeLock");
     this.dirLock.writeLock().lock();
-    XTraceResourceTracing.acquiredLock(this.dirLock.writeLock());
   }
 
   void writeUnlock() {
     this.dirLock.writeLock().unlock();
-    XTraceResourceTracing.releasedLock(this.dirLock.writeLock());
   }
 
   boolean hasWriteLock() {
@@ -248,14 +239,9 @@ public class FSDirectory implements Closeable {
    */
   void waitForReady() {
     if (!ready) {
-      boolean waited = false;
       writeLock();
       try {
         while (!ready) {
-          if (!waited) {
-            waited = true;
-            XTraceResourceTracing.waitStart();
-          }
           try {
             cond.await(5000, TimeUnit.MILLISECONDS);
           } catch (InterruptedException ie) {
@@ -264,8 +250,6 @@ public class FSDirectory implements Closeable {
       } finally {
         writeUnlock();
       }
-      if (waited)
-        XTraceResourceTracing.waitEnd();
     }
   }
 

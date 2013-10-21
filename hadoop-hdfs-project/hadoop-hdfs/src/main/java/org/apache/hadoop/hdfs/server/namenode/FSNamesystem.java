@@ -231,7 +231,7 @@ import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
-import edu.berkeley.xtrace.XTraceResourceTracing;
+
 
 /***************************************************
  * FSNamesystem does the actual bookkeeping work for the
@@ -1146,31 +1146,23 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
 
   @Override
   public void readLock() {
-    XTraceResourceTracing.requestLock(this.fsLock.readLock(), "FSNamesystem readLock");
     this.fsLock.readLock().lock();
-    XTraceResourceTracing.acquiredLock(this.fsLock.readLock());
   }
   @Override
   public void readUnlock() {
     this.fsLock.readLock().unlock();
-    XTraceResourceTracing.releasedLock(this.fsLock.readLock());
   }
   @Override
   public void writeLock() {
-    XTraceResourceTracing.requestLock(this.fsLock.writeLock(), "FSNamesystem writeLock");
     this.fsLock.writeLock().lock();
-    XTraceResourceTracing.acquiredLock(this.fsLock.writeLock());
   }
   @Override
   public void writeLockInterruptibly() throws InterruptedException {
-    XTraceResourceTracing.requestLock(this.fsLock.writeLock(), "FSNamesystem writeLock");
     this.fsLock.writeLock().lockInterruptibly();
-    XTraceResourceTracing.acquiredLock(this.fsLock.writeLock());
   }
   @Override
   public void writeUnlock() {
     this.fsLock.writeLock().unlock();
-    XTraceResourceTracing.releasedLock(this.fsLock.writeLock());
   }
   @Override
   public boolean hasWriteLock() {

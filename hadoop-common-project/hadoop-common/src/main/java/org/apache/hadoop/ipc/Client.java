@@ -99,8 +99,6 @@ import com.google.protobuf.ByteString;
 import edu.berkeley.xtrace.XTraceContext;
 import edu.berkeley.xtrace.XTraceMetadata;
 import edu.berkeley.xtrace.XTraceMetadataCollection;
-import edu.berkeley.xtrace.XTraceProcess;
-import edu.berkeley.xtrace.XTraceResourceTracing;
 
 /** A client for an IPC service.  IPC calls take a single {@link Writable} as a
  * parameter, and return a {@link Writable} as their value.  A service runs on
@@ -1353,7 +1351,6 @@ public class Client {
       LOG.warn("interrupted waiting to send rpc request to server", e);
       throw new IOException(e);
     }
-    XTraceResourceTracing.waitStart();
     boolean interrupted = false;
     synchronized (call) {
       while (!call.done) {
@@ -1369,7 +1366,6 @@ public class Client {
         // set the interrupt flag now that we are done waiting
         Thread.currentThread().interrupt();
       }
-      XTraceResourceTracing.waitEnd();
 
       if (call.xtrace != null) {
         XTraceContext.joinContext(call.xtrace);
