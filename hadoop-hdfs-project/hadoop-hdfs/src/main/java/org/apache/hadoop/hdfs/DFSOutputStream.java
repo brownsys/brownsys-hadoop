@@ -643,7 +643,7 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
           }
         } catch (Throwable e) {
           DFSClient.LOG.warn("DataStreamer Exception", e);
-          XTraceContext.logEvent(DataStreamer.class, "DataStreamer Exception", "Message", e.getMessage());
+          XTraceContext.logEvent(DataStreamer.class, "Exception", "DataStreamer Exception", "Message", e.getMessage());
           if (e instanceof IOException) {
             setLastException((IOException)e);
           }
