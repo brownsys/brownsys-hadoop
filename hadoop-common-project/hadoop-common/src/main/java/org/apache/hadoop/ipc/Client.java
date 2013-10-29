@@ -895,10 +895,11 @@ public class Client {
 
     @Override
     public void run() {
+      XTraceContext.logEvent(this.getClass(), "Client Connection", "RPC Response reader thread started");
       if (LOG.isDebugEnabled())
         LOG.debug(getName() + ": starting, having connections " 
             + connections.size());
-
+      XTraceContext.clearThreadContext();
       try {
         while (waitForWork()) {//wait here for work - read or close connection
           receiveRpcResponse();
@@ -959,6 +960,7 @@ public class Client {
                 
                 if (LOG.isDebugEnabled())
                   LOG.debug(getName() + " sending #" + call.id);
+                XTraceContext.logEvent(Client.Connection.class, "Client senderFuture", "Sending call");
          
                 byte[] data = d.getData();
                 int totalLength = d.getLength();
