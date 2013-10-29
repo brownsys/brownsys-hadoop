@@ -230,15 +230,15 @@ public class PacketReceiver implements Closeable {
    * This updates the XTrace metadata in the packet header to the current context
    */
   private void updateHeaderXTrace() {
-    // Only update context if there was a previous one, and we assume they have the exact
-    // same length, so we can just drop in a new packet header.
-    if (XTraceContext.isValid() && curHeader.hasXTraceContext()) {
-      PacketHeader newHeader = new PacketHeader(curHeader.getPacketLen(), curHeader.getOffsetInBlock(),
-          curHeader.getSeqno(), curHeader.isLastPacketInBlock(), curHeader.getDataLen(),
-          curHeader.getSyncBlock());
-      curPacketBuf.position(0);
-      newHeader.putInBuffer(curPacketBuf);
-    }
+//    // Only update context if there was a previous one, and we assume they have the exact
+//    // same length, so we can just drop in a new packet header.
+//    if (XTraceContext.isValid() && curHeader.hasXTraceContext()) {
+//      PacketHeader newHeader = new PacketHeader(curHeader.getPacketLen(), curHeader.getOffsetInBlock(),
+//          curHeader.getSeqno(), curHeader.isLastPacketInBlock(), curHeader.getDataLen(),
+//          curHeader.getSyncBlock());
+//      curPacketBuf.position(0);
+//      newHeader.putInBuffer(curPacketBuf);
+//    }
   }
 
   
