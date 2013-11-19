@@ -33,6 +33,7 @@ import com.google.common.primitives.Ints;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.ByteString;
 
+import edu.berkeley.xtrace.OptionField;
 import edu.berkeley.xtrace.TaskID;
 import edu.berkeley.xtrace.XTraceContext;
 import edu.berkeley.xtrace.XTraceMetadata;
@@ -56,15 +57,19 @@ import edu.berkeley.xtrace.XTraceMetadata;
 @InterfaceAudience.Private
 @InterfaceStability.Evolving
 public class PacketHeader {
-  private static final int MAX_PROTO_SIZE = 
-    PacketHeaderProto.newBuilder()
-      .setOffsetInBlock(0)
-      .setSeqno(0)
-      .setLastPacketInBlock(false)
-      .setDataLen(0)
-      .setSyncBlock(false)
-      .setXtrace(ByteString.copyFrom(new XTraceMetadata(new TaskID(8), 0L).pack()))
-      .build().getSerializedSize();
+  private static final int MAX_PROTO_SIZE;
+  static {
+	  XTraceMetadata max = new XTraceMetadata(new TaskID(8), 0L);
+	  max.addOption(new OptionField((byte)0, new byte[254]));
+	  MAX_PROTO_SIZE = PacketHeaderProto.newBuilder()
+		  .setOffsetInBlock(0)
+		  .setSeqno(0)
+		  .setLastPacketInBlock(false)
+		  .setDataLen(0)
+		  .setSyncBlock(false)
+		  .setXtrace(ByteString.copyFrom(max.pack()))
+		  .build().getSerializedSize();
+  }
   public static final int PKT_LENGTHS_LEN =
       Ints.BYTES + Shorts.BYTES;
   public static final int PKT_MAX_HEADER_LEN =
