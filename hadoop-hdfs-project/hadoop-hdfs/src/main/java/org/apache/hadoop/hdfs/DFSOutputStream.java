@@ -369,9 +369,6 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
     /** Append on an existing block? */
     private final boolean isAppend;
     
-    /** XTrace Context when streamer is created */
-    private Collection<XTraceMetadata> xtrace = null;
-
     /**
      * Default construction for file create
      */
@@ -471,8 +468,6 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
      */
     @Override
     public void run() {
-      try { //xtrace try
-      
       long lastPacket = Time.now();
       while (!streamerClosed && dfsClient.clientRunning) {
 
@@ -481,7 +476,6 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
           try {
             response.close();
             response.join();
-            response.joinXTraceContext();
             response = null;
           } catch (InterruptedException  e) {
           }
@@ -654,10 +648,6 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
         }
       }
       closeInternal();
-      
-      } finally { // xtrace finally
-        xtrace = XTraceContext.getThreadContext();
-      }
     }
 
     private void closeInternal() {
@@ -670,10 +660,6 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
       }
     }
     
-    public void joinXTraceContext() {
-      XTraceContext.joinContext(xtrace);
-    }
-
     /*
      * close both streamer and DFSOutputStream, should be called only 
      * by an external thread and only after all data to be sent has 
@@ -700,7 +686,6 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
           response.join();
         } catch (InterruptedException  e) {
         } finally {
-          response.joinXTraceContext();
           response = null;
         }
       }
@@ -752,8 +737,6 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
 
       @Override
       public void run() {
-        try { // xtrace try
-
         setName("ResponseProcessor for block " + block);
         PipelineAck ack = new PipelineAck();
 
@@ -826,10 +809,6 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
             }
           }
         }
-        
-        } finally { // xtrace finally
-          xtrace = XTraceContext.getThreadContext();
-        }
       }
 
       void close() {
@@ -837,9 +816,6 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
         this.interrupt();
       }
       
-      void joinXTraceContext() {
-        XTraceContext.joinContext(xtrace);
-      }
     }
 
     // If this stream has encountered any errors so far, shutdown 
@@ -1873,6 +1849,7 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
         checkClosed();
         if (lastAckedSeqno >= seqno) {
           XTraceContext.joinContext(lastAckedXTraceContext);
+          XTraceContext.logEvent(DFSOutputStream.class, "DFSOutputStream", "Ack received, continuing", "lastAckedSeqno", lastAckedSeqno);          
           break;
         }
         try {
@@ -1910,7 +1887,6 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
     try {
       streamer.close(force);
       streamer.join();
-      streamer.joinXTraceContext();
       if (s != null) {
         s.close();
       }

@@ -722,7 +722,6 @@ class BlockReceiver implements Closeable {
       if (responder != null) {
         try {
           responder.join(datanode.getDnConf().getXceiverStopTimeout());
-          ((PacketResponder)responder.getRunnable()).joinXtraceContext();
           if (responder.isAlive()) {
             String msg = "Join on responder thread " + responder
                 + " timed out";
@@ -855,8 +854,6 @@ class BlockReceiver implements Closeable {
     /** for log and error messages */
     private final String myString;
     
-    private Collection<XTraceMetadata> xtrace = null;
-
     @Override
     public String toString() {
       return myString;
@@ -921,18 +918,12 @@ class BlockReceiver implements Closeable {
       notifyAll();
     }
     
-    public void joinXtraceContext() {
-      XTraceContext.joinContext(xtrace); // rejoin the end xtrace context
-    }
-
     /**
      * Thread to process incoming acks.
      * @see java.lang.Runnable#run()
      */
     @Override
     public void run() {
-      try { // xtrace try
-      
       boolean lastPacketInBlock = false;
       final long startTime = ClientTraceLog.isInfoEnabled() ? System.nanoTime() : 0;
       while (running && datanode.shouldRun && !lastPacketInBlock) {
@@ -1126,9 +1117,6 @@ class BlockReceiver implements Closeable {
             receiverThread.interrupt();
           }
         }
-      }
-      } finally { // xtrace finally
-        xtrace = XTraceContext.getThreadContext();
       }
       LOG.info(myString + " terminating");
     }
