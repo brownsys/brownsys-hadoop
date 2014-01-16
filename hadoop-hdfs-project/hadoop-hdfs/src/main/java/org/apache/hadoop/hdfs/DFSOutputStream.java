@@ -1525,7 +1525,7 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
           Thread.currentThread().interrupt();
           break;
         }
-        if (dataQueue.size() + ackQueue.size() > MAX_PACKETS)
+        if (dataQueue.size() + ackQueue.size() <= MAX_PACKETS)
             XTraceContext.joinContext(lastAckedXTraceContext);
       }
       checkClosed();
