@@ -1506,7 +1506,12 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
   private void waitAndQueueCurrentPacket() throws IOException {
     synchronized (dataQueue) {
       // If queue is full, then wait till we have enough space
+      boolean first = true;
       while (!closed && dataQueue.size() + ackQueue.size()  > MAX_PACKETS) {
+    	if (first) {
+            XTraceContext.logEvent(DFSOutputStream.class, "DFSOutputStream", "Waiting for packets to be acked", "lastAckedSeqno", lastAckedSeqno);
+            first = false;
+    	}
         try {
           dataQueue.wait();
         } catch (InterruptedException e) {
@@ -1520,6 +1525,8 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
           Thread.currentThread().interrupt();
           break;
         }
+        if (dataQueue.size() + ackQueue.size() > MAX_PACKETS)
+            XTraceContext.joinContext(lastAckedXTraceContext);
       }
       checkClosed();
       queueCurrentPacket();
