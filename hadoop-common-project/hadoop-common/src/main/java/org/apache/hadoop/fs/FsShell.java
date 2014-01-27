@@ -251,7 +251,7 @@ public class FsShell extends Configured implements Tool {
     } else {
       String cmd = argv[0];
       Command instance = null;
-      XTraceContext.startTrace("FsShell", "Executing Command", Joiner.on(" ").join(argv));
+      XTraceContext.startTrace("FsShell", "Executing Command", "command line " + Joiner.on(" ").join(argv));
       try {
         instance = commandFactory.getInstance(cmd);
         if (instance == null) {

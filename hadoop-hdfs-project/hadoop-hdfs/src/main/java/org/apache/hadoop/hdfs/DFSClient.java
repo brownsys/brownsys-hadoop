@@ -1020,7 +1020,7 @@ public class DFSClient implements java.io.Closeable {
   static LocatedBlocks callGetBlockLocations(ClientProtocol namenode,
       String src, long start, long length) 
       throws IOException {
-    XTraceContext.startTrace("DFSClient", "GetBlockLocations", "getBlockLocations", src+" ["+start+":"+(start+length)+"]");
+    //XTraceContext.startTrace("DFSClient", "GetBlockLocations", "getBlockLocations", src+" ["+start+":"+(start+length)+"]");
     try {
       return namenode.getBlockLocations(src, start, length);
     } catch(RemoteException re) {
@@ -1171,7 +1171,7 @@ public class DFSClient implements java.io.Closeable {
   public DFSInputStream open(String src, int buffersize, boolean verifyChecksum)
       throws IOException, UnresolvedLinkException {
     checkOpen();
-    XTraceContext.startTrace("DFSClient", "Open", "open", src);
+    //XTraceContext.startTrace("DFSClient", "Open", "open", src);
     //    Get block info from namenode
     return new DFSInputStream(this, src, buffersize, verifyChecksum);
   }
@@ -1343,7 +1343,7 @@ public class DFSClient implements java.io.Closeable {
                          + favoredNodes[i].getPort();
       }
     }
-    XTraceContext.startTrace("DFSClient", "Create", "create", src);
+    //XTraceContext.startTrace("DFSClient", "Create", "create", src);
     final DFSOutputStream result = DFSOutputStream.newStreamForCreate(this,
         src, masked, flag, createParent, replication, blockSize, progress,
         buffersize, dfsClientConf.createChecksum(checksumOpt), favoredNodeStrs);
@@ -1366,7 +1366,7 @@ public class DFSClient implements java.io.Closeable {
         }
         return null;
       }
-      XTraceContext.startTrace("DFSClient", "Append", "append", src);
+      //XTraceContext.startTrace("DFSClient", "Append", "append", src);
       return callAppend(stat, src, buffersize, progress);
     }
     return null;
@@ -1391,7 +1391,7 @@ public class DFSClient implements java.io.Closeable {
     CreateFlag.validate(flag);
     DFSOutputStream result = primitiveAppend(src, flag, buffersize, progress);
     if (result == null) {
-      XTraceContext.startTrace("DFSClient", "Create", "create", src);
+      //XTraceContext.startTrace("DFSClient", "Create", "create", src);
       DataChecksum checksum = dfsClientConf.createChecksum(checksumOpt);
       result = DFSOutputStream.newStreamForCreate(this, src, absPermission,
           flag, createParent, replication, blockSize, progress, buffersize,
@@ -1472,7 +1472,7 @@ public class DFSClient implements java.io.Closeable {
   public HdfsDataOutputStream append(final String src, final int buffersize,
       final Progressable progress, final FileSystem.Statistics statistics
       ) throws IOException {
-    XTraceContext.startTrace("DFSClient", "Append", "append", src);
+    //XTraceContext.startTrace("DFSClient", "Append", "append", src);
     final DFSOutputStream out = append(src, buffersize, progress);
     return new HdfsDataOutputStream(out, statistics, out.getInitialLen());
   }
@@ -1520,7 +1520,7 @@ public class DFSClient implements java.io.Closeable {
   public boolean rename(String src, String dst) throws IOException {
     checkOpen();
     try {
-      XTraceContext.startTrace("DFSClient", "Rename", "rename", src+" -> "+dst);
+      //XTraceContext.startTrace("DFSClient", "Rename", "rename", src+" -> "+dst);
       return namenode.rename(src, dst);
     } catch(RemoteException re) {
       throw re.unwrapRemoteException(AccessControlException.class,
@@ -1540,7 +1540,7 @@ public class DFSClient implements java.io.Closeable {
   public void concat(String trg, String [] srcs) throws IOException {
     checkOpen();
     try {
-      XTraceContext.startTrace("DFSClient", "Concat", "concat");
+      //XTraceContext.startTrace("DFSClient", "Concat", "concat");
       namenode.concat(trg, srcs);
     } catch(RemoteException re) {
       throw re.unwrapRemoteException(AccessControlException.class,
@@ -1558,7 +1558,7 @@ public class DFSClient implements java.io.Closeable {
       throws IOException {
     checkOpen();
     try {
-      XTraceContext.startTrace("DFSClient", "Rename", "rename", src+" -> "+dst);
+      //XTraceContext.startTrace("DFSClient", "Rename", "rename", src+" -> "+dst);
       namenode.rename2(src, dst, options);
     } catch(RemoteException re) {
       throw re.unwrapRemoteException(AccessControlException.class,
@@ -1581,7 +1581,7 @@ public class DFSClient implements java.io.Closeable {
   @Deprecated
   public boolean delete(String src) throws IOException {
     checkOpen();
-    XTraceContext.startTrace("DFSClient", "Delete", "delete", src);
+    //XTraceContext.startTrace("DFSClient", "Delete", "delete", src);
     try { // xtrace try
     return namenode.delete(src, true);
     } finally {
@@ -1599,7 +1599,7 @@ public class DFSClient implements java.io.Closeable {
   public boolean delete(String src, boolean recursive) throws IOException {
     checkOpen();
     try {
-      XTraceContext.startTrace("DFSClient", "Delete", "delete", src);
+      //XTraceContext.startTrace("DFSClient", "Delete", "delete", src);
       return namenode.delete(src, recursive);
     } catch(RemoteException re) {
       throw re.unwrapRemoteException(AccessControlException.class,
@@ -1642,7 +1642,7 @@ public class DFSClient implements java.io.Closeable {
     throws IOException {
     checkOpen();
     try {
-      XTraceContext.startTrace("DFSClient", "ListPaths", "listPaths", src);
+      //XTraceContext.startTrace("DFSClient", "ListPaths", "listPaths", src);
       return namenode.getListing(src, startAfter, needLocation);
     } catch(RemoteException re) {
       throw re.unwrapRemoteException(AccessControlException.class,
@@ -1664,7 +1664,7 @@ public class DFSClient implements java.io.Closeable {
   public HdfsFileStatus getFileInfo(String src) throws IOException {
     checkOpen();
     try {
-      XTraceContext.startTrace("DFSClient", "GetFileInfo", "getFileInfo", src);
+      //XTraceContext.startTrace("DFSClient", "GetFileInfo", "getFileInfo", src);
       return namenode.getFileInfo(src);
     } catch(RemoteException re) {
       throw re.unwrapRemoteException(AccessControlException.class,
@@ -2150,7 +2150,7 @@ public class DFSClient implements java.io.Closeable {
       throws IOException {
     checkOpen();
     try {
-      XTraceContext.startTrace("DFSClient", "CreateSnapshot", "createSnapshot", snapshotRoot);
+      //XTraceContext.startTrace("DFSClient", "CreateSnapshot", "createSnapshot", snapshotRoot);
       return namenode.createSnapshot(snapshotRoot, snapshotName);
     } catch(RemoteException re) {
       throw re.unwrapRemoteException();
@@ -2171,7 +2171,7 @@ public class DFSClient implements java.io.Closeable {
   public void deleteSnapshot(String snapshotRoot, String snapshotName)
       throws IOException {
     try {
-      XTraceContext.startTrace("DFSClient", "DeleteSnapshot", "deleteSnapshot", snapshotRoot);
+      //XTraceContext.startTrace("DFSClient", "DeleteSnapshot", "deleteSnapshot", snapshotRoot);
       namenode.deleteSnapshot(snapshotRoot, snapshotName);
     } catch(RemoteException re) {
       throw re.unwrapRemoteException();
@@ -2192,7 +2192,7 @@ public class DFSClient implements java.io.Closeable {
       String snapshotNewName) throws IOException {
     checkOpen();
     try {
-      XTraceContext.startTrace("DFSClient", "RenameSnapshot", "renameSnapshot", snapshotOldName+" -> "+snapshotNewName);
+      //XTraceContext.startTrace("DFSClient", "RenameSnapshot", "renameSnapshot", snapshotOldName+" -> "+snapshotNewName);
       namenode.renameSnapshot(snapshotDir, snapshotOldName, snapshotNewName);
     } catch(RemoteException re) {
       throw re.unwrapRemoteException();
@@ -2383,7 +2383,7 @@ public class DFSClient implements java.io.Closeable {
     boolean createParent)
     throws IOException {
     checkOpen();
-    XTraceContext.startTrace("DFSClient", "MkDir", "mkdir", src);
+    //XTraceContext.startTrace("DFSClient", "MkDir", "mkdir", src);
     if (absPermission == null) {
       absPermission = 
         FsPermission.getDefault().applyUMask(dfsClientConf.uMask);
