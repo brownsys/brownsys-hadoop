@@ -116,6 +116,8 @@ import com.google.protobuf.Message.Builder;
 
 import edu.berkeley.xtrace.XTraceContext;
 import edu.berkeley.xtrace.XTraceMetadata;
+import edu.brown.cs.systems.xtrace.resourcetracing.loggers.xtrace.NetworkIO;
+import edu.brown.cs.systems.xtrace.resourcetracing.loggers.pubsub.NetworkIOAggregation;
 
 /** An abstract IPC service.  IPC calls take a single {@link Writable} as a
  * parameter, and return a {@link Writable} as their value.  A service runs on
@@ -482,6 +484,7 @@ public abstract class Server {
     private final RPC.RpcKind rpcKind;
     private final byte[] clientId;
     private Collection<XTraceMetadata> xtrace;  // the X-Trace context this was received with
+	private Collection<XTraceMetadata> responsextrace; // the X-Trace context before sending the response
 
     public Call(int id, int retryCount, Writable param, 
         Connection connection) {
@@ -1010,6 +1013,7 @@ public abstract class Server {
           // Extract the first call
           //
           call = responseQueue.removeFirst();
+          XTraceContext.joinContext(call.responsextrace);
           SocketChannel channel = call.connection.channel;
           if (LOG.isDebugEnabled()) {
             LOG.debug(getName() + ": responding to " + call);
@@ -1790,6 +1794,8 @@ public abstract class Server {
           LOG.debug(" got #" + callId);
         }
         checkRpcHeaders(header);
+    	NetworkIO.didReadBefore(this, buf.length);
+    	NetworkIOAggregation.didReadBefore(buf.length);
         
         if (callId < 0) { // callIds typically used during connection setup
           processRpcOutOfBandRequest(header, dis);
@@ -2375,7 +2381,8 @@ public abstract class Server {
     call.setResponse(ByteBuffer.wrap(responseBuf.toByteArray()));
     
     if (XTraceContext.isValid()) {
-        XTraceContext.clearThreadContext(); //to prevent leaking
+    	call.responsextrace = XTraceContext.getThreadContext();
+//        XTraceContext.clearThreadContext(); //to prevent leaking
     }
   }
   
