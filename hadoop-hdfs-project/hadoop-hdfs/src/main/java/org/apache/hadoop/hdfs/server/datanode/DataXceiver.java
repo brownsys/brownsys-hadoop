@@ -330,7 +330,6 @@ class DataXceiver extends Receiver implements Runnable {
             remoteAddress;
 
     updateCurrentThreadName("Sending block " + block);
-    XTraceContext.logEvent(DataXceiver.class, "DataXceiver", "Creating BlockSender");
     try {
       try {
         blockSender = new BlockSender(block, blockOffset, length,
@@ -342,15 +341,11 @@ class DataXceiver extends Receiver implements Runnable {
         throw e;
       }
       
-      XTraceContext.logEvent(DataXceiver.class, "DataXceiver", "WritingRPCResult");
-      
       // send op status
       writeSuccessWithChecksumInfo(blockSender, new DataOutputStream(getOutputStream()));
 
-      XTraceContext.logEvent(DataXceiver.class, "DataXceiver", "Sending Block");
       long read = blockSender.sendBlock(out, baseStream, null); // send data
 
-      XTraceContext.logEvent(DataXceiver.class, "DataXceiver", "Sent Block");
       if (blockSender.didSendEntireByteRange()) {
         // If we sent the entire range, then we should expect the client
         // to respond with a Status enum.
@@ -368,10 +363,8 @@ class DataXceiver extends Receiver implements Runnable {
           LOG.debug("Error reading client status response. Will close connection.", ioe);
           IOUtils.closeStream(out);
         }
-        XTraceContext.logEvent(DataXceiver.class, "DataXceiver", "Received RPC status enum");
       } else {
         IOUtils.closeStream(out);
-        XTraceContext.logEvent(DataXceiver.class, "DataXceiver", "Closed Stream");
       }
       datanode.metrics.incrBytesRead((int) read);
       datanode.metrics.incrBlocksRead();
