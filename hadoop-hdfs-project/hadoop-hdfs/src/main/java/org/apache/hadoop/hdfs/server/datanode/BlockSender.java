@@ -228,7 +228,9 @@ class BlockSender implements java.io.Closeable {
        */
       DataChecksum csum = null;
       if (verifyChecksum || sendChecksum) {
+    	XTraceContext.logEvent(BlockSender.class, "BlockSender", "Getting metadata input stream");
         final InputStream metaIn = datanode.data.getMetaDataInputStream(block);
+        XTraceContext.logEvent(BlockSender.class, "BlockSender", "Got metadata input stream");
         if (!corruptChecksumOk || metaIn != null) {
           if (metaIn == null) {
             //need checksum but meta-data not found
