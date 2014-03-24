@@ -18,26 +18,25 @@
 
 package org.apache.hadoop.mapred.lib;
 
-import org.apache.hadoop.util.ReflectionUtils;
+import java.io.IOException;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
-import org.apache.hadoop.mapred.MapRunnable;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.MapRunnable;
 import org.apache.hadoop.mapred.Mapper;
-import org.apache.hadoop.mapred.RecordReader;
 import org.apache.hadoop.mapred.OutputCollector;
+import org.apache.hadoop.mapred.RecordReader;
 import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.mapred.SkipBadRecords;
 import org.apache.hadoop.mapreduce.lib.map.MultithreadedMapper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
-import edu.berkeley.xtrace.XTraceContext;
-import edu.berkeley.xtrace.XTraceMetadata;
-
-import java.io.IOException;
-import java.util.Collection;
-import java.util.concurrent.*;
+import org.apache.hadoop.util.ReflectionUtils;
 
 /**
  * Multithreaded implementation for @link org.apache.hadoop.mapred.MapRunnable.
@@ -209,7 +208,6 @@ public class MultithreadedMapRunner<K1, V1, K2, V2>
     private V1 value;
     private OutputCollector<K2, V2> output;
     private Reporter reporter;
-    private Collection<XTraceMetadata> xtrace_context;
 
     /**
      * Collecting all required parameters to execute a Mapper.map call.
@@ -227,7 +225,6 @@ public class MultithreadedMapRunner<K1, V1, K2, V2>
       this.value = value;
       this.output = output;
       this.reporter = reporter;
-      this.xtrace_context = XTraceContext.getThreadContext();
     }
 
     /**
@@ -237,7 +234,6 @@ public class MultithreadedMapRunner<K1, V1, K2, V2>
      *
      */
     public void run() {
-      XTraceContext.setThreadContext(xtrace_context);
       try {
         // map pair to output
         MultithreadedMapRunner.this.mapper.map(key, value, output, reporter);
@@ -264,7 +260,6 @@ public class MultithreadedMapRunner<K1, V1, K2, V2>
           }
         }
       }
-      XTraceContext.clearThreadContext();
     }
   }
 

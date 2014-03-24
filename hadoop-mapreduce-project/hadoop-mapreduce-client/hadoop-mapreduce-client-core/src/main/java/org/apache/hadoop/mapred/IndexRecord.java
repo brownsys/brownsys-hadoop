@@ -17,14 +17,13 @@
  */
 package org.apache.hadoop.mapred;
 
-import java.nio.ByteBuffer;
-
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 
-import edu.berkeley.xtrace.XTraceContext;
-import edu.berkeley.xtrace.XTraceMetadata;
-import edu.berkeley.xtrace.TaskID;
+import edu.brown.cs.systems.xtrace.Context;
+import edu.brown.cs.systems.xtrace.Metadata.XTraceMetadata;
+import edu.brown.cs.systems.xtrace.Metadata.XTraceMetadata.Builder;
+import edu.brown.cs.systems.xtrace.XTrace;
 
 @InterfaceAudience.LimitedPrivate({"MapReduce"})
 @InterfaceStability.Unstable
@@ -32,7 +31,7 @@ public class IndexRecord {
   public long startOffset;
   public long rawLength;
   public long partLength;
-  public XTraceMetadata m;
+  public Context ctx;
 
   public IndexRecord() { }
 
@@ -40,17 +39,18 @@ public class IndexRecord {
     this.startOffset = startOffset;
     this.rawLength = rawLength;
     this.partLength = partLength;
-    if (xtrace_taskid!=0 && xtrace_opid!=0) {
-      byte[] taskid = ByteBuffer.allocate(8).putLong(xtrace_taskid).array();
-      byte[] opid = ByteBuffer.allocate(8).putLong(xtrace_opid).array();
-      m = new XTraceMetadata(new TaskID(taskid, 8), opid);
+    if (xtrace_taskid!=0) {
+      Builder builder = XTraceMetadata.newBuilder().setTaskID(xtrace_taskid);
+      if (xtrace_opid != 0)
+        builder.addParentEventID(xtrace_opid);
+      ctx = Context.parse(builder.build().toByteArray());
     }
   }
   
   public long getXTraceTaskID() {
-    if (m!=null) {
+    if (ctx!=null) {
       try {
-        return ByteBuffer.wrap(m.getTaskId().get()).getLong();
+        return XTraceMetadata.parseFrom(ctx.bytes()).getTaskID();
       } catch (Exception e) {
       }
     }
@@ -58,9 +58,11 @@ public class IndexRecord {
   }
   
   public long getXTraceOpID() {
-    if (m!=null) {
+    if (ctx!=null) {
       try {
-        return ByteBuffer.wrap(m.getOpId()).getLong();
+        XTraceMetadata md = XTraceMetadata.parseFrom(ctx.bytes());
+        if (md.getParentEventIDCount() > 0)
+          return md.getParentEventID(0);
       } catch (Exception e) {
       }
     }
@@ -68,19 +70,19 @@ public class IndexRecord {
   }
   
   public void rememberContext() {
-    m = XTraceContext.logMerge();
+    ctx = XTrace.get();
   }
   
   public void clearContext() {
-    m = null;
+    ctx = null;
   }
   
   public void joinContext() {
-    XTraceContext.joinContext(m);
+    XTrace.join(ctx);
   }
   
   public boolean hasContext() {
-    return m!=null;
+    return ctx!=null;
   }
   
 }

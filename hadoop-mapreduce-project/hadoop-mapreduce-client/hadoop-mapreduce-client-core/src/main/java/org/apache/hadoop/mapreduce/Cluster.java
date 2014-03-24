@@ -42,7 +42,6 @@ import org.apache.hadoop.mapreduce.v2.LogParams;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.SecretManager.InvalidToken;
 import org.apache.hadoop.security.token.Token;
-import edu.berkeley.xtrace.XTraceContext;
 
 /**
  * Provides a way to access information about the map/reduce cluster.

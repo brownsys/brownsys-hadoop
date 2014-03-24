@@ -19,7 +19,6 @@
 package org.apache.hadoop.mapreduce.v2.hs;
 
 import java.io.IOException;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -52,9 +51,6 @@ import org.apache.hadoop.yarn.security.client.ClientToAMTokenSecretManager;
 import org.apache.hadoop.yarn.util.Clock;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-
-import edu.berkeley.xtrace.XTraceContext;
-import edu.berkeley.xtrace.XTraceMetadata;
 
 /**
  * Loads and manages the Job history cache.
@@ -177,35 +173,20 @@ public class JobHistory extends AbstractService implements HistoryContext {
 
   private class MoveIntermediateToDoneRunnable implements Runnable {
     
-    private Collection<XTraceMetadata> xtrace_context;
-
-    public MoveIntermediateToDoneRunnable() {
-      this.xtrace_context = XTraceContext.getThreadContext();
-    }
-    
     @Override
     public void run() {
-      XTraceContext.setThreadContext(xtrace_context);
       try {
         LOG.info("Starting scan to move intermediate done files");
         hsManager.scanIntermediateDirectory();
       } catch (IOException e) {
         LOG.error("Error while scanning intermediate done dir ", e);
       }
-      XTraceContext.clearThreadContext();
     }
   }
   
   private class HistoryCleaner implements Runnable {
     
-    private Collection<XTraceMetadata> xtrace_context;
-
-    public HistoryCleaner() {
-      this.xtrace_context = XTraceContext.getThreadContext();
-    }
-    
     public void run() {
-      XTraceContext.setThreadContext(xtrace_context);
       LOG.info("History Cleaner started");
       try {
         hsManager.clean();
@@ -213,7 +194,6 @@ public class JobHistory extends AbstractService implements HistoryContext {
         LOG.warn("Error trying to clean up ", e);
       }
       LOG.info("History Cleaner complete");
-      XTraceContext.clearThreadContext();
     }
   }
 

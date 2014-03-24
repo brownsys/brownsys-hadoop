@@ -20,9 +20,9 @@ package org.apache.hadoop.yarn.event;
 
 import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.hadoop.classification.InterfaceStability.Evolving;
-import java.util.Collection;
-import edu.berkeley.xtrace.XTraceContext;
-import edu.berkeley.xtrace.XTraceMetadata;
+
+import edu.brown.cs.systems.xtrace.Context;
+import edu.brown.cs.systems.xtrace.XTrace;
 
 /**
  * Parent class of all the events. All events extend this class.
@@ -34,7 +34,7 @@ public abstract class AbstractEvent<TYPE extends Enum<TYPE>>
 
   private final TYPE type;
   private final long timestamp;
-  private Collection<XTraceMetadata> xtraceContext;
+  private Context xtraceContext;
 
   // use this if you DON'T care about the timestamp
   public AbstractEvent(TYPE type) {
@@ -70,12 +70,12 @@ public abstract class AbstractEvent<TYPE extends Enum<TYPE>>
    */
   @Override
   public void rememberContext() {
-	this.xtraceContext = XTraceContext.getThreadContext();
+	this.xtraceContext = XTrace.get();
   }
 
   @Override
   public void joinContext() {
-    XTraceContext.joinContext(this.xtraceContext);
+    XTrace.join(this.xtraceContext);
   }
   
 }

@@ -33,7 +33,6 @@ import java.nio.BufferOverflowException;
 import java.nio.channels.ClosedChannelException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.EnumSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -61,8 +60,8 @@ import org.apache.hadoop.hdfs.protocol.SnapshotAccessControlException;
 import org.apache.hadoop.hdfs.protocol.UnresolvedPathException;
 import org.apache.hadoop.hdfs.protocol.XTraceProtoUtils;
 import org.apache.hadoop.hdfs.protocol.datatransfer.BlockConstructionStage;
-import org.apache.hadoop.hdfs.protocol.datatransfer.DataTransferProtocol;
 import org.apache.hadoop.hdfs.protocol.datatransfer.DataTransferEncryptor;
+import org.apache.hadoop.hdfs.protocol.datatransfer.DataTransferProtocol;
 import org.apache.hadoop.hdfs.protocol.datatransfer.IOStreamPair;
 import org.apache.hadoop.hdfs.protocol.datatransfer.InvalidEncryptionKeyException;
 import org.apache.hadoop.hdfs.protocol.datatransfer.PacketHeader;
@@ -93,8 +92,9 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
 
-import edu.berkeley.xtrace.XTraceContext;
-import edu.berkeley.xtrace.XTraceMetadata;
+import edu.brown.cs.systems.xtrace.Context;
+import edu.brown.cs.systems.xtrace.XTrace;
+
 
 
 /****************************************************************
@@ -121,6 +121,7 @@ import edu.berkeley.xtrace.XTraceMetadata;
 ****************************************************************/
 @InterfaceAudience.Private
 public class DFSOutputStream extends FSOutputSummer implements Syncable {
+  private final XTrace.Logger xtrace = XTrace.getLogger(DFSOutputStream.class);
   private final DFSClient dfsClient;
   private static final int MAX_PACKETS = 80; // each packet 64K, total 5MB
   private Socket s;
@@ -153,7 +154,7 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
   private final short blockReplication; // replication factor of file
   private boolean shouldSyncBlock = false; // force blocks to disk upon close
   
-  private Collection<XTraceMetadata> lastAckedXTraceContext = null;
+  private Context lastAckedXTraceContext = null;
   
   private class Packet {
     long    seqno;               // sequencenumber of buffer in block
@@ -186,7 +187,7 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
 
     private static final long HEART_BEAT_SEQNO = -1L;
     
-    private Collection<XTraceMetadata> xtrace = null;
+    private Context xtrace_context = null;
 
     /**
      * Create a heartbeat packet.
@@ -228,11 +229,11 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
     }
     
     void joinXTraceContext() {
-      XTraceContext.joinContext(xtrace);
+      XTrace.join(xtrace_context);
     }
     
     void rememberXTraceContext() {
-      xtrace = XTraceContext.getThreadContext();
+      xtrace_context = XTrace.get();
     }
 
     void writeData(byte[] inarray, int off, int len) {
@@ -444,7 +445,7 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
     private void initDataStreaming() {
       this.setName("DataStreamer for file " + src +
           " block " + block);
-      XTraceContext.logEvent(DataStreamer.class, "DataStreamer", "Kicking off response processor");
+      xtrace.log("Kicking off response processor");
       response = new ResponseProcessor(nodes);
       response.start();
       stage = BlockConstructionStage.DATA_STREAMING;
@@ -454,7 +455,7 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
       if(DFSClient.LOG.isDebugEnabled()) {
         DFSClient.LOG.debug("Closing old block " + block);
       }
-      XTraceContext.logEvent(DataStreamer.class, "DataStreamer", "Closing block", "BlockName", block.getBlockName());
+      xtrace.log("Closing block", "BlockName", block.getBlockName());
       this.setName("DataStreamer for file " + src);
       closeResponder();
       closeStream();
@@ -514,7 +515,7 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
             }
             // get packet to be sent.
             if (dataQueue.isEmpty()) {
-              XTraceContext.logEvent(DataStreamer.class, "DataStreamer", "Sending heartbeat packet");
+              xtrace.log("Sending heartbeat packet");
               one = new Packet();  // heartbeat packet
             } else {
               one = dataQueue.getFirst(); // regular data packet
@@ -529,14 +530,14 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
             if(DFSClient.LOG.isDebugEnabled()) {
               DFSClient.LOG.debug("Allocating new block");
             }
-            XTraceContext.logEvent(DataStreamer.class, "DataStreamer", "Allocating new block");
+            xtrace.log("Allocating new block");
             nodes = nextBlockOutputStream(src);
             initDataStreaming();
           } else if (stage == BlockConstructionStage.PIPELINE_SETUP_APPEND) {
             if(DFSClient.LOG.isDebugEnabled()) {
               DFSClient.LOG.debug("Append to block " + block);
             }
-            XTraceContext.logEvent(DataStreamer.class, "DataStreamer", "Appending to block", "BlockName", block.getBlockName());
+            xtrace.log("Appending to block", "BlockName", block.getBlockName());
             setupPipelineForAppendOrRecovery();
             initDataStreaming();
           }
@@ -568,7 +569,7 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
             stage = BlockConstructionStage.PIPELINE_CLOSE;
           }
           
-          XTraceContext.logEvent(DataStreamer.class, "DataStreamer", "Sending packet");
+          xtrace.log("Sending packet");
           
           // send the packet
           synchronized (dataQueue) {
@@ -598,7 +599,7 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
           }
           lastPacket = Time.now();
           
-          XTraceContext.logEvent(DataStreamer.class, "DataStreamer", "Packet sent");
+          xtrace.log("Packet sent");
           one.rememberXTraceContext();
           
           if (one.isHeartbeatPacket()) {  //heartbeat packet
@@ -637,7 +638,7 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
           }
         } catch (Throwable e) {
           DFSClient.LOG.warn("DataStreamer Exception", e);
-          XTraceContext.logEvent(DataStreamer.class, "DataStreamer", "DataStreamerException", "Message", e.getMessage());
+          xtrace.log("DataStreamerException", "Message", e.getMessage());
           if (e instanceof IOException) {
             setLastException((IOException)e);
           }
@@ -751,7 +752,7 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
             
             long seqno = ack.getSeqno();
             ack.joinXtraceContext();
-            XTraceContext.logEvent(ResponseProcessor.class, "ResponseProcessor", "Processing ACK", "seqno", seqno);
+            xtrace.log("Processing ACK", "seqno", seqno);
             // processes response status from datanodes.
             for (int i = ack.getNumOfReplies()-1; i >=0  && dfsClient.clientRunning; i--) {
               final Status reply = ack.getReply(i);
@@ -785,10 +786,10 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
             // update bytesAcked
             block.setNumBytes(one.getLastByteOffsetBlock());
 
-            XTraceContext.logEvent(ResponseProcessor.class, "ResponseProcessor", "Packet acknowledged");
+            xtrace.log("Packet acknowledged");
             synchronized (dataQueue) {
               lastAckedSeqno = seqno;
-              lastAckedXTraceContext = XTraceContext.getThreadContext();
+              lastAckedXTraceContext = XTrace.get();
               ackQueue.removeFirst();
               dataQueue.notifyAll();
             }
@@ -804,7 +805,7 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
               }
               DFSClient.LOG.warn("DFSOutputStream ResponseProcessor exception "
                   + " for block " + block, e);
-              XTraceContext.logEvent(ResponseProcessor.class, "ResponseProcessor", "Exception processing responses", "Message", e.getMessage());
+              xtrace.log("Exception processing responses", "Message", e.getMessage());
               responderClosed = true;
             }
           }
@@ -937,7 +938,7 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
        * - Append/Create:
        *    + no transfer, let NameNode replicates the block.
        */
-      XTraceContext.logEvent(DataStreamer.class, "DataStreamer", "Adding DataNode to Existing Pipeline");
+      xtrace.log("Adding DataNode to Existing Pipeline");
       if (!isAppend && lastAckedSeqno < 0
           && stage == BlockConstructionStage.PIPELINE_SETUP_CREATE) {
         //no data have been written
@@ -1496,7 +1497,7 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
       if (DFSClient.LOG.isDebugEnabled()) {
         DFSClient.LOG.debug("Queued packet " + currentPacket.seqno);
       }
-      XTraceContext.logEvent(DFSOutputStream.class, "DFSOutputStream", "Packet added to output queue");
+      xtrace.log("Packet added to output queue");
       currentPacket.rememberXTraceContext();
       currentPacket = null;
       dataQueue.notifyAll();
@@ -1509,8 +1510,8 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
       boolean first = true;
       while (!closed && dataQueue.size() + ackQueue.size()  > MAX_PACKETS) {
     	if (first) {
-            XTraceContext.logEvent(DFSOutputStream.class, "DFSOutputStream", "Waiting for packets to be acked", "lastAckedSeqno", lastAckedSeqno);
-            first = false;
+    	  xtrace.log("Waiting for packets to be acked", "lastAckedSeqno", lastAckedSeqno);
+    	  first = false;
     	}
         try {
           dataQueue.wait();
@@ -1526,7 +1527,7 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
           break;
         }
         if (dataQueue.size() + ackQueue.size() <= MAX_PACKETS)
-            XTraceContext.joinContext(lastAckedXTraceContext);
+            XTrace.join(lastAckedXTraceContext);
       }
       checkClosed();
       queueCurrentPacket();
@@ -1564,7 +1565,7 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
             ", chunksPerPacket=" + chunksPerPacket +
             ", bytesCurBlock=" + bytesCurBlock);
       }
-      XTraceContext.logEvent(DFSOutputStream.class, "DFSOutputStream", "Allocating new packet", "seqno", currentPacket.seqno);
+      xtrace.log("Allocating new packet", "seqno", currentPacket.seqno);
       currentPacket.rememberXTraceContext();
     }
 
@@ -1608,7 +1609,7 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
       // indicate the end of block and reset bytesCurBlock.
       //
       if (bytesCurBlock == blockSize) {
-        XTraceContext.logEvent(DFSOutputStream.class, "DFSOutputStream", "Sending empty packet to indicate end of block");
+        xtrace.log("Sending empty packet to indicate end of block");
         currentPacket = new Packet(0, 0, bytesCurBlock);
         currentPacket.lastPacketInBlock = true;
         currentPacket.syncBlock = shouldSyncBlock;
@@ -1677,9 +1678,9 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
   private void flushOrSync(boolean isSync, EnumSet<SyncFlag> syncFlags)
       throws IOException {
     if (isSync)
-      XTraceContext.logEvent(DFSOutputStream.class, "DFSOutputStream", "hysnc - Syncing all data to datanode disks");
+      xtrace.log("hysnc - Syncing all data to datanode disks");
     else
-      XTraceContext.logEvent(DFSOutputStream.class, "DFSOutputStream", "hflush - Flushing all data to datanode buffers");
+      xtrace.log("hflush - Flushing all data to datanode buffers");
       
     
     dfsClient.checkOpen();
@@ -1789,7 +1790,7 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
       throw interrupt;
     } catch (IOException e) {
       DFSClient.LOG.warn("Error while syncing", e);
-      XTraceContext.logEvent(DFSOutputStream.class, "DFSOutputStream", "Error while syncing", "Message", e.getMessage());
+      xtrace.log("Error while syncing", "Message", e.getMessage());
       synchronized (this) {
         if (!closed) {
           lastException = new IOException("IOException flush:" + e);
@@ -1850,13 +1851,13 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
     if (DFSClient.LOG.isDebugEnabled()) {
       DFSClient.LOG.debug("Waiting for ack for: " + seqno);
     }
-    XTraceContext.logEvent(DFSOutputStream.class, "DFSOutputStream", "Waiting for ack", "seqno", seqno);
+    xtrace.log("Waiting for ack", "seqno", seqno);
     synchronized (dataQueue) {
       while (!closed) {
         checkClosed();
         if (lastAckedSeqno >= seqno) {
-          XTraceContext.joinContext(lastAckedXTraceContext);
-          XTraceContext.logEvent(DFSOutputStream.class, "DFSOutputStream", "Ack received, continuing", "lastAckedSeqno", lastAckedSeqno);          
+          XTrace.join(lastAckedXTraceContext);
+          xtrace.log("Ack received, continuing", "lastAckedSeqno", lastAckedSeqno);          
           break;
         }
         try {
@@ -1921,7 +1922,7 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
     }
 
     try {
-      XTraceContext.logEvent(DFSOutputStream.class, "DFSOutputStream", "Closing stream");
+      xtrace.log("Closing stream");
       
       flushBuffer();       // flush from all upper layers
 
@@ -1944,7 +1945,7 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
       dfsClient.endFileLease(src);
     } finally {
       closed = true;
-      XTraceContext.logEvent(DFSOutputStream.class, "DFSOutputStream", "Stream closed");
+      xtrace.log("Stream closed");
     }
   }
 

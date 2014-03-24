@@ -20,15 +20,16 @@ package org.apache.hadoop.yarn.api.records.impl.pb;
 
 import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.classification.InterfaceStability.Unstable;
-import com.google.protobuf.ByteString;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.proto.YarnProtos.ApplicationAttemptIdProto;
 import org.apache.hadoop.yarn.proto.YarnProtos.ContainerIdProto;
 
 import com.google.common.base.Preconditions;
-import edu.berkeley.xtrace.XTraceContext;
-import edu.berkeley.xtrace.XTraceMetadata;
+import com.google.protobuf.ByteString;
+
+import edu.brown.cs.systems.xtrace.Context;
+import edu.brown.cs.systems.xtrace.XTrace;
 
 @Private
 @Unstable
@@ -36,7 +37,7 @@ public class ContainerIdPBImpl extends ContainerId {
   ContainerIdProto proto = null;
   ContainerIdProto.Builder builder = null;
   private ApplicationAttemptId applicationAttemptId = null;
-  XTraceMetadata xmd = null;
+  Context xmd = null;
 
   public ContainerIdPBImpl() {
     builder = ContainerIdProto.newBuilder();
@@ -46,10 +47,7 @@ public class ContainerIdPBImpl extends ContainerId {
     this.proto = proto;
     this.applicationAttemptId = convertFromProtoFormat(proto.getAppAttemptId());
     if (proto!=null && proto.hasXtrace()) {
-      ByteString xbs = proto.getXtrace();
-      xmd = XTraceMetadata.createFromBytes(xbs.toByteArray(), 0, xbs.size());
-      if (!xmd.isValid())
-        xmd = null;
+      xmd = Context.parse(proto.getXtrace().toByteArray());
     }    
   }
   
@@ -86,17 +84,12 @@ public class ContainerIdPBImpl extends ContainerId {
 
   @Override
   public void rememberContext() {
-    XTraceMetadata ctx = XTraceContext.logMerge();
-    if (ctx!=null && ctx.isValid()) {
-      xmd = ctx;
-    } else {
-      xmd = null;
-    }
+    xmd = XTrace.get();
   }
   
   @Override
   public void joinContext() {
-    XTraceContext.joinContext(xmd);    
+    XTrace.join(xmd);
   }
 
   private ApplicationAttemptIdPBImpl convertFromProtoFormat(
@@ -111,9 +104,9 @@ public class ContainerIdPBImpl extends ContainerId {
 
   @Override
   protected void build() {
-    if (xmd!=null && xmd.isValid() && builder!=null) {
-      builder.setXtrace(ByteString.copyFrom(xmd.pack()));
-    }    
+    if (xmd!=null) {
+      builder.setXtrace(ByteString.copyFrom(xmd.bytes()));
+    }
     proto = builder.build();
     builder = null;
   }

@@ -58,7 +58,7 @@ import org.apache.hadoop.util.VersionUtil;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Maps;
 
-import edu.berkeley.xtrace.XTraceContext;
+import edu.brown.cs.systems.xtrace.XTrace;
 
 /**
  * A thread per active or standby namenode to perform:
@@ -72,6 +72,7 @@ import edu.berkeley.xtrace.XTraceContext;
 @InterfaceAudience.Private
 class BPServiceActor implements Runnable {
   
+  static final XTrace.Logger xtrace = XTrace.getLogger(BPServiceActor.class);
   static final Log LOG = DataNode.LOG;
   final InetSocketAddress nnAddr;
 
@@ -315,7 +316,7 @@ class BPServiceActor implements Runnable {
       pendingIncrementalBR.put(
           bInfo.getBlock().getBlockId(), bInfo);
       pendingReceivedRequests++;
-      XTraceContext.logEvent(BPServiceActor.class, "BPServiceActor", "Triggering block report to namenode");
+      xtrace.log("Triggering block report to namenode");
       pendingIncrementalBR.notifyAll();
     }
   }

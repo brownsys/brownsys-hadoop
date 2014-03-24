@@ -22,6 +22,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.Constructor;
 import java.net.BindException;
+import java.net.ConnectException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
@@ -34,12 +35,17 @@ import java.net.SocketTimeoutException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.UnknownHostException;
-import java.net.ConnectException;
 import java.nio.channels.SocketChannel;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
-import java.util.regex.Pattern;
-import java.util.*;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Pattern;
 
 import javax.net.SocketFactory;
 
@@ -58,12 +64,13 @@ import org.apache.hadoop.util.ReflectionUtils;
 
 import com.google.common.base.Preconditions;
 
-import edu.berkeley.xtrace.XTraceContext;
-import edu.berkeley.xtrace.XTraceMetadata;
+import edu.brown.cs.systems.xtrace.Context;
+import edu.brown.cs.systems.xtrace.XTrace;
 
 @InterfaceAudience.LimitedPrivate({"HDFS", "MapReduce"})
 @InterfaceStability.Unstable
 public class NetUtils {
+  private static final XTrace.Logger xtrace = XTrace.getLogger(NetUtils.class);
   private static final Log LOG = LogFactory.getLog(NetUtils.class);
   
   private static Map<String, String> hostToResolved = 
@@ -513,8 +520,8 @@ public class NetUtils {
       throw new IllegalArgumentException("Illegal argument for connect()");
     }
 
-    XTraceContext.logEvent(NetUtils.class, "NetUtils", "Connecting to remote...", "Socket", socket.toString(), "Timeout", timeout);
-    Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
+    xtrace.log("Connecting to remote", "Socket", socket.toString(), "Timeout", timeout);
+    Context start_context = XTrace.get();
     try { // xtrace try
     
     SocketChannel ch = socket.getChannel();
@@ -554,11 +561,11 @@ public class NetUtils {
         "No daemon is listening on the target port.");
     }
     
-    XTraceContext.joinContext(start_context);
-    XTraceContext.logEvent(NetUtils.class, "NetUtils", "Connected to remote host");    
+    XTrace.join(start_context);
+    xtrace.log("Connected to remote host");    
     } catch (IOException e) { // xtrace catch
-      XTraceContext.joinContext(start_context);
-      XTraceContext.logEvent(NetUtils.class, "NetUtils", "Failed to connect to remote host: "+e.getClass().getName(), "Message", e.getMessage());
+      XTrace.join(start_context);
+      xtrace.log("Failed to connect to remote host: "+e.getClass().getName(), "Message", e.getMessage());
       throw e;
     }
   }

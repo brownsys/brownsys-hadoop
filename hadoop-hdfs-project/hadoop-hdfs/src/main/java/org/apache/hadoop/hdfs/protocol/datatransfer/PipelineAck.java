@@ -34,14 +34,14 @@ import org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.Status;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.TextFormat;
 
-import edu.berkeley.xtrace.XTraceContext;
-import edu.berkeley.xtrace.XTraceMetadata;
-import edu.berkeley.xtrace.XTraceMetadataCollection;
+import edu.brown.cs.systems.xtrace.XTrace;
 
 /** Pipeline Acknowledgment **/
 @InterfaceAudience.Private
 @InterfaceStability.Evolving
 public class PipelineAck {
+  
+  private static final XTrace.Logger xtrace = XTrace.getLogger(PipelineAck.class);
   PipelineAckProto proto;
   public final static long UNKOWN_SEQNO = -2;
 
@@ -69,8 +69,10 @@ public class PipelineAck {
       .setSeqno(seqno)
       .addAllStatus(Arrays.asList(replies))
       .setDownstreamAckTimeNanos(downstreamAckTimeNanos);
-    if (XTraceContext.isValid())
-      builder.setXtrace(ByteString.copyFrom(XTraceContext.logMerge().pack()));
+    if (XTrace.active()) {
+      xtrace.log("creating pipelined ack");
+      builder.setXtrace(ByteString.copyFrom(XTrace.bytes()));
+    }
     proto = builder.build();
   }
   
@@ -111,13 +113,8 @@ public class PipelineAck {
   }
   
   public void joinXtraceContext() {
-    if (proto.hasXtrace()) {
-      ByteString xbs = proto.getXtrace();
-      XTraceMetadata xmd = XTraceMetadata.createFromBytes(xbs.toByteArray(),
-                                                              0, xbs.size());
-      if (xmd.isValid())
-        XTraceContext.joinContext(xmd);
-    }
+    if (proto.hasXtrace())
+      XTrace.join(proto.getXtrace().toByteArray());
   }
 
   /**

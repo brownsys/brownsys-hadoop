@@ -21,12 +21,12 @@ package org.apache.hadoop.yarn.server.resourcemanager.rmapp;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.event.AbstractEvent;
 
-import edu.berkeley.xtrace.XTraceMetadata;
+import edu.brown.cs.systems.xtrace.Context;
 
 public class RMAppEvent extends AbstractEvent<RMAppEventType>{
 
   private final ApplicationId appId;
-  public XTraceMetadata last_transition;
+  public Context last_transition;
 
   public RMAppEvent(ApplicationId appId, RMAppEventType type) {
     super(type);

@@ -115,12 +115,13 @@ import org.apache.hadoop.yarn.server.utils.BuilderUtils;
 
 import com.google.common.annotations.VisibleForTesting;
 
-import edu.berkeley.xtrace.XTraceContext;
+import edu.brown.cs.systems.xtrace.XTrace;
 
 public class ContainerManagerImpl extends CompositeService implements
     ServiceStateChangeListener, ContainerManagementProtocol,
     EventHandler<ContainerManagerEvent> {
 
+  private static final XTrace.Logger xtrace = XTrace.getLogger(ContainerManagerImpl.class);
   private static final Log LOG = LogFactory.getLog(ContainerManagerImpl.class);
 
   final Context context;
@@ -456,9 +457,7 @@ public class ContainerManagerImpl extends CompositeService implements
     String user = containerTokenIdentifier.getApplicationSubmitter();
 
     LOG.info("Start request for " + containerIdStr + " by user " + user);
-
-    XTraceContext.logEvent(ContainerManagerImpl.class, "ContainerManagerImpl", "Starting container",
-        "User", user, "Container ID", containerIdStr);
+    xtrace.log("Starting container", "User", user, "Container ID", containerIdStr);
     
     ContainerLaunchContext launchContext = request.getContainerLaunchContext();
 
@@ -728,7 +727,7 @@ public class ContainerManagerImpl extends CompositeService implements
     case FINISH_CONTAINERS:
       CMgrCompletedContainersEvent containersFinishedEvent =
           (CMgrCompletedContainersEvent) event;
-      XTraceContext.clearThreadContext();
+      XTrace.stop();
       for (ContainerId container : containersFinishedEvent
           .getContainersToCleanup()) {
         container.joinContext();

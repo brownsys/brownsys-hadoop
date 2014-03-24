@@ -21,8 +21,6 @@ package org.apache.hadoop.mapreduce.v2.app.launcher;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.security.PrivilegedAction;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -60,8 +58,7 @@ import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
-import edu.berkeley.xtrace.XTraceContext;
-import edu.berkeley.xtrace.XTraceMetadata;
+import edu.brown.cs.systems.xtrace.XTrace;
 
 /**
  * This class is responsible for launching of containers.
@@ -69,6 +66,7 @@ import edu.berkeley.xtrace.XTraceMetadata;
 public class ContainerLauncherImpl extends AbstractService implements
     ContainerLauncher {
 
+  static final XTrace.Logger xtrace = XTrace.getLogger(ContainerLauncherImpl.class);
   static final Log LOG = LogFactory.getLog(ContainerLauncherImpl.class);
 
   private ConcurrentHashMap<ContainerId, Container> containers = 
@@ -273,7 +271,7 @@ public class ContainerLauncherImpl extends AbstractService implements
         Set<String> allNodes = new HashSet<String>();
 
         while (!stopped.get() && !Thread.currentThread().isInterrupted()) {
-          XTraceContext.clearThreadContext();
+          XTrace.stop();
           try {
             event = eventQueue.take();
           } catch (InterruptedException e) {
@@ -361,10 +359,10 @@ public class ContainerLauncherImpl extends AbstractService implements
 
     @Override
     public void run() {
-      XTraceContext.clearThreadContext();
+      XTrace.stop();
       event.joinContext();
       LOG.info("Processing the event " + event.toString());
-      XTraceContext.logEvent(ContainerLauncherImpl.class, "ContainerLauncherImpl", "Processing the event " + event.toString());
+      xtrace.log("Processing event", "Event", event);
 
       // Load ContainerManager tokens before creating a connection.
       // TODO: Do it only once per NodeManager.
@@ -384,7 +382,7 @@ public class ContainerLauncherImpl extends AbstractService implements
         break;
       }
       removeContainerIfDone(containerID);
-      XTraceContext.clearThreadContext();
+      XTrace.stop();
     }
   }
   

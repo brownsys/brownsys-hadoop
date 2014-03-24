@@ -17,8 +17,8 @@
  */
 package org.apache.hadoop.hdfs.protocol.datatransfer;
 
-import static org.apache.hadoop.hdfs.protocolPB.PBHelper.vintPrefixed;
 import static org.apache.hadoop.hdfs.protocol.datatransfer.DataTransferProtoUtil.fromProto;
+import static org.apache.hadoop.hdfs.protocolPB.PBHelper.vintPrefixed;
 
 import java.io.DataInputStream;
 import java.io.IOException;
@@ -30,13 +30,12 @@ import org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.OpBlockChecksumP
 import org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.OpCopyBlockProto;
 import org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.OpReadBlockProto;
 import org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.OpReplaceBlockProto;
-import org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.OpTransferBlockProto;
 import org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.OpRequestShortCircuitAccessProto;
+import org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.OpTransferBlockProto;
 import org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.OpWriteBlockProto;
 import org.apache.hadoop.hdfs.protocolPB.PBHelper;
-import com.google.protobuf.ByteString;
-import edu.berkeley.xtrace.XTraceContext;
-import edu.berkeley.xtrace.XTraceMetadata;
+
+import edu.brown.cs.systems.xtrace.XTrace;
 
 /** Receiver */
 @InterfaceAudience.Private
@@ -90,12 +89,8 @@ public abstract class Receiver implements DataTransferProtocol {
   }
   
   private static void XTraceJoinStart(String type, BaseHeaderProto header) {
-    if (header!=null && header.hasXtrace()) {
-      ByteString xbs = header.getXtrace();
-      XTraceMetadata xmd = XTraceMetadata.createFromBytes(xbs.toByteArray(), 0, xbs.size());
-      if (xmd!=null && xmd.isValid())
-        XTraceContext.setThreadContext(xmd);
-    }    
+    if (header!=null && header.hasXtrace())
+      XTrace.join(header.getXtrace().toByteArray());
   }
 
   /** Receive OP_READ_BLOCK */

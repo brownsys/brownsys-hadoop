@@ -18,6 +18,11 @@
 
 package org.apache.hadoop.ipc;
 
+import static org.apache.hadoop.ipc.RpcConstants.AUTHORIZATION_FAILED_CALL_ID;
+import static org.apache.hadoop.ipc.RpcConstants.CONNECTION_CONTEXT_CALL_ID;
+import static org.apache.hadoop.ipc.RpcConstants.CURRENT_VERSION;
+import static org.apache.hadoop.ipc.RpcConstants.PING_CALL_ID;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -44,7 +49,6 @@ import java.nio.channels.WritableByteChannel;
 import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -72,8 +76,6 @@ import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 import org.apache.hadoop.io.DataOutputBuffer;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableUtils;
-import static org.apache.hadoop.ipc.RpcConstants.*;
-
 import org.apache.hadoop.ipc.ProtobufRpcEngine.RpcResponseMessageWrapper;
 import org.apache.hadoop.ipc.ProtobufRpcEngine.RpcResponseWrapper;
 import org.apache.hadoop.ipc.RPC.RpcInvoker;
@@ -114,10 +116,9 @@ import com.google.protobuf.CodedOutputStream;
 import com.google.protobuf.Message;
 import com.google.protobuf.Message.Builder;
 
-import edu.berkeley.xtrace.XTraceContext;
-import edu.berkeley.xtrace.XTraceMetadata;
-import edu.brown.cs.systems.xtrace.resourcetracing.loggers.xtrace.NetworkIO;
-import edu.brown.cs.systems.xtrace.resourcetracing.loggers.pubsub.NetworkIOAggregation;
+import edu.brown.cs.systems.resourcetracing.resources.Network;
+import edu.brown.cs.systems.xtrace.Context;
+import edu.brown.cs.systems.xtrace.XTrace;
 
 /** An abstract IPC service.  IPC calls take a single {@link Writable} as a
  * parameter, and return a {@link Writable} as their value.  A service runs on
@@ -241,7 +242,7 @@ public abstract class Server {
     return (val == null) ? null : val.rpcInvoker; 
   }
   
-
+  public static final XTrace.Logger xtrace = XTrace.getLogger(Server.class);
   public static final Log LOG = LogFactory.getLog(Server.class);
   public static final Log AUDITLOG = 
     LogFactory.getLog("SecurityLogger."+Server.class.getName());
@@ -483,8 +484,8 @@ public abstract class Server {
     private ByteBuffer rpcResponse;       // the response for this call
     private final RPC.RpcKind rpcKind;
     private final byte[] clientId;
-    private Collection<XTraceMetadata> xtrace;  // the X-Trace context this was received with
-	private Collection<XTraceMetadata> responsextrace; // the X-Trace context before sending the response
+    private Context start_context;  // the X-Trace context this was received with
+	private Context response_context; // the X-Trace context before sending the response
 
     public Call(int id, int retryCount, Writable param, 
         Connection connection) {
@@ -502,10 +503,8 @@ public abstract class Server {
       this.rpcResponse = null;
       this.rpcKind = kind;
       this.clientId = clientId;
-      if (XTraceContext.isValid()) {
-    	  XTraceContext.logEvent(RPC.class, "RPC Server", "Received RPC call", "CallID", id);
-    	  this.xtrace = XTraceContext.getThreadContext();
-      }
+      Server.xtrace.log("Received RPC call", "CallID", id);
+      this.start_context = XTrace.get();
     }
     
     @Override
@@ -1013,7 +1012,7 @@ public abstract class Server {
           // Extract the first call
           //
           call = responseQueue.removeFirst();
-          XTraceContext.joinContext(call.responsextrace);
+          XTrace.join(call.response_context);
           SocketChannel channel = call.connection.channel;
           if (LOG.isDebugEnabled()) {
             LOG.debug(getName() + ": responding to " + call);
@@ -1794,8 +1793,10 @@ public abstract class Server {
           LOG.debug(" got #" + callId);
         }
         checkRpcHeaders(header);
-    	NetworkIO.didReadBefore(this, buf.length);
-    	NetworkIOAggregation.didReadBefore(buf.length);
+        
+        // XTrace: one of the few places in hdfs source code where we have to explicitly call resource instrumentation code
+        Network.Read.alreadyStarted(this);
+        Network.Read.alreadyFinished(this, buf.length);
         
         if (callId < 0) { // callIds typically used during connection setup
           processRpcOutOfBandRequest(header, dis);
@@ -1815,7 +1816,7 @@ public abstract class Server {
         responder.doRespond(call);
         throw wrse;
       } finally {
-        XTraceContext.clearThreadContext();
+        XTrace.stop();
       }
     }
 
@@ -1826,14 +1827,9 @@ public abstract class Server {
      */
     private void checkRpcHeaders(RpcRequestHeaderProto header)
         throws WrappedRpcServerException {
-      if (header.hasXtrace()) {
-        ByteString xbs = header.getXtrace();
-        XTraceMetadata xmd = XTraceMetadata.createFromBytes(xbs.toByteArray(),
-                                                                  0, xbs.size());
-        if (xmd.isValid()) {
-          XTraceContext.setThreadContext(xmd);
-        }
-      }
+      if (header.hasXtrace())
+        XTrace.set(header.getXtrace().toByteArray());
+      
       if (!header.hasRpcOp()) {
         String err = " IPC Server: No rpc op in rpcRequestHeader";
         throw new WrappedRpcServerException(
@@ -2037,12 +2033,10 @@ public abstract class Server {
       ByteArrayOutputStream buf = 
         new ByteArrayOutputStream(INITIAL_RESP_BUF_SIZE);
       while (running) {
-        XTraceContext.clearThreadContext();
+        XTrace.stop();
         try {
           final Call call = callQueue.take(); // pop the queue; maybe blocked here
-          if (call.xtrace != null) {
-        	  XTraceContext.setThreadContext(call.xtrace);
-          }
+          XTrace.set(call.start_context);
           if (LOG.isDebugEnabled()) {
             LOG.debug(getName() + ": " + call + " for RpcKind " + call.rpcKind);
           }
@@ -2320,9 +2314,9 @@ public abstract class Server {
     headerBuilder.setRetryCount(call.retryCount);
     headerBuilder.setStatus(status);
     headerBuilder.setServerIpcVersionNum(CURRENT_VERSION);
-    if (XTraceContext.isValid()) {
-      headerBuilder.setXtrace(ByteString.copyFrom(XTraceContext.logMerge().pack()));
-    }
+    if (XTrace.active())
+      headerBuilder.setXtrace(ByteString.copyFrom(XTrace.bytes()));
+    
     /* X-Trace: we have to send in the response the last event in the server
      * before the data is sent, and this is not it, there can be more events
      * later, related to enqueuing and sending this call. To log them correctly
@@ -2379,11 +2373,7 @@ public abstract class Server {
       wrapWithSasl(responseBuf, call);
     }
     call.setResponse(ByteBuffer.wrap(responseBuf.toByteArray()));
-    
-    if (XTraceContext.isValid()) {
-    	call.responsextrace = XTraceContext.getThreadContext();
-//        XTraceContext.clearThreadContext(); //to prevent leaking
-    }
+    call.response_context = XTrace.get();
   }
   
   /**

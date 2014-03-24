@@ -17,11 +17,6 @@
 */
 package org.apache.hadoop.yarn.server.nodemanager.api.protocolrecords.impl.pb;
 
-import com.google.protobuf.ByteString;
-
-import edu.berkeley.xtrace.XTraceContext;
-import edu.berkeley.xtrace.XTraceMetadata;
-
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.SerializedException;
 import org.apache.hadoop.yarn.api.records.URL;
@@ -37,6 +32,10 @@ import org.apache.hadoop.yarn.proto.YarnServerNodemanagerServiceProtos.LocalReso
 import org.apache.hadoop.yarn.proto.YarnServerNodemanagerServiceProtos.ResourceStatusTypeProto;
 import org.apache.hadoop.yarn.server.nodemanager.api.protocolrecords.LocalResourceStatus;
 import org.apache.hadoop.yarn.server.nodemanager.api.protocolrecords.ResourceStatusType;
+
+import com.google.protobuf.ByteString;
+
+import edu.brown.cs.systems.xtrace.XTrace;
 
 public class LocalResourceStatusPBImpl
   extends ProtoBase<LocalResourceStatusProto> implements LocalResourceStatus {
@@ -229,22 +228,15 @@ public class LocalResourceStatusPBImpl
   @Override
   public void rememberContext() {
     maybeInitBuilder();
-    XTraceMetadata ctx = XTraceContext.logMerge();
-    if (ctx!=null && ctx.isValid()) {
-      builder.setXtrace(ByteString.copyFrom(ctx.pack()));
-    }
+    if (XTrace.active())
+      builder.setXtrace(ByteString.copyFrom(XTrace.bytes()));
   }
 
   @Override
   public void joinContext() {
     LocalResourceStatusProtoOrBuilder p = viaProto ? proto : builder;
-    if (p.hasXtrace()) {
-      ByteString xbs = p.getXtrace();
-      XTraceMetadata xmd = XTraceMetadata.createFromBytes(xbs.toByteArray(), 0, xbs.size());
-      if (xmd.isValid()) {
-        XTraceContext.joinContext(xmd);
-      }
-    }
+    if (p.hasXtrace())
+      XTrace.join(p.getXtrace().toByteArray());
   }
 
 }

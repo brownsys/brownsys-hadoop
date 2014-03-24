@@ -24,7 +24,6 @@ import java.net.InetSocketAddress;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -66,17 +65,16 @@ import org.apache.hadoop.yarn.server.nodemanager.api.protocolrecords.LocalizerHe
 import org.apache.hadoop.yarn.server.nodemanager.api.protocolrecords.LocalizerStatus;
 import org.apache.hadoop.yarn.server.nodemanager.api.protocolrecords.ResourceStatusType;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.localizer.security.LocalizerTokenIdentifier;
-import org.apache.hadoop.yarn.server.utils.YarnServerBuilderUtils;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.util.FSDownload;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
-import edu.berkeley.xtrace.XTraceContext;
-import edu.berkeley.xtrace.XTraceMetadata;
+import edu.brown.cs.systems.xtrace.XTrace;
 
 public class ContainerLocalizer {
 
+  static final XTrace.Logger xtrace = XTrace.getLogger(ContainerLocalizer.class);
   static final Log LOG = LogFactory.getLog(ContainerLocalizer.class);
 
   public static final String FILECACHE = "filecache";
@@ -229,7 +227,7 @@ public class ContainerLocalizer {
       CompletionService<Path> cs, UserGroupInformation ugi)
       throws IOException {
     while (true) {
-      XTraceContext.clearThreadContext();
+      XTrace.stop();
       try {
         LocalizerStatus status = createStatus();
         LocalizerHeartbeatResponse response = nodemanager.heartbeat(status);
@@ -243,7 +241,7 @@ public class ContainerLocalizer {
                 new Path(newRsrc.getDestinationDirectory().getFile()),
                 newRsrc.getResource(), ugi)));
             }
-            XTraceContext.clearThreadContext();
+            XTrace.stop();
           }
           break;
         case DIE:
@@ -289,7 +287,8 @@ public class ContainerLocalizer {
       if (fPath.isDone()) {
         try {
           Path localPath = fPath.get();
-          XTraceContext.joinObject(localPath);
+//          // TODO: deal with this properly
+//          XTraceContext.joinObject(localPath);
           stat.rememberContext();
           stat.setLocalPath(
               ConverterUtils.getYarnUrlFromPath(localPath));
@@ -309,7 +308,7 @@ public class ContainerLocalizer {
         stat.setStatus(ResourceStatusType.FETCH_PENDING);
       }
       currentResources.add(stat);
-      XTraceContext.clearThreadContext();
+      XTrace.stop();
     }
     LocalizerStatus status =
       recordFactory.newRecordInstance(LocalizerStatus.class);
@@ -327,7 +326,7 @@ public class ContainerLocalizer {
     // MKDIR $x/$user/appcache/$appid/filecache
     // LOAD $x/$user/appcache/$appid/appTokens
     try {
-      XTraceContext.startTrace("ContainerLocalizer", "ContainerLocalizer launched...");
+      xtrace.log("ContainerLocalizer launched...");
       String user = argv[0];
       String appId = argv[1];
       String locId = argv[2];
@@ -351,7 +350,8 @@ public class ContainerLocalizer {
               appId, locId, localDirs,
               RecordFactoryProvider.getRecordFactory(null));
       int retCode = localizer.runLocalization(nmAddr);
-      XTraceContext.joinParentProcess();
+//      // TODO: Xtrace deal with this
+//      XTraceContext.joinParentProcess();
       System.exit(retCode);
     } catch (Throwable e) {
       // Print error to stdout so that LCE can use it.

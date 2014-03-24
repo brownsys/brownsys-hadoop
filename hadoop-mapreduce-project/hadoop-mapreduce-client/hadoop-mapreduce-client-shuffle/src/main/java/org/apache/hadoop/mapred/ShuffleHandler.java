@@ -23,7 +23,6 @@ import static org.jboss.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
 import static org.jboss.netty.handler.codec.http.HttpMethod.GET;
 import static org.jboss.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static org.jboss.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
-import static org.jboss.netty.handler.codec.http.HttpResponseStatus.HTTP_VERSION_NOT_SUPPORTED;
 import static org.jboss.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static org.jboss.netty.handler.codec.http.HttpResponseStatus.METHOD_NOT_ALLOWED;
 import static org.jboss.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
@@ -40,7 +39,6 @@ import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -114,11 +112,13 @@ import org.jboss.netty.util.CharsetUtil;
 
 import com.google.common.base.Charsets;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import edu.berkeley.xtrace.XTraceContext;
-import edu.berkeley.xtrace.XTraceMetadata;
+
+import edu.brown.cs.systems.xtrace.Context;
+import edu.brown.cs.systems.xtrace.XTrace;
 
 public class ShuffleHandler extends AuxiliaryService {
 
+  private static final XTrace.Logger xtrace = XTrace.getLogger(ShuffleHandler.class);
   private static final Log LOG = LogFactory.getLog(ShuffleHandler.class);
   
   public static final String SHUFFLE_MANAGE_OS_CACHE = "mapreduce.shuffle.manage.os.cache";
@@ -451,9 +451,8 @@ public class ShuffleHandler extends AuxiliaryService {
       }
       
       String xtrace_context = request.getHeader("X-Trace");
-      if (xtrace_context!=null) {
-        XTraceContext.setThreadContext(XTraceMetadata.createFromString(xtrace_context));
-      }
+      if (xtrace_context!=null)
+        XTrace.set(xtrace_context);
       
       final Map<String,List<String>> q =
         new QueryStringDecoder(request.getUri()).getParameters();
@@ -466,8 +465,7 @@ public class ShuffleHandler extends AuxiliaryService {
             "\n  reduceId: " + reduceQ +
             "\n  jobId: " + jobQ);
       }
-      XTraceContext.logEvent(ShuffleHandler.class, "ShuffleHandler", 
-          "Handling map output retrieval request", "URI", request.getUri(), "Map IDs", mapIds,
+      xtrace.log("Handling map output retrieval request", "URI", request.getUri(), "Map IDs", mapIds,
           "Reduce ID", reduceQ, "Job ID", jobQ);
 
       if (mapIds == null || reduceQ == null || jobQ == null) {
@@ -510,13 +508,13 @@ public class ShuffleHandler extends AuxiliaryService {
       ch.write(response);
       // TODO refactor the following into the pipeline
       ChannelFuture lastMap = null;
-      Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
+      Context start_context = XTrace.get();
       for (String mapId : mapIds) {
         try {
           lastMap =
             sendMapOutput(ctx, ch, userRsrc.get(jobId), jobId, mapId, reduceId);
           if (null == lastMap) {
-            XTraceContext.logEvent(ShuffleHandler.class, "ShuffleHandler", "Error: "+NOT_FOUND);
+            xtrace.log("Error: "+NOT_FOUND);
             sendError(ctx, NOT_FOUND);
             return;
           }
@@ -528,12 +526,11 @@ public class ShuffleHandler extends AuxiliaryService {
             sb.append(t.getCause().getMessage());
             t = t.getCause();
           }
-          XTraceContext.logEvent(ShuffleHandler.class, "ShuffleHandler", "Shuffle error: "+e.getClass().getName(),
-              "Message", e.getMessage());
+          xtrace.log("Shuffle error: "+e.getClass().getName(), "Message", e.getMessage());
           sendError(ctx,sb.toString() , INTERNAL_SERVER_ERROR);
           return;
         }
-        XTraceContext.setThreadContext(start_context);
+        XTrace.set(start_context);
       }
       lastMap.addListener(metrics);
       lastMap.addListener(ChannelFutureListener.CLOSE);
@@ -609,8 +606,7 @@ public class ShuffleHandler extends AuxiliaryService {
       final IndexRecord info = 
         indexCache.getIndexInformation(mapId, reduce, indexFileName, user);
       info.joinContext();
-      XTraceContext.logEvent(ShuffleHandler.class, "ShuffleHandler",
-          "Sending map output", "Reduce", reduce, "Map ID", mapId, "Job ID", jobID);
+      xtrace.log("Sending map output", "Reduce", reduce, "Map ID", mapId, "Job ID", jobID);
       final ShuffleHeader header =
         new ShuffleHeader(mapId, info.partLength, info.rawLength, reduce);
       header.rememberContext();
@@ -668,7 +664,7 @@ public class ShuffleHandler extends AuxiliaryService {
           ShuffleHeader.DEFAULT_HTTP_HEADER_VERSION);
       response.setContent(
         ChannelBuffers.copiedBuffer(message, CharsetUtil.UTF_8));
-      response.setHeader("X-Trace", XTraceContext.logMerge());
+      response.setHeader("X-Trace", XTrace.base64());
 
       // Close the connection as soon as the error message is sent.
       ctx.getChannel().write(response).addListener(ChannelFutureListener.CLOSE);

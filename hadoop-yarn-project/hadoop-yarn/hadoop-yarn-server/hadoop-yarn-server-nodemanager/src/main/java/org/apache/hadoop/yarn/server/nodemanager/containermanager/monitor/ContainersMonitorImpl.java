@@ -19,7 +19,6 @@
 package org.apache.hadoop.yarn.server.nodemanager.containermanager.monitor;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -38,19 +37,18 @@ import org.apache.hadoop.yarn.event.Dispatcher;
 import org.apache.hadoop.yarn.server.nodemanager.ContainerExecutor;
 import org.apache.hadoop.yarn.server.nodemanager.Context;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.container.ContainerKillEvent;
-import org.apache.hadoop.yarn.util.ResourceCalculatorProcessTree;
 import org.apache.hadoop.yarn.util.ResourceCalculatorPlugin;
+import org.apache.hadoop.yarn.util.ResourceCalculatorProcessTree;
 
 import com.google.common.base.Preconditions;
 
-import edu.berkeley.xtrace.XTraceContext;
-import edu.berkeley.xtrace.XTraceMetadata;
+import edu.brown.cs.systems.xtrace.XTrace;
 
 public class ContainersMonitorImpl extends AbstractService implements
     ContainersMonitor {
 
-  final static Log LOG = LogFactory
-      .getLog(ContainersMonitorImpl.class);
+  final static XTrace.Logger xtrace = XTrace.getLogger(ContainersMonitorImpl.class);
+  final static Log LOG = LogFactory.getLog(ContainersMonitorImpl.class);
 
   private long monitoringInterval;
   private MonitoringThread monitoringThread;
@@ -312,17 +310,14 @@ public class ContainersMonitorImpl extends AbstractService implements
   }
 
   private class MonitoringThread extends Thread {
-    private Collection<XTraceMetadata> xtrace_context;
 
     public MonitoringThread() {
       super("Container Monitor");
-      this.xtrace_context = XTraceContext.getThreadContext();
     }
 
     @Override
     public void run() {
-      XTraceContext.joinContext(xtrace_context);
-      XTraceContext.logEvent(MonitoringThread.class, "Container Monitor Thread", "Container Monitor Thread started");
+      xtrace.log("Container Monitor Thread started");
       while (true) {
 
         // Print the processTrees for debugging.

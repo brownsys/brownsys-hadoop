@@ -24,12 +24,14 @@ import java.io.IOException;
 import org.apache.hadoop.ipc.RPC;
 import org.apache.hadoop.ipc.protobuf.IpcConnectionContextProtos.IpcConnectionContextProto;
 import org.apache.hadoop.ipc.protobuf.IpcConnectionContextProtos.UserInformationProto;
-import org.apache.hadoop.ipc.protobuf.RpcHeaderProtos.*;
+import org.apache.hadoop.ipc.protobuf.RpcHeaderProtos.RpcKindProto;
+import org.apache.hadoop.ipc.protobuf.RpcHeaderProtos.RpcRequestHeaderProto;
 import org.apache.hadoop.security.SaslRpcServer.AuthMethod;
 import org.apache.hadoop.security.UserGroupInformation;
 
 import com.google.protobuf.ByteString;
-import edu.berkeley.xtrace.XTraceContext;
+
+import edu.brown.cs.systems.xtrace.XTrace;
 
 public abstract class ProtoUtil {
 
@@ -166,9 +168,8 @@ public abstract class ProtoUtil {
     RpcRequestHeaderProto.Builder result = RpcRequestHeaderProto.newBuilder();
     result.setRpcKind(convert(rpcKind)).setRpcOp(operation).setCallId(callId)
         .setRetryCount(retryCount).setClientId(ByteString.copyFrom(uuid));
-    if (XTraceContext.isValid()) {
-      result.setXtrace(ByteString.copyFrom(XTraceContext.logMerge().pack()));
-    }
+    if (XTrace.active())
+      result.setXtrace(ByteString.copyFrom(XTrace.bytes()));
     return result.build();
   }
 }

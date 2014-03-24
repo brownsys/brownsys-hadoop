@@ -18,13 +18,13 @@
 
 package org.apache.hadoop.yarn.server.nodemanager.containermanager.container;
 
-import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.locks.Lock;
@@ -70,9 +70,8 @@ import org.apache.hadoop.yarn.state.StateMachine;
 import org.apache.hadoop.yarn.state.StateMachineFactory;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 
-import edu.berkeley.xtrace.XTraceContext;
-import edu.berkeley.xtrace.XTraceMetadata;
-import edu.berkeley.xtrace.XTraceMetadataCollection;
+import edu.brown.cs.systems.xtrace.Context;
+import edu.brown.cs.systems.xtrace.XTrace;
 
 public class ContainerImpl implements Container {
 
@@ -104,7 +103,7 @@ public class ContainerImpl implements Container {
   private final List<LocalResourceRequest> appRsrcs =
     new ArrayList<LocalResourceRequest>();
   
-  private Collection<XTraceMetadata> xtrace_localizedresources = new XTraceMetadataCollection();
+  private Collection<Context> xtrace_localizedresources = new HashSet<Context>();
 
   public ContainerImpl(Configuration conf, Dispatcher dispatcher,
       ContainerLaunchContext launchContext, Credentials creds,
@@ -605,11 +604,12 @@ public class ContainerImpl implements Container {
         return ContainerState.LOCALIZING;
       }
       container.localizedResources.put(rsrcEvent.getLocation(), syms);
-      container.xtrace_localizedresources = XTraceContext.getThreadContext(container.xtrace_localizedresources);
+      container.xtrace_localizedresources.add(XTrace.get());
       if (!container.pendingResources.isEmpty()) {
         return ContainerState.LOCALIZING;
       }
-      XTraceContext.setThreadContext(container.xtrace_localizedresources);
+      for (Context ctx : container.xtrace_localizedresources)
+        XTrace.join(ctx);
       container.dispatcher.getEventHandler().handle(
           new ContainersLauncherEvent(container,
               ContainersLauncherEventType.LAUNCH_CONTAINER));

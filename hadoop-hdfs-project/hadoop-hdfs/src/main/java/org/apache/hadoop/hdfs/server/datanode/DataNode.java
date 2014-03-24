@@ -184,6 +184,8 @@ import com.google.common.collect.Sets;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.BlockingService;
 
+import edu.brown.cs.systems.xtrace.XTrace;
+
 /**********************************************************
  * DataNode is a class (and program) that stores a set of
  * blocks for a DFS deployment.  A single deployment can
@@ -219,6 +221,7 @@ import com.google.protobuf.BlockingService;
 public class DataNode extends Configured 
     implements InterDatanodeProtocol, ClientDatanodeProtocol,
     DataNodeMXBean {
+  public static final XTrace.Logger xtrace = XTrace.getLogger(DataNode.class);
   public static final Log LOG = LogFactory.getLog(DataNode.class);
   
   static{

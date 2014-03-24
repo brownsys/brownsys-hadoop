@@ -20,7 +20,6 @@ package org.apache.hadoop.mapreduce.task.reduce;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
@@ -28,9 +27,9 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableUtils;
 
-import edu.berkeley.xtrace.TaskID;
-import edu.berkeley.xtrace.XTraceContext;
-import edu.berkeley.xtrace.XTraceMetadata;
+import edu.brown.cs.systems.xtrace.Context;
+import edu.brown.cs.systems.xtrace.Metadata.XTraceMetadata;
+import edu.brown.cs.systems.xtrace.XTrace;
 
 /**
  * Shuffle Header information that is sent by the TaskTracker and 
@@ -56,7 +55,7 @@ public class ShuffleHeader implements Writable {
   long uncompressedLength;
   long compressedLength;
   int forReduce;
-  XTraceMetadata m;
+  Context m;
   
   public ShuffleHeader() { }
   
@@ -73,9 +72,14 @@ public class ShuffleHeader implements Writable {
     compressedLength = WritableUtils.readVLong(in);
     uncompressedLength = WritableUtils.readVLong(in);
     forReduce = WritableUtils.readVInt(in);
-    byte[] taskid = ByteBuffer.allocate(8).putLong(WritableUtils.readVLong(in)).array();
-    byte[] opid = ByteBuffer.allocate(8).putLong(WritableUtils.readVLong(in)).array();
-    m = new XTraceMetadata(new TaskID(taskid, 8), opid);
+    long taskid = WritableUtils.readVLong(in);
+    long opid = WritableUtils.readVLong(in);
+    if (taskid!=0L) {
+      XTraceMetadata.Builder builder = XTraceMetadata.newBuilder().setTaskID(taskid);
+      if (opid!=0L)
+        builder.addParentEventID(opid);
+      m = Context.parse(builder.build().toByteArray());
+    }
   }
 
   public void write(DataOutput out) throws IOException {
@@ -90,7 +94,7 @@ public class ShuffleHeader implements Writable {
   private long getXTraceTaskID() {
     if (m!=null) {
       try {
-        return ByteBuffer.wrap(m.getTaskId().get()).getLong();
+        return XTraceMetadata.parseFrom(m.bytes()).getTaskID();
       } catch (Exception e) {
       }
     }
@@ -100,7 +104,9 @@ public class ShuffleHeader implements Writable {
   private long getXTraceOpID() {
     if (m!=null) {
       try {
-        return ByteBuffer.wrap(m.getOpId()).getLong();
+        XTraceMetadata xmd = XTraceMetadata.parseFrom(m.bytes());
+        if (xmd.getParentEventIDCount() > 0)
+          return xmd.getParentEventID(0);
       } catch (Exception e) {
       }
     }
@@ -109,10 +115,11 @@ public class ShuffleHeader implements Writable {
   
   
   public void rememberContext() {
-    m = XTraceContext.logMerge();
+    m = XTrace.get();
   }
   
   public void joinContext() {
-    XTraceContext.joinChildProcess(m);
+//    // TODO: what even is this
+//    XTraceContext.joinChildProcess(m);
   }
 }

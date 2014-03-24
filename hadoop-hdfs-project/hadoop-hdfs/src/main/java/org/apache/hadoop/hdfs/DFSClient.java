@@ -61,9 +61,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.NetworkInterface;
 import java.net.Socket;
-import java.net.SocketException;
 import java.net.SocketAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
@@ -99,6 +97,7 @@ import org.apache.hadoop.fs.MD5MD5CRC32GzipFileChecksum;
 import org.apache.hadoop.fs.Options;
 import org.apache.hadoop.fs.Options.ChecksumOpt;
 import org.apache.hadoop.fs.ParentNotDirectoryException;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.UnresolvedLinkException;
 import org.apache.hadoop.fs.VolumeId;
 import org.apache.hadoop.fs.permission.FsPermission;
@@ -112,13 +111,13 @@ import org.apache.hadoop.hdfs.protocol.DirectoryListing;
 import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
 import org.apache.hadoop.hdfs.protocol.HdfsBlocksMetadata;
 import org.apache.hadoop.hdfs.protocol.HdfsConstants;
-import org.apache.hadoop.hdfs.protocol.SnapshotAccessControlException;
 import org.apache.hadoop.hdfs.protocol.HdfsConstants.DatanodeReportType;
 import org.apache.hadoop.hdfs.protocol.HdfsConstants.SafeModeAction;
 import org.apache.hadoop.hdfs.protocol.HdfsFileStatus;
 import org.apache.hadoop.hdfs.protocol.LocatedBlock;
 import org.apache.hadoop.hdfs.protocol.LocatedBlocks;
 import org.apache.hadoop.hdfs.protocol.NSQuotaExceededException;
+import org.apache.hadoop.hdfs.protocol.SnapshotAccessControlException;
 import org.apache.hadoop.hdfs.protocol.SnapshotDiffReport;
 import org.apache.hadoop.hdfs.protocol.SnapshottableDirectoryStatus;
 import org.apache.hadoop.hdfs.protocol.UnresolvedPathException;
@@ -131,8 +130,8 @@ import org.apache.hadoop.hdfs.protocol.datatransfer.Sender;
 import org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.BlockOpResponseProto;
 import org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.OpBlockChecksumResponseProto;
 import org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.Status;
-import org.apache.hadoop.hdfs.security.token.block.DataEncryptionKey;
 import org.apache.hadoop.hdfs.protocolPB.PBHelper;
+import org.apache.hadoop.hdfs.security.token.block.DataEncryptionKey;
 import org.apache.hadoop.hdfs.security.token.block.InvalidBlockTokenException;
 import org.apache.hadoop.hdfs.security.token.delegation.DelegationTokenIdentifier;
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants;
@@ -163,7 +162,6 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.net.InetAddresses;
 
-import edu.berkeley.xtrace.XTraceContext;
 
 /********************************************************
  * DFSClient can connect to a Hadoop Filesystem and 
@@ -1020,15 +1018,12 @@ public class DFSClient implements java.io.Closeable {
   static LocatedBlocks callGetBlockLocations(ClientProtocol namenode,
       String src, long start, long length) 
       throws IOException {
-    //XTraceContext.startTrace("DFSClient", "GetBlockLocations", "getBlockLocations", src+" ["+start+":"+(start+length)+"]");
     try {
       return namenode.getBlockLocations(src, start, length);
     } catch(RemoteException re) {
       throw re.unwrapRemoteException(AccessControlException.class,
                                      FileNotFoundException.class,
                                      UnresolvedPathException.class);
-    } finally {
-      XTraceContext.logEvent("DFSClient", "GetBlockLocations complete");
     }
   }
 
@@ -1520,7 +1515,6 @@ public class DFSClient implements java.io.Closeable {
   public boolean rename(String src, String dst) throws IOException {
     checkOpen();
     try {
-      //XTraceContext.startTrace("DFSClient", "Rename", "rename", src+" -> "+dst);
       return namenode.rename(src, dst);
     } catch(RemoteException re) {
       throw re.unwrapRemoteException(AccessControlException.class,
@@ -1528,8 +1522,6 @@ public class DFSClient implements java.io.Closeable {
                                      DSQuotaExceededException.class,
                                      UnresolvedPathException.class,
                                      SnapshotAccessControlException.class);
-    } finally {
-      XTraceContext.logEvent("DFSClient", "Rename complete");
     }
   }
 
@@ -1540,14 +1532,11 @@ public class DFSClient implements java.io.Closeable {
   public void concat(String trg, String [] srcs) throws IOException {
     checkOpen();
     try {
-      //XTraceContext.startTrace("DFSClient", "Concat", "concat");
       namenode.concat(trg, srcs);
     } catch(RemoteException re) {
       throw re.unwrapRemoteException(AccessControlException.class,
                                      UnresolvedPathException.class,
                                      SnapshotAccessControlException.class);
-    } finally {
-      XTraceContext.logEvent("DFSClient", "Concat complete");
     }
   }
   /**
@@ -1558,7 +1547,6 @@ public class DFSClient implements java.io.Closeable {
       throws IOException {
     checkOpen();
     try {
-      //XTraceContext.startTrace("DFSClient", "Rename", "rename", src+" -> "+dst);
       namenode.rename2(src, dst, options);
     } catch(RemoteException re) {
       throw re.unwrapRemoteException(AccessControlException.class,
@@ -1570,8 +1558,6 @@ public class DFSClient implements java.io.Closeable {
                                      NSQuotaExceededException.class,
                                      UnresolvedPathException.class,
                                      SnapshotAccessControlException.class);
-    } finally {
-      XTraceContext.logEvent("DFSClient", "Rename complete");
     }
   }
   /**
@@ -1581,12 +1567,7 @@ public class DFSClient implements java.io.Closeable {
   @Deprecated
   public boolean delete(String src) throws IOException {
     checkOpen();
-    //XTraceContext.startTrace("DFSClient", "Delete", "delete", src);
-    try { // xtrace try
     return namenode.delete(src, true);
-    } finally {
-      XTraceContext.logEvent("DFSClient", "Delete complete");
-    }
   }
 
   /**
@@ -1599,7 +1580,6 @@ public class DFSClient implements java.io.Closeable {
   public boolean delete(String src, boolean recursive) throws IOException {
     checkOpen();
     try {
-      //XTraceContext.startTrace("DFSClient", "Delete", "delete", src);
       return namenode.delete(src, recursive);
     } catch(RemoteException re) {
       throw re.unwrapRemoteException(AccessControlException.class,
@@ -1607,8 +1587,6 @@ public class DFSClient implements java.io.Closeable {
                                      SafeModeException.class,
                                      UnresolvedPathException.class,
                                      SnapshotAccessControlException.class);
-    } finally {
-      XTraceContext.logEvent("DFSClient", "Delete complete");
     }
   }
   
@@ -1642,14 +1620,11 @@ public class DFSClient implements java.io.Closeable {
     throws IOException {
     checkOpen();
     try {
-      //XTraceContext.startTrace("DFSClient", "ListPaths", "listPaths", src);
       return namenode.getListing(src, startAfter, needLocation);
     } catch(RemoteException re) {
       throw re.unwrapRemoteException(AccessControlException.class,
                                      FileNotFoundException.class,
                                      UnresolvedPathException.class);
-    } finally {
-      XTraceContext.logEvent("DFSClient", "ListPaths complete");
     }
   }
 
@@ -1664,14 +1639,11 @@ public class DFSClient implements java.io.Closeable {
   public HdfsFileStatus getFileInfo(String src) throws IOException {
     checkOpen();
     try {
-      //XTraceContext.startTrace("DFSClient", "GetFileInfo", "getFileInfo", src);
       return namenode.getFileInfo(src);
     } catch(RemoteException re) {
       throw re.unwrapRemoteException(AccessControlException.class,
                                      FileNotFoundException.class,
                                      UnresolvedPathException.class);
-    } finally {
-      XTraceContext.logEvent("DFSClient", "GetFileInfo complete");
     }
   }
   
@@ -2150,12 +2122,9 @@ public class DFSClient implements java.io.Closeable {
       throws IOException {
     checkOpen();
     try {
-      //XTraceContext.startTrace("DFSClient", "CreateSnapshot", "createSnapshot", snapshotRoot);
       return namenode.createSnapshot(snapshotRoot, snapshotName);
     } catch(RemoteException re) {
       throw re.unwrapRemoteException();
-    } finally {
-      XTraceContext.logEvent("DFSClient", "CreateSnapshot complete");
     }
   }
   
@@ -2171,12 +2140,9 @@ public class DFSClient implements java.io.Closeable {
   public void deleteSnapshot(String snapshotRoot, String snapshotName)
       throws IOException {
     try {
-      //XTraceContext.startTrace("DFSClient", "DeleteSnapshot", "deleteSnapshot", snapshotRoot);
       namenode.deleteSnapshot(snapshotRoot, snapshotName);
     } catch(RemoteException re) {
       throw re.unwrapRemoteException();
-    } finally {
-      XTraceContext.logEvent("DFSClient", "DeleteSnapshot complete");
     }
   }
   
@@ -2192,12 +2158,9 @@ public class DFSClient implements java.io.Closeable {
       String snapshotNewName) throws IOException {
     checkOpen();
     try {
-      //XTraceContext.startTrace("DFSClient", "RenameSnapshot", "renameSnapshot", snapshotOldName+" -> "+snapshotNewName);
       namenode.renameSnapshot(snapshotDir, snapshotOldName, snapshotNewName);
     } catch(RemoteException re) {
       throw re.unwrapRemoteException();
-    } finally {
-      XTraceContext.logEvent("DFSClient", "RenameSnapshot complete");
     }
   }
   
@@ -2383,7 +2346,6 @@ public class DFSClient implements java.io.Closeable {
     boolean createParent)
     throws IOException {
     checkOpen();
-    //XTraceContext.startTrace("DFSClient", "MkDir", "mkdir", src);
     if (absPermission == null) {
       absPermission = 
         FsPermission.getDefault().applyUMask(dfsClientConf.uMask);
@@ -2405,8 +2367,6 @@ public class DFSClient implements java.io.Closeable {
                                      DSQuotaExceededException.class,
                                      UnresolvedPathException.class,
                                      SnapshotAccessControlException.class);
-    } finally {
-      XTraceContext.logEvent("DFSClient", "MkDir complete");
     }
   }
   

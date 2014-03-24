@@ -47,8 +47,8 @@ import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.ApplicationSubmissionContext;
 import org.apache.hadoop.yarn.api.records.NodeReport;
-import org.apache.hadoop.yarn.api.records.QueueUserACLInfo;
 import org.apache.hadoop.yarn.api.records.NodeState;
+import org.apache.hadoop.yarn.api.records.QueueUserACLInfo;
 import org.apache.hadoop.yarn.api.records.YarnClusterMetrics;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.client.api.YarnClientApplication;
@@ -56,11 +56,13 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.security.AMRMTokenIdentifier;
 import org.apache.hadoop.yarn.util.ConverterUtils;
-import edu.berkeley.xtrace.XTraceContext;
 
 import com.google.common.annotations.VisibleForTesting;
 
+import edu.brown.cs.systems.xtrace.XTrace;
+
 public class ResourceMgrDelegate extends YarnClient {
+  private static final XTrace.Logger xtrace = XTrace.getLogger(ResourceMgrDelegate.class);
   private static final Log LOG = LogFactory.getLog(ResourceMgrDelegate.class);
       
   private YarnConfiguration conf;
@@ -172,7 +174,7 @@ public class ResourceMgrDelegate extends YarnClient {
       this.application = client.createApplication().getApplicationSubmissionContext();
       this.applicationId = this.application.getApplicationId();
       JobID id = TypeConverter.fromYarn(applicationId);
-      XTraceContext.logEvent("ResourceMgrDelegate", "Job ID acquired", "Job ID", id.getId());
+      xtrace.log("Job ID acquired", "Job ID", id.getId());
       return id;
     } catch (YarnException e) {
       throw new IOException(e);

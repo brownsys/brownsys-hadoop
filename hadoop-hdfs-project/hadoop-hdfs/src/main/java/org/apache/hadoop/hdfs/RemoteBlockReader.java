@@ -44,8 +44,6 @@ import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.util.DataChecksum;
 
-import edu.berkeley.xtrace.XTraceContext;
-
 
 /**
  * @deprecated this is an old implementation that is being left around
@@ -386,7 +384,6 @@ public class RemoteBlockReader extends FSInputChecker implements BlockReader {
                                      DatanodeID datanodeID,
                                      PeerCache peerCache)
                                      throws IOException {
-    XTraceContext.logEvent(RemoteBlockReader.class, "RemoteBlockReader", "Reading remote block using unsupported block reader", "file", file, "BlockName", block.getBlockName());
     
     // in and out will be closed when sock is closed (by the caller)
     final DataOutputStream out =

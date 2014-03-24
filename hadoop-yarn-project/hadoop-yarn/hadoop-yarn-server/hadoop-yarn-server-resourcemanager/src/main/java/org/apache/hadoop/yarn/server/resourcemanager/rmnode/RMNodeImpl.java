@@ -62,7 +62,8 @@ import org.apache.hadoop.yarn.state.StateMachine;
 import org.apache.hadoop.yarn.state.StateMachineFactory;
 
 import com.google.common.annotations.VisibleForTesting;
-import edu.berkeley.xtrace.XTraceContext;
+
+import edu.brown.cs.systems.xtrace.XTrace;
 
 /**
  * This class is used to keep track of all the applications/containers
@@ -74,6 +75,7 @@ import edu.berkeley.xtrace.XTraceContext;
 @SuppressWarnings("unchecked")
 public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
 
+  private static final XTrace.Logger xtrace = XTrace.getLogger(RMNodeImpl.class);
   private static final Log LOG = LogFactory.getLog(RMNodeImpl.class);
 
   private static final RecordFactory recordFactory = RecordFactoryProvider
@@ -560,7 +562,7 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
       for (ContainerStatus remoteContainer : statusEvent.getContainers()) {
         ContainerId containerId = remoteContainer.getContainerId();
         
-        XTraceContext.clearThreadContext();
+        XTrace.stop();
         containerId.joinContext();
         
         // Don't bother with containers already scheduled for cleanup, or for
@@ -569,8 +571,7 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
         if (rmNode.containersToClean.contains(containerId)) {
           LOG.info("Container " + containerId + " already scheduled for " +
           		"cleanup, no further processing");
-          XTraceContext.logEvent(RMNodeImpl.class, "Node cleanup", "Container already scheduled for " +
-              "cleanup, no further processing", "Container ID", containerId);
+          xtrace.log("Container already scheduled for cleanup", "Container ID", containerId);
           continue;
         }
         if (rmNode.finishedApplications.contains(containerId
@@ -578,8 +579,7 @@ public class RMNodeImpl implements RMNode, EventHandler<RMNodeEvent> {
           LOG.info("Container " + containerId
               + " belongs to an application that is already killed,"
               + " no further processing");
-          XTraceContext.logEvent(RMNodeImpl.class, "Node cleanup", "Container belongs to an application that is already killed"
-              +", no further processing", "Container ID", containerId);
+          xtrace.log("Container belongs to an application that is already killed", "Container ID", containerId);
           continue;
         }
 

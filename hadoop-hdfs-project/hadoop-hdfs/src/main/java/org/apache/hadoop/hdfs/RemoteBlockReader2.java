@@ -38,10 +38,8 @@ import org.apache.hadoop.hdfs.protocol.datatransfer.PacketHeader;
 import org.apache.hadoop.hdfs.protocol.datatransfer.PacketReceiver;
 import org.apache.hadoop.hdfs.protocol.datatransfer.Sender;
 import org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.BlockOpResponseProto;
-import org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.ClientReadStatusProto;
 import org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.ReadOpChecksumInfoProto;
 import org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.Status;
-import org.apache.hadoop.hdfs.security.token.block.DataEncryptionKey;
 import org.apache.hadoop.hdfs.protocolPB.PBHelper;
 import org.apache.hadoop.hdfs.security.token.block.BlockTokenIdentifier;
 import org.apache.hadoop.hdfs.security.token.block.InvalidBlockTokenException;
@@ -51,7 +49,7 @@ import org.apache.hadoop.util.DataChecksum;
 
 import com.google.common.annotations.VisibleForTesting;
 
-import edu.berkeley.xtrace.XTraceContext;
+import edu.brown.cs.systems.xtrace.XTrace;
 
 /**
  * This is a wrapper around connection to datanode
@@ -82,6 +80,7 @@ import edu.berkeley.xtrace.XTraceContext;
 @InterfaceAudience.Private
 public class RemoteBlockReader2  implements BlockReader {
 
+  static final XTrace.Logger xtrace = XTrace.getLogger(RemoteBlockReader2.class);
   static final Log LOG = LogFactory.getLog(RemoteBlockReader2.class);
   
   final private Peer peer;
@@ -216,7 +215,7 @@ public class RemoteBlockReader2  implements BlockReader {
     // If we've now satisfied the whole client read, read one last packet
     // header, which should be empty
     if (bytesNeededToFinish <= 0) {
-      XTraceContext.logEvent(RemoteBlockReader2.class, "RemoteBlockReader2", "Block finished, reading trailing empty packet");
+      xtrace.log("Block finished, reading trailing empty packet");
       readTrailingEmptyPacket();
       if (verifyChecksum) {
         sendReadResult(Status.CHECKSUM_OK);
@@ -380,7 +379,7 @@ public class RemoteBlockReader2  implements BlockReader {
                                      String clientName,
                                      Peer peer, DatanodeID datanodeID,
                                      PeerCache peerCache) throws IOException {
-    XTraceContext.logEvent(RemoteBlockReader2.class, "RemoteBlockReader2", "Reading remote block", "file", file, "BlockName", block.getBlockName());
+    xtrace.log("Reading remote block", "file", file, "BlockName", block.getBlockName());
     try { // xtrace try
     
     // in and out will be closed when sock is closed (by the caller)
@@ -419,7 +418,7 @@ public class RemoteBlockReader2  implements BlockReader {
         datanodeID, peerCache);
     
     } catch (IOException e) {
-      XTraceContext.logEvent(RemoteBlockReader2.class, "RemoteBlockReader2", "IOException reading remote block", "Message", e.getMessage());
+      xtrace.log("IOException reading remote block", "Message", e.getMessage());
       throw e;
     }
   }

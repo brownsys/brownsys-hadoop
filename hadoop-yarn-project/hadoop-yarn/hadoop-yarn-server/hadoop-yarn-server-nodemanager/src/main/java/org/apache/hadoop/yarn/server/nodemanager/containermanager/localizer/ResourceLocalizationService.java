@@ -31,6 +31,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -81,8 +82,8 @@ import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
 import org.apache.hadoop.yarn.ipc.YarnRPC;
 import org.apache.hadoop.yarn.server.nodemanager.ContainerExecutor;
 import org.apache.hadoop.yarn.server.nodemanager.DeletionService;
-import org.apache.hadoop.yarn.server.nodemanager.LocalDirsHandlerService;
 import org.apache.hadoop.yarn.server.nodemanager.DeletionService.FileDeletionTask;
+import org.apache.hadoop.yarn.server.nodemanager.LocalDirsHandlerService;
 import org.apache.hadoop.yarn.server.nodemanager.api.LocalizationProtocol;
 import org.apache.hadoop.yarn.server.nodemanager.api.ResourceLocalizationSpec;
 import org.apache.hadoop.yarn.server.nodemanager.api.protocolrecords.LocalResourceStatus;
@@ -119,13 +120,13 @@ import org.apache.hadoop.yarn.util.FSDownload;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
-import edu.berkeley.xtrace.XTraceContext;
-import edu.berkeley.xtrace.XTraceMetadata;
-import edu.berkeley.xtrace.XTraceMetadataCollection;
+import edu.brown.cs.systems.xtrace.Context;
+import edu.brown.cs.systems.xtrace.XTrace;
 
 public class ResourceLocalizationService extends CompositeService
     implements EventHandler<LocalizationEvent>, LocalizationProtocol {
 
+  private static final XTrace.Logger xtrace = XTrace.getLogger(ResourceLocalizationService.class);
   private static final Log LOG = LogFactory.getLog(ResourceLocalizationService.class);
   public static final String NM_PRIVATE_DIR = "nmPrivate";
   public static final FsPermission NM_PRIVATE_PERM = new FsPermission((short) 0700);
@@ -369,8 +370,8 @@ public class ResourceLocalizationService extends CompositeService
         c.getUser(), c.getContainerId(), c.getCredentials());
     Map<LocalResourceVisibility, Collection<LocalResourceRequest>> rsrcs =
       rsrcReqs.getRequestedResources();
-    Collection<XTraceMetadata> startCtx = XTraceContext.getThreadContext();
-    Collection<XTraceMetadata> endCtxs = new XTraceMetadataCollection();
+    Context startCtx = XTrace.get();
+    Collection<Context> endCtxs = new HashSet<Context>();
     for (Map.Entry<LocalResourceVisibility, Collection<LocalResourceRequest>> e :
          rsrcs.entrySet()) {
       LocalResourcesTracker tracker =
@@ -378,12 +379,13 @@ public class ResourceLocalizationService extends CompositeService
               c.getContainerId().getApplicationAttemptId()
                   .getApplicationId());
       for (LocalResourceRequest req : e.getValue()) {
-    	  XTraceContext.setThreadContext(startCtx);
+    	  XTrace.set(startCtx);
         tracker.handle(new ResourceRequestEvent(req, e.getKey(), ctxt));
-        endCtxs = XTraceContext.getThreadContext(endCtxs);
+        endCtxs.add(XTrace.get());
       }
     }
-    XTraceContext.joinContext(endCtxs);
+    for (Context ctx : endCtxs)
+      XTrace.join(ctx);
   }
   
   private void handleCacheCleanup(LocalizationEvent event) {
@@ -406,21 +408,22 @@ public class ResourceLocalizationService extends CompositeService
     Container c = rsrcCleanup.getContainer();
     Map<LocalResourceVisibility, Collection<LocalResourceRequest>> rsrcs =
       rsrcCleanup.getResources();
-    Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
-    Collection<XTraceMetadata> end_context = new XTraceMetadataCollection();
+    Context start_context = XTrace.get();
+    Collection<Context> end_context = new HashSet<Context>();
     for (Map.Entry<LocalResourceVisibility, Collection<LocalResourceRequest>> e :
          rsrcs.entrySet()) {
       LocalResourcesTracker tracker = getLocalResourcesTracker(e.getKey(), c.getUser(), 
           c.getContainerId().getApplicationAttemptId()
           .getApplicationId());
       for (LocalResourceRequest req : e.getValue()) {
-        XTraceContext.setThreadContext(start_context);
+        XTrace.set(start_context);
         tracker.handle(new ResourceReleaseEvent(req,
             c.getContainerId()));
-        end_context = XTraceContext.getThreadContext(end_context);
+        end_context.add(XTrace.get());
       }
     }
-    XTraceContext.setThreadContext(end_context);
+    for (Context ctx : end_context)
+      XTrace.set(ctx);
     String locId = ConverterUtils.toString(c.getContainerId());
     localizerTracker.cleanupPrivLocalizers(locId);
     
@@ -717,13 +720,14 @@ public class ResourceLocalizationService extends CompositeService
       try {
         // TODO shutdown, better error handling esp. DU
         while (!Thread.currentThread().isInterrupted()) {
-          XTraceContext.clearThreadContext();
+          XTrace.stop();
           try {
             Future<Path> completed = queue.take();
             LocalizerResourceRequestEvent assoc = pending.remove(completed);
             try {
               Path local = completed.get();
-              XTraceContext.joinObject(local);
+//              // TODO: XTrace deal with this
+//              XTraceContext.joinObject(local);
               if (null == assoc) {
                 LOG.error("Localized unkonwn resource to " + completed);
                 // TODO delete
@@ -794,7 +798,7 @@ public class ResourceLocalizationService extends CompositeService
      */
     private LocalResource findNextResource() {
       // TODO: Synchronization
-      XTraceContext.clearThreadContext();
+      XTrace.stop();
       for (Iterator<LocalizerResourceRequestEvent> i = pending.iterator();
            i.hasNext();) {
         LocalizerResourceRequestEvent evt = i.next();
@@ -824,7 +828,7 @@ public class ResourceLocalizationService extends CompositeService
             next.setVisibility(evt.getVisibility());
             next.setPattern(evt.getPattern());
             scheduled.put(nextRsrc, evt);
-            XTraceContext.clearThreadContext();
+            XTrace.stop();
             return next;
           } else {
             // Need to release acquired lock
@@ -955,7 +959,7 @@ public class ResourceLocalizationService extends CompositeService
                   req, stat.getException().getMessage()));
             break;
         }
-        XTraceContext.clearThreadContext();
+        XTrace.stop();
       }
       response.setResourceSpecs(rsrcs);
       return response;
@@ -1063,19 +1067,16 @@ public class ResourceLocalizationService extends CompositeService
   static class CacheCleanup extends Thread {
 
     private final Dispatcher dispatcher;
-    private Collection<XTraceMetadata> xtrace_context;
 
     public CacheCleanup(Dispatcher dispatcher) {
       super("CacheCleanup");
       this.dispatcher = dispatcher;
-      this.xtrace_context = XTraceContext.getThreadContext();
     }
 
     @Override
     @SuppressWarnings("unchecked") // dispatcher not typed
     public void run() {
-      XTraceContext.setThreadContext(xtrace_context);
-      XTraceContext.logEvent(CacheCleanup.class, "Cache Cleanup Thread", "Cache Cleanup Thread started");
+      xtrace.log("Cache Cleanup Thread started");
       dispatcher.getEventHandler().handle(
           new LocalizationEvent(LocalizationEventType.CACHE_CLEANUP));
     }

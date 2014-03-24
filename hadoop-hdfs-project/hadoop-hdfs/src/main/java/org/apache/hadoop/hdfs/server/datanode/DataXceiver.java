@@ -18,11 +18,11 @@
 package org.apache.hadoop.hdfs.server.datanode;
 
 import static org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.Status.ERROR;
-import static org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.Status.ERROR_UNSUPPORTED;
 import static org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.Status.ERROR_ACCESS_TOKEN;
+import static org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.Status.ERROR_UNSUPPORTED;
 import static org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.Status.SUCCESS;
-import static org.apache.hadoop.util.Time.now;
 import static org.apache.hadoop.hdfs.server.datanode.DataNode.DN_CLIENTTRACE_FORMAT;
+import static org.apache.hadoop.util.Time.now;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -48,9 +48,9 @@ import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
 import org.apache.hadoop.hdfs.protocol.HdfsConstants;
 import org.apache.hadoop.hdfs.protocol.XTraceProtoUtils;
 import org.apache.hadoop.hdfs.protocol.datatransfer.BlockConstructionStage;
+import org.apache.hadoop.hdfs.protocol.datatransfer.DataTransferEncryptor;
 import org.apache.hadoop.hdfs.protocol.datatransfer.DataTransferEncryptor.InvalidMagicNumberException;
 import org.apache.hadoop.hdfs.protocol.datatransfer.DataTransferProtoUtil;
-import org.apache.hadoop.hdfs.protocol.datatransfer.DataTransferEncryptor;
 import org.apache.hadoop.hdfs.protocol.datatransfer.IOStreamPair;
 import org.apache.hadoop.hdfs.protocol.datatransfer.Op;
 import org.apache.hadoop.hdfs.protocol.datatransfer.Receiver;
@@ -77,13 +77,14 @@ import org.apache.hadoop.util.DataChecksum;
 
 import com.google.protobuf.ByteString;
 
-import edu.berkeley.xtrace.XTraceContext;
+import edu.brown.cs.systems.xtrace.XTrace;
 
 
 /**
  * Thread for processing incoming/outgoing data stream.
  */
 class DataXceiver extends Receiver implements Runnable {
+  public static final XTrace.Logger xtrace = XTrace.getLogger(DataXceiver.class);
   public static final Log LOG = DataNode.LOG;
   static final Log ClientTraceLog = DataNode.ClientTraceLog;
   
@@ -223,14 +224,15 @@ class DataXceiver extends Receiver implements Runnable {
         opStartTime = now();
         processOp(op);
         ++opsProcessed;
-        XTraceContext.clearThreadContext();
+        XTrace.stop();
       } while (!peer.isClosed() && dnConf.socketKeepaliveTimeout > 0);
     } catch (Throwable t) {
       LOG.error(datanode.getDisplayName() + ":DataXceiver error processing " +
                 ((op == null) ? "unknown" : op.name()) + " operation " +
                 " src: " + remoteAddress +
                 " dest: " + localAddress, t);
-      XTraceContext.logEvent(DataXceiver.class, "DataXceiver", "Error processing", "Message", t.getMessage());
+      
+      xtrace.log("Error processing", "Message", t.getMessage());
     } finally {
       if (LOG.isDebugEnabled()) {
         LOG.debug(datanode.getDisplayName() + ":Number of active connections is: "
@@ -246,7 +248,7 @@ class DataXceiver extends Receiver implements Runnable {
   public void requestShortCircuitFds(final ExtendedBlock blk,
       final Token<BlockTokenIdentifier> token,
       int maxVersion) throws IOException {
-    XTraceContext.logEvent(DataXceiver.class, "DataXceiver", "DataNode RequestShortCircuitFds");
+    xtrace.log("DataNode RequestShortCircuitFds");
     
     updateCurrentThreadName("Passing file descriptors for block " + blk);
     BlockOpResponseProto.Builder bld = BlockOpResponseProto.newBuilder();
@@ -308,7 +310,7 @@ class DataXceiver extends Receiver implements Runnable {
       final long blockOffset,
       final long length,
       final boolean sendChecksum) throws IOException {
-    XTraceContext.logEvent(DataXceiver.class, "DataXceiver", "DataNode ReadBlock");
+    xtrace.log("DataNode ReadBlock");
     previousOpClientName = clientName;
 
     OutputStream baseStream = getOutputStream();
@@ -330,7 +332,7 @@ class DataXceiver extends Receiver implements Runnable {
             remoteAddress;
 
     updateCurrentThreadName("Sending block " + block);
-    XTraceContext.logEvent(DataXceiver.class, "DataXceiver", "Creating BlockSender");
+    xtrace.log("Creating BlockSender");
     try {
       try {
         blockSender = new BlockSender(block, blockOffset, length,
@@ -342,15 +344,15 @@ class DataXceiver extends Receiver implements Runnable {
         throw e;
       }
       
-      XTraceContext.logEvent(DataXceiver.class, "DataXceiver", "WritingRPCResult");
+      xtrace.log("Writing RPC result");
       
       // send op status
       writeSuccessWithChecksumInfo(blockSender, new DataOutputStream(getOutputStream()));
 
-      XTraceContext.logEvent(DataXceiver.class, "DataXceiver", "Sending Block");
+      xtrace.log("Sending Block");
       long read = blockSender.sendBlock(out, baseStream, null); // send data
-
-      XTraceContext.logEvent(DataXceiver.class, "DataXceiver", "Sent Block");
+      xtrace.log("Sent Block");
+      
       if (blockSender.didSendEntireByteRange()) {
         // If we sent the entire range, then we should expect the client
         // to respond with a Status enum.
@@ -368,10 +370,10 @@ class DataXceiver extends Receiver implements Runnable {
           LOG.debug("Error reading client status response. Will close connection.", ioe);
           IOUtils.closeStream(out);
         }
-        XTraceContext.logEvent(DataXceiver.class, "DataXceiver", "Received RPC status enum");
+        xtrace.log("Received RPC status");
       } else {
         IOUtils.closeStream(out);
-        XTraceContext.logEvent(DataXceiver.class, "DataXceiver", "Closed Stream");
+        xtrace.log("Closed Stream");
       }
       datanode.metrics.incrBytesRead((int) read);
       datanode.metrics.incrBlocksRead();
@@ -393,7 +395,7 @@ class DataXceiver extends Receiver implements Runnable {
     } finally {
       IOUtils.closeStream(blockSender);
       
-      XTraceContext.logEvent(DataXceiver.class, "DataNode", "ReadBlock Complete");
+      xtrace.log("ReadBlock Complete");
     }
 
     //update metrics
@@ -413,7 +415,7 @@ class DataXceiver extends Receiver implements Runnable {
       final long maxBytesRcvd,
       final long latestGenerationStamp,
       DataChecksum requestedChecksum) throws IOException {
-    XTraceContext.logEvent(DataXceiver.class, "DataXceiver", "DataNode WriteBlock");
+    xtrace.log("DataNode WriteBlock");
     previousOpClientName = clientname;
     updateCurrentThreadName("Receiving block " + block);
     final boolean isDatanode = clientname.length() == 0;
@@ -487,7 +489,7 @@ class DataXceiver extends Receiver implements Runnable {
         if (LOG.isDebugEnabled()) {
           LOG.debug("Connecting to datanode " + mirrorNode);
         }
-        XTraceContext.logEvent(DataXceiver.class, "DataXceiver writeBlock", "Connecting to mirror node", "mirrorNode", mirrorNode);
+        xtrace.log("Connecting to mirror node", "mirrorNode", mirrorNode);
         mirrorTarget = NetUtils.createSocketAddr(mirrorNode);
         mirrorSock = datanode.newSocket();
         try {
@@ -535,11 +537,11 @@ class DataXceiver extends Receiver implements Runnable {
                        " from downstream datanode with firstbadlink as " +
                        firstBadLink);
             }
-            XTraceContext.logEvent(DataXceiver.class, "DataXceiver", "Got response for connect ack from downstream datanode");
+            xtrace.log("Got response for connect ack from downstream datanode");
           }
 
         } catch (IOException e) {
-          XTraceContext.logEvent(DataXceiver.class, "DataXceiver", "Exception transferring block");
+          xtrace.log("Exception transferring block");
           if (isClient) {
             XTraceProtoUtils.newBlockOpResponseProtoBuilder()
               .setStatus(ERROR)
@@ -569,7 +571,7 @@ class DataXceiver extends Receiver implements Runnable {
 
       // send connect-ack to source for clients and not transfer-RBW/Finalized
       if (isClient && !isTransfer) {
-        XTraceContext.logEvent(DataXceiver.class, "DataXceiver", "Forwarding connect ack to upstream");
+        xtrace.log("Forwarding connect ack to upstream");
         if (LOG.isDebugEnabled() || mirrorInStatus != SUCCESS) {
           LOG.info("Datanode " + targets.length +
                    " forwarding connect ack to upstream firstbadlink is " +
@@ -594,7 +596,7 @@ class DataXceiver extends Receiver implements Runnable {
           if (LOG.isTraceEnabled()) {
             LOG.trace("TRANSFER: send close-ack");
           }
-          XTraceContext.logEvent(DataXceiver.class, "DataXceiver", "Sending close ack");
+          xtrace.log("Sending close ack");
           writeResponse(SUCCESS, null, replyOut);
         }
       }
@@ -628,7 +630,7 @@ class DataXceiver extends Receiver implements Runnable {
       IOUtils.closeSocket(mirrorSock);
       IOUtils.closeStream(blockReceiver);
       
-      XTraceContext.logEvent(DataXceiver.class, "DataNode", "WriteBlock Complete");
+      xtrace.log("WriteBlock Complete");
     }
 
     //update metrics
@@ -641,7 +643,7 @@ class DataXceiver extends Receiver implements Runnable {
       final Token<BlockTokenIdentifier> blockToken,
       final String clientName,
       final DatanodeInfo[] targets) throws IOException {
-    XTraceContext.logEvent(DataXceiver.class, "DataXceiver", "DataNode TransferBlock");
+    xtrace.log("DataNode TransferBlock");
     checkAccess(socketOut, true, blk, blockToken,
         Op.TRANSFER_BLOCK, BlockTokenSecretManager.AccessMode.COPY);
     previousOpClientName = clientName;
@@ -660,7 +662,7 @@ class DataXceiver extends Receiver implements Runnable {
   @Override
   public void blockChecksum(final ExtendedBlock block,
       final Token<BlockTokenIdentifier> blockToken) throws IOException {
-    XTraceContext.logEvent(DataXceiver.class, "DataXceiver", "DataNode BlockChecksum");
+    xtrace.log("DataNode BlockChecksum");
     final DataOutputStream out = new DataOutputStream(
         getOutputStream());
     checkAccess(out, true, block, blockToken,
@@ -713,7 +715,7 @@ class DataXceiver extends Receiver implements Runnable {
   @Override
   public void copyBlock(final ExtendedBlock block,
       final Token<BlockTokenIdentifier> blockToken) throws IOException {
-    XTraceContext.logEvent(DataXceiver.class, "DataXceiver", "DataNode CopyBlock");
+    xtrace.log("DataNode CopyBlock");
     updateCurrentThreadName("Copying block " + block);
     // Read in the header
     if (datanode.isBlockTokenEnabled) {
@@ -789,7 +791,7 @@ class DataXceiver extends Receiver implements Runnable {
       final Token<BlockTokenIdentifier> blockToken,
       final String delHint,
       final DatanodeInfo proxySource) throws IOException {
-    XTraceContext.logEvent(DataXceiver.class, "DataXceiver", "DataNode ReplaceBlock");
+    xtrace.log("DataNode ReplaceBlock");
     updateCurrentThreadName("Replacing block " + block + " from " + delHint);
 
     /* read header */

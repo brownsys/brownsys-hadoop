@@ -27,7 +27,7 @@ import org.apache.hadoop.classification.InterfaceStability.Evolving;
 import org.apache.hadoop.util.ExitUtil;
 import org.apache.hadoop.util.ShutdownHookManager;
 
-import edu.berkeley.xtrace.XTraceContext;
+import edu.brown.cs.systems.xtrace.XTrace;
 
 /**
  * This class is intended to be installed by calling 
@@ -41,6 +41,7 @@ import edu.berkeley.xtrace.XTraceContext;
 @Public
 @Evolving
 public class YarnUncaughtExceptionHandler implements UncaughtExceptionHandler {
+  private static final XTrace.Logger xtrace = XTrace.getLogger(YarnUncaughtExceptionHandler.class);
   private static final Log LOG = LogFactory.getLog(YarnUncaughtExceptionHandler.class);
   
   @Override
@@ -51,7 +52,7 @@ public class YarnUncaughtExceptionHandler implements UncaughtExceptionHandler {
     } else if(e instanceof Error) {
       try {
         LOG.fatal("Thread " + t + " threw an Error.  Shutting down now...", e);
-        XTraceContext.logEvent(UncaughtExceptionHandler.class, "UncaughtError", e.getClass().getName(), 
+        xtrace.log(e.getClass().getName(), 
             "Thread Name", t.getName(), "Message", e.getMessage());
       } catch (Throwable err) {
         //We don't want to not exit because of an issue with logging
@@ -61,19 +62,20 @@ public class YarnUncaughtExceptionHandler implements UncaughtExceptionHandler {
         //even try to clean up or we can get stuck on shutdown.
         try {
           System.err.println("Halting due to Out Of Memory Error...");
-          XTraceContext.joinParentProcess();
+//          // TODO: XTrace do this
+//          XTraceContext.joinParentProcess();
         } catch (Throwable err) {
           //Again we done want to exit because of logging issues.
         }
         ExitUtil.halt(-1);
       } else {
-        XTraceContext.joinParentProcess();
+//        // TODO: XTrace do this
+//        XTraceContext.joinParentProcess();
         ExitUtil.terminate(-1);
       }
     } else {
       LOG.error("Thread " + t + " threw an Exception.", e);
-      XTraceContext.logEvent(UncaughtExceptionHandler.class, "UncaughtException", e.getClass().getName(),
-          "Thread Name", t.getName(), "Message", e.getMessage());
+      xtrace.log(e.getClass().getName(), "Thread Name", t.getName(), "Message", e.getMessage());
     }
   }
 }

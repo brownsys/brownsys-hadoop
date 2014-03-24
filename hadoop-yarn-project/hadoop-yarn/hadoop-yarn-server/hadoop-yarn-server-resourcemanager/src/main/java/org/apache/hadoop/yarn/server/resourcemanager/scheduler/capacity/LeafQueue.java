@@ -67,7 +67,7 @@ import org.apache.hadoop.yarn.server.utils.Lock.NoLock;
 import org.apache.hadoop.yarn.util.resource.ResourceCalculator;
 import org.apache.hadoop.yarn.util.resource.Resources;
 
-import edu.berkeley.xtrace.XTraceContext;
+import edu.brown.cs.systems.xtrace.XTrace;
 
 @Private
 @Unstable
@@ -1304,7 +1304,7 @@ public class LeafQueue implements CSQueue {
       FiCaSchedulerApp application, Priority priority, 
       ResourceRequest request, NodeType type, RMContainer rmContainer) {
     
-    XTraceContext.clearThreadContext();
+    XTrace.stop();
     request.joinContext();
     
     try { // xtrace try
@@ -1392,7 +1392,7 @@ public class LeafQueue implements CSQueue {
     }
     
     } finally { // xtrace finally
-      XTraceContext.clearThreadContext();
+      XTrace.stop();
     }
   }
 

@@ -21,6 +21,7 @@ package org.apache.hadoop.yarn.event;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
@@ -35,9 +36,8 @@ import org.apache.hadoop.service.AbstractService;
 import org.apache.hadoop.util.ShutdownHookManager;
 import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 
-import edu.berkeley.xtrace.XTraceContext;
-import edu.berkeley.xtrace.XTraceMetadata;
-import edu.berkeley.xtrace.XTraceMetadataCollection;
+import edu.brown.cs.systems.xtrace.Context;
+import edu.brown.cs.systems.xtrace.XTrace;
 
 /**
  * Dispatches {@link Event}s in a separate thread. Currently only single thread
@@ -49,6 +49,7 @@ import edu.berkeley.xtrace.XTraceMetadataCollection;
 @Evolving
 public class AsyncDispatcher extends AbstractService implements Dispatcher {
 
+  private static final XTrace.Logger xtrace = XTrace.getLogger(AsyncDispatcher.class);
   private static final Log LOG = LogFactory.getLog(AsyncDispatcher.class);
 
   private final BlockingQueue<Event> eventQueue;
@@ -73,7 +74,7 @@ public class AsyncDispatcher extends AbstractService implements Dispatcher {
       @Override
       public void run() {
         while (!stopped && !Thread.currentThread().isInterrupted()) {
-          XTraceContext.clearThreadContext();
+          XTrace.stop();
           Event event;
           try {
             event = eventQueue.take();
@@ -150,8 +151,9 @@ public class AsyncDispatcher extends AbstractService implements Dispatcher {
       if (exitOnDispatchException
           && (ShutdownHookManager.get().isShutdownInProgress()) == false) {
         LOG.info("Exiting, bbye..");
-        XTraceContext.logEvent(AsyncDispatcher.class, "AsyncDispatcher", "Exiting, bbye..");
-        XTraceContext.joinParentProcess();
+        xtrace.log("Exiting, bbye..");
+//        // TODO: XTrace deal with this
+//        XTraceContext.joinParentProcess();
         System.exit(-1);
       }
     }
@@ -223,15 +225,16 @@ public class AsyncDispatcher extends AbstractService implements Dispatcher {
 
     @Override
     public void handle(Event event) {
-      Collection<XTraceMetadata> start_xtrace_context = XTraceContext.getThreadContext();
-      Collection<XTraceMetadata> result_xtrace_contexts = new XTraceMetadataCollection();
+      Context start_xtrace_context = XTrace.get();
+      Collection<Context> result_xtrace_contexts = new HashSet<Context>();
       for (EventHandler<Event> handler: listofHandlers) {
-        XTraceContext.setThreadContext(start_xtrace_context);
+        XTrace.set(start_xtrace_context);
         event.joinContext();
         handler.handle(event);
-        result_xtrace_contexts = XTraceContext.getThreadContext(result_xtrace_contexts);
+        result_xtrace_contexts.add(XTrace.get());
       }
-      XTraceContext.setThreadContext(result_xtrace_contexts);
+      for (Context ctx : result_xtrace_contexts)
+        XTrace.join(ctx);
     }
 
     void addHandler(EventHandler<Event> handler) {

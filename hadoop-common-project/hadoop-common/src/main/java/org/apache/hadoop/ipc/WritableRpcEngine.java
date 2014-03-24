@@ -18,36 +18,40 @@
 
 package org.apache.hadoop.ipc;
 
-import java.lang.reflect.Proxy;
-import java.lang.reflect.Method;
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
-
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.net.InetSocketAddress;
-import java.io.*;
 
 import javax.net.SocketFactory;
 
-import org.apache.commons.logging.*;
-
-import org.apache.hadoop.io.*;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.classification.InterfaceAudience;
+import org.apache.hadoop.classification.InterfaceStability;
+import org.apache.hadoop.conf.Configurable;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.io.ObjectWritable;
+import org.apache.hadoop.io.UTF8;
+import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.retry.RetryPolicy;
 import org.apache.hadoop.ipc.Client.ConnectionId;
 import org.apache.hadoop.ipc.RPC.RpcInvoker;
-import org.apache.hadoop.ipc.VersionedProtocol;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.SecretManager;
 import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.util.Time;
-import org.apache.hadoop.classification.InterfaceAudience;
-import org.apache.hadoop.classification.InterfaceStability;
-import org.apache.hadoop.conf.*;
-import java.util.Collection;
-import edu.berkeley.xtrace.XTraceContext;
-import edu.berkeley.xtrace.XTraceMetadata;
+
+import edu.brown.cs.systems.xtrace.Context;
+import edu.brown.cs.systems.xtrace.XTrace;
 
 /** An RpcEngine implementation for Writable data. */
 @InterfaceStability.Evolving
 public class WritableRpcEngine implements RpcEngine {
+  private static final XTrace.Logger xtrace = XTrace.getLogger(RPC.class);
   private static final Log LOG = LogFactory.getLog(RPC.class);
   
   //writableRpcVersion should be updated if there is a change
@@ -231,8 +235,8 @@ public class WritableRpcEngine implements RpcEngine {
         startTime = Time.now();
       }
 
-      XTraceContext.logEvent(RPC.class, "WritableRpcEngine", "RPC Client invoking remote method "+method.getName(), "ConnectionID", this.remoteId);
-      Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
+      xtrace.log("RPC Client invoking remote method "+method.getName(), "ConnectionID", this.remoteId);
+      Context start_context = XTrace.get();
       try { // xtrace try
 
       ObjectWritable value = (ObjectWritable)
@@ -242,14 +246,14 @@ public class WritableRpcEngine implements RpcEngine {
         LOG.debug("Call: " + method.getName() + " " + callTime);
       }
       
-      XTraceContext.joinContext(start_context);
-      XTraceContext.logEvent(RPC.class, "WritableRpcEngine", "Client invocation of "+method.getName()+" successful");
+      XTrace.join(start_context);
+      xtrace.log("Client invocation of "+method.getName()+" successful");
 
       return value.get();
       
       } catch (Exception e) {// xtrace catch
-        XTraceContext.joinContext(start_context);
-        XTraceContext.logEvent(RPC.class, "WritableRpcEngine", "Remote invocation of "+method.getName()+" failed due to exception: "+e.getClass().getName(), "Message", e.getMessage());
+        XTrace.join(start_context);
+        xtrace.log("Remote invocation of "+method.getName()+" failed due to exception: "+e.getClass().getName(), "Message", e.getMessage());
         throw e;
       }
     }
@@ -438,8 +442,8 @@ public class WritableRpcEngine implements RpcEngine {
         Invocation call = (Invocation)rpcRequest;
         if (server.verbose) log("Call: " + call);
         
-        XTraceContext.logEvent(WritableRpcInvoker.class, "WritableRpcEngine", "Invoking method "+call.getMethodName());
-        Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
+        xtrace.log("Invoking method", "Method", call.getMethodName());
+        Context start_context = XTrace.get();
         try { // xtrace try
 
         // Verify writable rpc version
@@ -514,9 +518,8 @@ public class WritableRpcEngine implements RpcEngine {
                                                processingTime);
           if (server.verbose) log("Return: "+value);
 
-
-          XTraceContext.joinContext(start_context);
-          XTraceContext.logEvent(WritableRpcInvoker.class, "WritableRpcEngine", "Invocation of "+call.getMethodName()+" completed, responding to client");
+          XTrace.join(start_context);
+          xtrace.log("Invocation of method completed, responding to client", "Method", call.getMethodName());
           
           return new ObjectWritable(method.getReturnType(), value);
 
@@ -539,8 +542,8 @@ public class WritableRpcEngine implements RpcEngine {
         }
 
         } catch (IOException e) { // xtrace catch
-          XTraceContext.joinContext(start_context);
-          XTraceContext.logEvent(WritableRpcInvoker.class, "ProtoBufRpcInvoker", "Failed to invoke method "+call.getMethodName()+": "+e.getClass().getName(), "Message", e.getMessage());
+          XTrace.join(start_context);
+          xtrace.log("Failed to invoke method "+call.getMethodName()+": "+e.getClass().getName(), "Message", e.getMessage());
           throw e;
         }
      }

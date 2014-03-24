@@ -31,8 +31,10 @@ import org.apache.hadoop.hdfs.protocolPB.PBHelper;
 import org.apache.hadoop.hdfs.security.token.block.BlockTokenIdentifier;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.util.DataChecksum;
+
 import com.google.protobuf.ByteString;
-import edu.berkeley.xtrace.XTraceContext;
+
+import edu.brown.cs.systems.xtrace.XTrace;
 
 
 /**
@@ -84,8 +86,8 @@ public abstract class DataTransferProtoUtil {
     Builder header = BaseHeaderProto.newBuilder()
       .setBlock(PBHelper.convert(blk))
       .setToken(PBHelper.convert(blockToken));
-    if (XTraceContext.isValid())
-      header.setXtrace(ByteString.copyFrom(XTraceContext.logMerge().pack()));
+    if (XTrace.active())
+      header.setXtrace(ByteString.copyFrom(XTrace.bytes()));
     return header.build();
   }
 }

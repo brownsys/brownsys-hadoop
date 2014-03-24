@@ -17,6 +17,8 @@
  */
 package org.apache.hadoop.mapreduce;
 
+import static org.apache.hadoop.mapred.QueueManager.toFullPropertyName;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
@@ -25,7 +27,6 @@ import java.net.URISyntaxException;
 import java.net.UnknownHostException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -46,8 +47,6 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.QueueACL;
-import static org.apache.hadoop.mapred.QueueManager.toFullPropertyName;
-
 import org.apache.hadoop.mapreduce.filecache.ClientDistributedCacheManager;
 import org.apache.hadoop.mapreduce.filecache.DistributedCache;
 import org.apache.hadoop.mapreduce.protocol.ClientProtocol;
@@ -63,13 +62,14 @@ import org.codehaus.jackson.map.JsonMappingException;
 import org.codehaus.jackson.map.ObjectMapper;
 
 import com.google.common.base.Charsets;
-import edu.berkeley.xtrace.XTraceContext;
-import edu.berkeley.xtrace.XTraceMetadata;
-import edu.berkeley.xtrace.XTraceProcess;
+
+import edu.brown.cs.systems.xtrace.Context;
+import edu.brown.cs.systems.xtrace.XTrace;
 
 @InterfaceAudience.Private
 @InterfaceStability.Unstable
 class JobSubmitter {
+  protected static final XTrace.Logger xtrace = XTrace.getLogger(JobSubmitter.class);
   protected static final Log LOG = LogFactory.getLog(JobSubmitter.class);
   private static final String SHUFFLE_KEYGEN_ALGORITHM = "HmacSHA1";
   private static final int SHUFFLE_KEY_LENGTH = 64;
@@ -340,8 +340,8 @@ class JobSubmitter {
   JobStatus submitJobInternal(Job job, Cluster cluster) 
   throws ClassNotFoundException, InterruptedException, IOException {
 
-    XTraceContext.logEvent(JobSubmitter.class, "JobSubmitter", "Submitting Job");
-    Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
+    xtrace.log("Submitting Job");
+    Context start_context = XTrace.get();
 	  
     //validate the jobs output specs
     checkSpecs(job);
@@ -435,8 +435,8 @@ class JobSubmitter {
 
       }
       
-      XTraceContext.joinContext(start_context);
-      XTraceContext.logEvent(JobSubmitter.class, "JobSubmitter", "Job submission complete");
+      XTrace.join(start_context);
+      xtrace.log("Job submission complete");
     }
   }
   

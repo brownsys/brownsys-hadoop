@@ -18,7 +18,6 @@
 
 package org.apache.hadoop.mapreduce.v2.app;
 
-import java.util.Collection;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -36,8 +35,7 @@ import org.apache.hadoop.service.AbstractService;
 import org.apache.hadoop.yarn.event.EventHandler;
 import org.apache.hadoop.yarn.util.Clock;
 
-import edu.berkeley.xtrace.XTraceContext;
-import edu.berkeley.xtrace.XTraceMetadata;
+import edu.brown.cs.systems.xtrace.XTrace;
 
 
 /**
@@ -157,7 +155,7 @@ public class TaskHeartbeatHandler extends AbstractService {
                 + " Timed out after " + taskTimeOut / 1000 + " secs"));
             eventHandler.handle(new TaskAttemptEvent(entry.getKey(),
                 TaskAttemptEventType.TA_TIMED_OUT));
-            XTraceContext.clearThreadContext();
+            XTrace.stop();
           }
         }
         try {

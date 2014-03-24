@@ -99,11 +99,12 @@ import org.apache.hadoop.yarn.state.StateMachine;
 import org.apache.hadoop.yarn.state.StateMachineFactory;
 import org.apache.hadoop.yarn.util.resource.Resources;
 
-import edu.berkeley.xtrace.XTraceContext;
+import edu.brown.cs.systems.xtrace.XTrace;
 
 @SuppressWarnings({"unchecked", "rawtypes"})
 public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
 
+  private static final XTrace.Logger xtrace = XTrace.getLogger(RMAppAttemptImpl.class);
   private static final Log LOG = LogFactory.getLog(RMAppAttemptImpl.class);
 
   private static final RecordFactory recordFactory = RecordFactoryProvider
@@ -789,7 +790,7 @@ public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
             BuilderUtils.newResourceRequest(
                 AM_CONTAINER_PRIORITY, ResourceRequest.ANY, appAttempt
                     .getSubmissionContext().getResource(), 1);
-        XTraceContext.logEvent(RMAppAttemptImpl.class, "RMAppAttemptImpl", "Requesting container for ApplicationMaster");
+        xtrace.log("Requesting container for ApplicationMaster");
         request.rememberContext();
 
         // SchedulerUtils.validateResourceRequests is not necessary because

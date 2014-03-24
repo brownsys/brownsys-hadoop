@@ -47,7 +47,7 @@ import org.apache.hadoop.util.DataChecksum;
 
 import com.google.common.base.Preconditions;
 
-import edu.berkeley.xtrace.XTraceContext;
+import edu.brown.cs.systems.xtrace.XTrace;
 
 /**
  * Reads a block from the disk and sends it to a recipient.
@@ -90,6 +90,7 @@ import edu.berkeley.xtrace.XTraceContext;
  *  no checksum error, it replies to DataNode with OP_STATUS_CHECKSUM_OK.
  */
 class BlockSender implements java.io.Closeable {
+  static final XTrace.Logger xtrace = XTrace.getLogger(BlockSender.class);
   static final Log LOG = DataNode.LOG;
   static final Log ClientTraceLog = DataNode.ClientTraceLog;
   private static final boolean is32Bit = 
@@ -228,9 +229,9 @@ class BlockSender implements java.io.Closeable {
        */
       DataChecksum csum = null;
       if (verifyChecksum || sendChecksum) {
-    	XTraceContext.logEvent(BlockSender.class, "BlockSender", "Getting metadata input stream");
+        xtrace.log("Getting metadata input stream");
         final InputStream metaIn = datanode.data.getMetaDataInputStream(block);
-        XTraceContext.logEvent(BlockSender.class, "BlockSender", "Got metadata input stream");
+        xtrace.log("Got metadata input stream");
         if (!corruptChecksumOk || metaIn != null) {
           if (metaIn == null) {
             //need checksum but meta-data not found
@@ -458,7 +459,7 @@ class BlockSender implements java.io.Closeable {
     int packetLen = dataLen + checksumDataLen + 4;
     boolean lastDataPacket = offset + dataLen == endOffset && dataLen > 0;
 
-    XTraceContext.logEvent(BlockSender.class, "BlockSender", "Sending packet", "dataLen", dataLen, "numChunks", numChunks, "packetLen", packetLen);
+    xtrace.log("Sending packet", "dataLen", dataLen, "numChunks", numChunks, "packetLen", packetLen);
     
     // The packet buffer is organized as follows:
     // _______HHHHCCCCD?D?D?D?
@@ -521,7 +522,7 @@ class BlockSender implements java.io.Closeable {
         // normal transfer
         out.write(buf, headerOff, dataOff + dataLen - headerOff);
       }
-      XTraceContext.logEvent(BlockSender.class, "BlockSender", "Packet send complete");
+      xtrace.log("Packet send complete");
     } catch (IOException e) {
       if (e instanceof SocketTimeoutException) {
         /*
@@ -530,7 +531,7 @@ class BlockSender implements java.io.Closeable {
          * the socket open).
          */
           LOG.info("exception: ", e);
-          XTraceContext.logEvent(BlockSender.class, "BlockSender", "SocketTimeoutException");
+          xtrace.log("SocketTimeoutException");
       } else {
         /* Exception while writing to the client. Connection closure from
          * the other end is mostly the case and we do not care much about
@@ -545,7 +546,7 @@ class BlockSender implements java.io.Closeable {
         if (!ioem.startsWith("Broken pipe") && !ioem.startsWith("Connection reset")) {
           LOG.error("BlockSender.sendChunks() exception: ", e);
         }
-        XTraceContext.logEvent(BlockSender.class, "BlockSender", "Exception", "Message", ioem);
+        xtrace.log("Exception", "Message", ioem);
       }
       throw ioeToSocketException(e);
     }
@@ -639,7 +640,7 @@ class BlockSender implements java.io.Closeable {
       throw new IOException( "out stream is null" );
     }
 
-    XTraceContext.logEvent(BlockSender.class, "BlockSender", "Sending Block", "BlockName", block.getBlockName());
+    xtrace.log("Sending Block", "BlockName", block.getBlockName());
     try { // xtrace try
     
     initialOffset = offset;
@@ -701,9 +702,9 @@ class BlockSender implements java.io.Closeable {
         }
 
         sentEntireByteRange = true;
-        XTraceContext.logEvent(BlockSender.class, "BlockSender", "Entire block sent", "totalRead", totalRead, "initialOffset", initialOffset);
+        xtrace.log("Entire block sent", "totalRead", totalRead, "initialOffset", initialOffset);
       } else {
-        XTraceContext.logEvent(BlockSender.class, "BlockSender", "Block send interrupted", "totalRead", totalRead, "initialOffset", initialOffset);
+        xtrace.log("Block send interrupted", "totalRead", totalRead, "initialOffset", initialOffset);
       }
     } finally {
       if (clientTraceFmt != null) {
@@ -716,7 +717,7 @@ class BlockSender implements java.io.Closeable {
     return totalRead;
     
     } catch (IOException e) { // xtrace catch
-      XTraceContext.logEvent(BlockSender.class, "BlockSender", "IOException sending block", "Message", e.getMessage());
+      xtrace.log("IOException sending block", "Message", e.getMessage());
       throw e;
     }
   }

@@ -28,15 +28,12 @@ import org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.PacketHeaderProt
 import org.apache.hadoop.hdfs.util.ByteBufferOutputStream;
 
 import com.google.common.base.Preconditions;
-import com.google.common.primitives.Shorts;
 import com.google.common.primitives.Ints;
-import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.common.primitives.Shorts;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
 
-import edu.berkeley.xtrace.OptionField;
-import edu.berkeley.xtrace.TaskID;
-import edu.berkeley.xtrace.XTraceContext;
-import edu.berkeley.xtrace.XTraceMetadata;
+import edu.brown.cs.systems.xtrace.XTrace;
 
 /**
  * Header data for each packet that goes through the read/write pipelines.
@@ -57,18 +54,17 @@ import edu.berkeley.xtrace.XTraceMetadata;
 @InterfaceAudience.Private
 @InterfaceStability.Evolving
 public class PacketHeader {
+  private static final XTrace.Logger xtrace = XTrace.getLogger(PacketHeader.class);
   private static final int MAX_PROTO_SIZE;
   static {
-	  XTraceMetadata max = new XTraceMetadata(new TaskID(8), 0L);
-	  max.addOption(new OptionField((byte)0, new byte[254]));
-	  MAX_PROTO_SIZE = PacketHeaderProto.newBuilder()
-		  .setOffsetInBlock(0)
-		  .setSeqno(0)
-		  .setLastPacketInBlock(false)
-		  .setDataLen(0)
-		  .setSyncBlock(false)
-		  .setXtrace(ByteString.copyFrom(max.pack()))
-		  .build().getSerializedSize();
+    MAX_PROTO_SIZE = PacketHeaderProto.newBuilder()
+        .setOffsetInBlock(0)
+        .setSeqno(0)
+        .setLastPacketInBlock(false)
+        .setDataLen(0)
+        .setSyncBlock(false)
+        .setXtrace(ByteString.copyFrom(XTrace.XTRACE_BYTES_EXAMPLE))
+        .build().getSerializedSize();
   }
   public static final int PKT_LENGTHS_LEN =
       Ints.BYTES + Shorts.BYTES;
@@ -94,8 +90,10 @@ public class PacketHeader {
       .setLastPacketInBlock(lastPacketInBlock)
       .setDataLen(dataLen);
     
-    if (XTraceContext.isValid())
-      builder.setXtrace(ByteString.copyFrom(XTraceContext.logMerge().pack()));
+    if (XTrace.active()) {
+      xtrace.log("Constructing packet header");
+      builder.setXtrace(ByteString.copyFrom(XTrace.bytesBounded()));
+    }
       
     if (syncBlock) {
       // Only set syncBlock if it is specified.
@@ -138,9 +136,7 @@ public class PacketHeader {
   
   public void joinXTraceContext() {
     ByteString xbs = proto.getXtrace();
-    XTraceMetadata xmd = XTraceMetadata.createFromBytes(xbs.toByteArray(), 0, xbs.size());
-    if (xmd.isValid())
-      XTraceContext.joinContext(xmd);
+    XTrace.join(xbs.toByteArray());
   }
 
   @Override

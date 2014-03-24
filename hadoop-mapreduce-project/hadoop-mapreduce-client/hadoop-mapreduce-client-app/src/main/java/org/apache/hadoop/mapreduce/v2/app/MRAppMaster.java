@@ -25,7 +25,6 @@ import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -135,8 +134,8 @@ import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.util.SystemClock;
 
 import com.google.common.annotations.VisibleForTesting;
-import edu.berkeley.xtrace.XTraceContext;
-import edu.berkeley.xtrace.XTraceMetadata;
+
+import edu.brown.cs.systems.xtrace.XTrace;
 
 /**
  * The Map-Reduce Application Master.
@@ -159,6 +158,7 @@ import edu.berkeley.xtrace.XTraceMetadata;
 @SuppressWarnings("rawtypes")
 public class MRAppMaster extends CompositeService {
 
+  private static final XTrace.Logger xtrace = XTrace.getLogger(MRAppMaster.class);
   private static final Log LOG = LogFactory.getLog(MRAppMaster.class);
 
   /**
@@ -258,7 +258,7 @@ public class MRAppMaster extends CompositeService {
     
     /* This will either generate a new task id, or pick up from an existing one 
      * if we had one passed to us or the xtrace environment variable was set */
-    XTraceContext.logEvent(MRAppMaster.class, "MRAppMaster", "Starting job", "Job ID", jobId);
+    xtrace.log("Starting job", "Job ID", jobId);
     
     int numReduceTasks = conf.getInt(MRJobConfig.NUM_REDUCES, 0);
     if ((numReduceTasks > 0 && 
@@ -512,7 +512,8 @@ public class MRAppMaster extends CompositeService {
    * Exit call. Just in a function call to enable testing.
    */
   protected void sysexit() {
-    XTraceContext.joinParentProcess();
+    // TODO: FIX THIS XTRACE
+//    XTraceContext.joinParentProcess();
     System.exit(0);
   }
 
@@ -523,7 +524,7 @@ public class MRAppMaster extends CompositeService {
     // note in a workflow scenario, this may lead to creation of a new
     // job (FIXME?)
     // Send job-end notification
-    XTraceContext.logEvent(JobFinishEvent.class, "JobFinish", "Handling Job Finished Event");
+    xtrace.log("Handling Job Finished Event");
     if (getConfig().get(MRJobConfig.MR_JOB_END_NOTIFICATION_URL) != null) {
       try {
         LOG.info("Job end notification started for jobID : "
@@ -566,7 +567,7 @@ public class MRAppMaster extends CompositeService {
     //Bring the process down by force.
     //Not needed after HADOOP-7140
     LOG.info("Exiting MR AppMaster..GoodBye!");
-    XTraceContext.logEvent(MRAppMaster.class, "MRAppMaster", "Application Master exiting");
+    xtrace.log("Application Master exiting");
     sysexit();   
   }
  
@@ -1292,7 +1293,7 @@ public class MRAppMaster extends CompositeService {
 
   public static void main(String[] args) {
     try {
-      XTraceContext.startTrace("MRAppMaster", "Application Master Launching");
+      xtrace.log("Application Master Launching");
       Thread.setDefaultUncaughtExceptionHandler(new YarnUncaughtExceptionHandler());
       String containerIdStr =
           System.getenv(Environment.CONTAINER_ID.name());
@@ -1342,8 +1343,9 @@ public class MRAppMaster extends CompositeService {
       initAndStartAppMaster(appMaster, conf, jobUserName);
     } catch (Throwable t) {
       LOG.fatal("Error starting MRAppMaster", t);
-      XTraceContext.logEvent(MRAppMaster.class, "MRAppMaster", "Error starting MRAppMaster: "+t.getClass().getName(), "Message", t.getMessage());
-      XTraceContext.joinParentProcess();
+      xtrace.log("Error starting MRAppMaster: "+t.getClass().getName(), "Message", t.getMessage());
+      // TODO: xtrace fix this
+//      XTraceContext.joinParentProcess();
       System.exit(1);
     }
   }
@@ -1352,17 +1354,13 @@ public class MRAppMaster extends CompositeService {
   // close of the JVM.
   static class MRAppMasterShutdownHook implements Runnable {
     MRAppMaster appMaster;
-    private Collection<XTraceMetadata> xtrace_context;
     MRAppMasterShutdownHook(MRAppMaster appMaster) {
       this.appMaster = appMaster;
-      xtrace_context = XTraceContext.getThreadContext();
     }
     public void run() {
-      XTraceContext.setThreadContext(xtrace_context);
       LOG.info("MRAppMaster received a signal. Signaling RMCommunicator and "
         + "JobHistoryEventHandler.");
-      XTraceContext.logEvent(MRAppMasterShutdownHook.class, "MRAppMasterShutdownHook", 
-          "MRAppMaster received a signal. Signaling RMCommunicator and JobHistoryEventHandler.");
+      xtrace.log("MRAppMaster received a signal. Signaling RMCommunicator and JobHistoryEventHandler.");
 
       // Notify the JHEH and RMCommunicator that a SIGTERM has been received so
       // that they don't take too long in shutting down
@@ -1372,8 +1370,7 @@ public class MRAppMaster extends CompositeService {
       }
       appMaster.notifyIsLastAMRetry(appMaster.isLastAMRetry);
       appMaster.stop();
-      XTraceContext.logEvent(MRAppMaster.class,"MRAppMaster", "MRAppMaster stopping");
-      XTraceContext.clearThreadContext();
+      xtrace.log("MRAppMaster stopping");
     }
   }
 

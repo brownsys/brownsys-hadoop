@@ -20,7 +20,6 @@ package org.apache.hadoop.mapreduce.v2.app.rm;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -50,14 +49,14 @@ import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 import org.apache.hadoop.yarn.factories.RecordFactory;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
 
-import edu.berkeley.xtrace.XTraceContext;
-import edu.berkeley.xtrace.XTraceMetadata;
+import edu.brown.cs.systems.xtrace.XTrace;
 
 /**
  * Keeps the data structures to send container requests to RM.
  */
 public abstract class RMContainerRequestor extends RMCommunicator {
   
+  private static final XTrace.Logger xtrace = XTrace.getLogger(RMContainerRequestor.class);
   private static final Log LOG = LogFactory.getLog(RMContainerRequestor.class);
 
   private int lastResponseID;
@@ -167,20 +166,19 @@ public abstract class RMContainerRequestor extends RMCommunicator {
   protected AllocateResponse makeRemoteRequest() throws IOException {
     
     for (ResourceRequest r : ask) {
-      XTraceContext.clearThreadContext();
+      XTrace.stop();
       r.joinContext();
-      XTraceContext.logEvent(RMContainerRequestor.class, "ContainerRequestor", "Requesting container from RM");
+      xtrace.log("Requesting container from RM");
       r.rememberContext();
     }
     
     for (ContainerId i : release) {
-      XTraceContext.clearThreadContext();
+      XTrace.stop();
       i.joinContext();
-      XTraceContext.logEvent(RMContainerRequestor.class, "ContainerRequestor", "Requesting RM release container",
-          "Container ID", i);
+      xtrace.log("Requesting RM release container", "Container ID", i);
       i.rememberContext();
     }
-    XTraceContext.clearThreadContext();
+    XTrace.stop();
     
     
     AllocateRequest allocateRequest =
@@ -209,20 +207,20 @@ public abstract class RMContainerRequestor extends RMCommunicator {
     }
     
     for (Container x : allocateResponse.getAllocatedContainers()) {
-      XTraceContext.clearThreadContext();
+      XTrace.stop();
       x.getId().joinContext();
-      XTraceContext.logEvent(RMContainerRequestor.class, "ContainerRequestor", "Container allocated by RM");
+      xtrace.log("Container allocated by RM");
       x.getId().rememberContext();
     }
     
     for (ContainerStatus x : allocateResponse.getCompletedContainersStatuses()) {
-      XTraceContext.clearThreadContext();
+      XTrace.stop();
       x.getContainerId().joinContext();
-      XTraceContext.logEvent(RMContainerRequestor.class, "ContainerRequestor", "RM acknowledged completed container");
+      xtrace.log("RM acknowledged completed container");
       x.getContainerId().rememberContext();
       
     }
-    XTraceContext.clearThreadContext();
+    XTrace.stop();
 
     ask.clear();
     release.clear();

@@ -26,7 +26,6 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
-import java.util.Collection;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
@@ -44,9 +43,6 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-
-import edu.berkeley.xtrace.XTraceContext;
-import edu.berkeley.xtrace.XTraceMetadata;
 
 public class DeletionService extends AbstractService {
   static final Log LOG = LogFactory.getLog(DeletionService.class);
@@ -154,8 +150,6 @@ public class DeletionService extends AbstractService {
     // fileDeletionTaskFinished().
     private boolean success;
 
-    private Collection<XTraceMetadata> xtrace_context;
-    
     private FileDeletionTask(DeletionService delService, String user,
         Path subDir, List<Path> baseDirs) {
       this.delService = delService;
@@ -165,8 +159,6 @@ public class DeletionService extends AbstractService {
       this.successorTaskSet = new HashSet<FileDeletionTask>();
       this.numberOfPendingPredecessorTasks = new AtomicInteger(0);
       success = true;
-
-      this.xtrace_context = XTraceContext.getThreadContext();
     }
     
     /**
@@ -212,7 +204,6 @@ public class DeletionService extends AbstractService {
         LOG.debug(this);
       }
       boolean error = false;
-      XTraceContext.joinContext(xtrace_context);
       if (null == user) {
         if (baseDirs == null || baseDirs.size() == 0) {
           LOG.debug("NM deleting absolute path : " + subDir);
@@ -255,7 +246,6 @@ public class DeletionService extends AbstractService {
         setSuccess(!error);        
       }
       fileDeletionTaskFinished();
-      XTraceContext.clearThreadContext();
     }
 
     @Override

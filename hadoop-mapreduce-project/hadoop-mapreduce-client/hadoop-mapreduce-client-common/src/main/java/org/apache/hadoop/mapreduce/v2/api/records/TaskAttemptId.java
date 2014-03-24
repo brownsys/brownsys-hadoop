@@ -18,10 +18,8 @@
 
 package org.apache.hadoop.mapreduce.v2.api.records;
 
-import java.util.Collection;
-
-import edu.berkeley.xtrace.XTraceContext;
-import edu.berkeley.xtrace.XTraceMetadata;
+import edu.brown.cs.systems.xtrace.Context;
+import edu.brown.cs.systems.xtrace.XTrace;
 
 /**
  * <p>
@@ -38,14 +36,14 @@ import edu.berkeley.xtrace.XTraceMetadata;
  */
 public abstract class TaskAttemptId implements Comparable<TaskAttemptId> {
   
-  private Collection<XTraceMetadata> xtrace_context;
+  private Context xtrace_context;
 
   public void rememberContext() {
-    this.xtrace_context = XTraceContext.getThreadContext();
+    xtrace_context = XTrace.get();
   }
   
   public void joinContext() {
-    XTraceContext.joinContext(this.xtrace_context);
+    XTrace.join(xtrace_context);
   }
   
   /**

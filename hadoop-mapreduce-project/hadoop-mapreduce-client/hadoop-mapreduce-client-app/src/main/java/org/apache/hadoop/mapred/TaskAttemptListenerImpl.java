@@ -55,7 +55,7 @@ import org.apache.hadoop.service.CompositeService;
 import org.apache.hadoop.util.StringInterner;
 import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 
-import edu.berkeley.xtrace.XTraceContext;
+import edu.brown.cs.systems.xtrace.XTrace;
 
 /**
  * This class is responsible for talking to the task umblical.
@@ -71,6 +71,7 @@ public class TaskAttemptListenerImpl extends CompositeService
 
   private static final JvmTask TASK_FOR_INVALID_JVM = new JvmTask(null, true);
 
+  private static final XTrace.Logger xtrace = XTrace.getLogger(TaskAttemptListenerImpl.class);
   private static final Log LOG = LogFactory.getLog(TaskAttemptListenerImpl.class);
 
   private AppContext context;
@@ -439,8 +440,7 @@ public class TaskAttemptListenerImpl extends CompositeService
         task.joinContext();
         launchedJVMs.remove(wJvmID);
         LOG.info("JVM with ID: " + jvmId + " given task: " + task.getTaskID());
-        XTraceContext.logEvent(TaskAttemptListenerImpl.class, "TaskUmbilical getTask", 
-            "Sending task to JVM", "Task ID", task.getTaskID(), "JVM ID", jvmId);
+        xtrace.log("Sending task to JVM", "Task ID", task.getTaskID(), "JVM ID", jvmId);
         jvmTask = new JvmTask(task, false);
       }
     }
@@ -457,8 +457,7 @@ public class TaskAttemptListenerImpl extends CompositeService
     jvmIDToActiveAttemptMap.put(jvmID, task);    
 
     task.rememberContext();
-    XTraceContext.logEvent(TaskAttemptListenerImpl.class, "TaskUmbilical registerPendingTask", 
-        "Task registered for JVM", "Task ID", task.getTaskID(), "JVM ID", jvmID);
+    xtrace.log("Task registered for JVM", "Task ID", task.getTaskID(), "JVM ID", jvmID);
   }
 
   @Override

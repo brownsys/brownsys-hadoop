@@ -18,7 +18,6 @@
 
 package org.apache.hadoop.yarn.state;
 
-import java.util.Collection;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -29,11 +28,9 @@ import java.util.Stack;
 
 import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.hadoop.classification.InterfaceStability.Evolving;
-import org.apache.hadoop.yarn.state.StateMachineFactory.Trace;
 
-import edu.berkeley.xtrace.XTraceContext;
-import edu.berkeley.xtrace.XTraceMetadata;
-import edu.berkeley.xtrace.XTraceEvent;
+import edu.brown.cs.systems.xtrace.Context;
+import edu.brown.cs.systems.xtrace.XTrace;
 
 /**
  * State machine topology.
@@ -463,7 +460,7 @@ final public class StateMachineFactory
           = transitionMap.get(eventType);
       if (transition != null) {
         Trace trace_type = transition.getTraceType();
-        return trace_type==Trace.ALWAYS || (trace_type==Trace.KEEPALIVE && !XTraceContext.isValid());
+        return trace_type==Trace.ALWAYS || (trace_type==Trace.KEEPALIVE && !XTrace.active());
       }
     }
     return false;
@@ -612,22 +609,24 @@ final public class StateMachineFactory
 
   private class InternalStateMachine
         implements StateMachine<STATE, EVENTTYPE, EVENT> {
+    private final XTrace.Logger xtrace;
     private final OPERAND operand;
     private STATE currentState;
 
     private String state_machine_id;
-    private Collection<XTraceMetadata> previous_transition_context;
+    private Context previous_transition_context;
 
     InternalStateMachine(OPERAND operand, STATE initialState, int xtrace_id_seed) {
       this.operand = operand;
+      xtrace = XTrace.getLogger(operand.getClass());
       this.currentState = initialState;
       if (!optimized) {
         maybeMakeStateMachineTable();
       }
       this.state_machine_id = operand.getClass().getSimpleName()+"-"+xtrace_id_seed;
-      XTraceContext.logEvent(operand.getClass(), operand.getClass().getSimpleName()+" init", "StateMachine initialized", 
+      xtrace.log(operand.getClass().getSimpleName() + " StateMachine initialized", 
           "StartState", xtraceStateName(currentState), "StateMachineID", state_machine_id);
-      this.previous_transition_context = XTraceContext.getThreadContext();
+      this.previous_transition_context = XTrace.get();
     }
 
     @Override
@@ -636,7 +635,7 @@ final public class StateMachineFactory
     }
     
     public void joinPreviousTransitionXTraceContext() {
-      XTraceContext.joinContext(this.previous_transition_context);
+      XTrace.join(this.previous_transition_context);
     }
     
     public synchronized STATE doTransition(EVENTTYPE eventType, EVENT event)
@@ -649,7 +648,7 @@ final public class StateMachineFactory
         }
         
         // Create an event for the transition
-        XTraceContext.logEvent(operand.getClass(), operand.getClass().getSimpleName()+event.toString(), event.toString(), 
+        xtrace.log(operand.getClass().getSimpleName()+event.toString(), 
             "StartState", xtraceStateName(currentState), "Operand", operand.toString(), "StateMachineID", state_machine_id);
         
         set_previous_transition_context = true;
@@ -662,8 +661,8 @@ final public class StateMachineFactory
         throw e;
       }
 
-      if (set_previous_transition_context && XTraceContext.isValid()) {
-        this.previous_transition_context = XTraceContext.getThreadContext();
+      if (set_previous_transition_context && XTrace.active()) {
+        this.previous_transition_context = XTrace.get();
       }
       
       return currentState;

@@ -20,7 +20,6 @@ package org.apache.hadoop.mapred;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -50,12 +49,10 @@ import org.apache.hadoop.mapreduce.v2.app.launcher.ContainerLauncherEvent;
 import org.apache.hadoop.mapreduce.v2.app.launcher.ContainerRemoteLaunchEvent;
 import org.apache.hadoop.service.AbstractService;
 import org.apache.hadoop.util.StringUtils;
-import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
 import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 
-import edu.berkeley.xtrace.XTraceContext;
-import edu.berkeley.xtrace.XTraceMetadata;
+import edu.brown.cs.systems.xtrace.XTrace;
 
 /**
  * Runs the container task locally in a thread.
@@ -176,7 +173,7 @@ public class LocalContainerLauncher extends AbstractService implements
       // (i.e., fork()), else will get weird failures when maps try to create/
       // write same dirname or filename:  no chdir() in Java
       while (!Thread.currentThread().isInterrupted()) {
-        XTraceContext.clearThreadContext();
+        XTrace.stop();
         try {
           event = eventQueue.take();
         } catch (InterruptedException e) {  // mostly via T_KILL? JOB_KILL?
@@ -247,8 +244,9 @@ public class LocalContainerLauncher extends AbstractService implements
             // (i.e., exit clumsily--but can never happen, so no worries!)
             LOG.fatal("oopsie...  this can never happen: "
                 + StringUtils.stringifyException(ioe));
-            XTraceContext.logEvent(LocalContainerLauncher.class, "LocalContainerLauncher", "Whoops. Fatal error.");
-            XTraceContext.joinParentProcess();
+            // TODO: X-Trace todo: join parent
+//            XTraceContext.logEvent(LocalContainerLauncher.class, "LocalContainerLauncher", "Whoops. Fatal error.");
+//            XTraceContext.joinParentProcess();
             System.exit(-1);
           }
 

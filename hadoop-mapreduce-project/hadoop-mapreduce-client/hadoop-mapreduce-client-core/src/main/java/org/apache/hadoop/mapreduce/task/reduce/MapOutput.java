@@ -17,22 +17,18 @@
  */
 package org.apache.hadoop.mapreduce.task.reduce;
 
-import java.io.InputStream;
 import java.io.IOException;
-
-import java.util.Collection;
+import java.io.InputStream;
 import java.util.Comparator;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
-
 import org.apache.hadoop.mapred.Reporter;
-
 import org.apache.hadoop.mapreduce.TaskAttemptID;
 
-import edu.berkeley.xtrace.XTraceContext;
-import edu.berkeley.xtrace.XTraceMetadata;
+import edu.brown.cs.systems.xtrace.Context;
+import edu.brown.cs.systems.xtrace.XTrace;
 
 @InterfaceAudience.LimitedPrivate({"MapReduce"})
 @InterfaceStability.Unstable
@@ -44,7 +40,7 @@ public abstract class MapOutput<K, V> {
   private final long size;
   private final boolean primaryMapOutput;
   
-  private Collection<XTraceMetadata> xtrace_context;
+  private Context xtrace_context = null;
   
   public MapOutput(TaskAttemptID mapId, long size, boolean primaryMapOutput) {
     this.id = ID.incrementAndGet();
@@ -54,11 +50,11 @@ public abstract class MapOutput<K, V> {
   }
   
   public void rememberContext() {
-	  xtrace_context = XTraceContext.getThreadContext();
+	  xtrace_context = XTrace.get();
   }
   
   public void joinContext() {
-	  XTraceContext.joinContext(xtrace_context);
+	  XTrace.join(xtrace_context);
   }
   
   public boolean isPrimaryMapOutput() {

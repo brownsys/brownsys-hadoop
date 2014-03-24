@@ -19,7 +19,6 @@
 package org.apache.hadoop.mapreduce.jobhistory;
 
 import java.io.IOException;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -57,8 +56,7 @@ import org.apache.hadoop.service.AbstractService;
 import org.apache.hadoop.yarn.event.EventHandler;
 import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 
-import edu.berkeley.xtrace.XTraceContext;
-import edu.berkeley.xtrace.XTraceMetadata;
+import edu.brown.cs.systems.xtrace.XTrace;
 
 /**
  * The job history events get routed to this class. This class writes the Job
@@ -263,7 +261,7 @@ public class JobHistoryEventHandler extends AbstractService
             eventCounter++;
           }
 
-          XTraceContext.clearThreadContext();
+          XTrace.stop();
           try {
             event = eventQueue.take();
           } catch (InterruptedException e) {

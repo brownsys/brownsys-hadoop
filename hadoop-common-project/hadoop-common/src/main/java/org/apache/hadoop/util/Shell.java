@@ -32,9 +32,6 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 
-import edu.berkeley.xtrace.XTraceContext;
-import edu.berkeley.xtrace.XTraceMetadata;
-
 /** 
  * A base class for running a Unix command.
  * 
@@ -387,13 +384,15 @@ abstract public class Shell {
     if (environment != null) {
       builder.environment().putAll(this.environment);
     }
-    // put xtrace context if there is one, merging as appropriate
-    XTraceMetadata child_process_xtrace = null;
-    if (XTraceContext.isValid()) {
-      child_process_xtrace = XTraceContext.startChildProcess();
-      builder.environment().put(XTraceContext.XTRACE_CONTEXT_ENV_VARIABLE, XTraceContext.logMerge().toString());
-      builder.environment().put(XTraceContext.XTRACE_SUBPROCESS_ENV_VARIABLE, child_process_xtrace.toString());
-    }
+    
+//    // TODO: implement this in new xtrace
+//    // put xtrace context if there is one, merging as appropriate
+//    XTraceMetadata child_process_xtrace = null;
+//    if (XTraceContext.isValid()) {
+//      child_process_xtrace = XTraceContext.startChildProcess();
+//      builder.environment().put(XTraceContext.XTRACE_CONTEXT_ENV_VARIABLE, XTraceContext.logMerge().toString());
+//      builder.environment().put(XTraceContext.XTRACE_SUBPROCESS_ENV_VARIABLE, child_process_xtrace.toString());
+//    }
     
     if (dir != null) {
       builder.directory(this.dir);
@@ -457,8 +456,8 @@ abstract public class Shell {
       // wait for the process to finish and check the exit code
       exitCode  = process.waitFor();
       
-      // join the xtrace process
-      XTraceContext.joinChildProcess(child_process_xtrace);
+//      // TODO: join the xtrace process
+//      XTraceContext.joinChildProcess(child_process_xtrace);
       try {
         // make sure that the error thread exits
         errThread.join();

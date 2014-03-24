@@ -19,17 +19,12 @@
 package org.apache.hadoop.mapred;
 
 import java.io.IOException;
-import java.util.Collection;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-
-import edu.berkeley.xtrace.XTraceContext;
-import edu.berkeley.xtrace.XTraceMetadata;
 
 class CleanupQueue {
 
@@ -109,12 +104,10 @@ class CleanupQueue {
     // cleanup queue which deletes files/directories of the paths queued up.
     private LinkedBlockingQueue<PathDeletionContext> queue =
       new LinkedBlockingQueue<PathDeletionContext>();
-    private Collection<XTraceMetadata> xtrace_context;
 
     public PathCleanupThread() {
       setName("Directory/File cleanup thread");
       setDaemon(true);
-      xtrace_context = XTraceContext.getThreadContext();
       start();
     }
 
@@ -127,7 +120,6 @@ class CleanupQueue {
     }
 
     public void run() {
-      XTraceContext.joinContext(xtrace_context);
       if (LOG.isDebugEnabled()) {
         LOG.debug(getName() + " started.");
       }

@@ -40,10 +40,10 @@ import org.apache.hadoop.io.DataInputBuffer;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.io.RawComparator;
 import org.apache.hadoop.io.SequenceFile;
+import org.apache.hadoop.io.SequenceFile.CompressionType;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableFactories;
 import org.apache.hadoop.io.WritableFactory;
-import org.apache.hadoop.io.SequenceFile.CompressionType;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.io.compress.DefaultCodec;
 import org.apache.hadoop.mapred.SortedRanges.SkipRangeIterator;
@@ -56,7 +56,7 @@ import org.apache.hadoop.util.Progress;
 import org.apache.hadoop.util.Progressable;
 import org.apache.hadoop.util.ReflectionUtils;
 
-import edu.berkeley.xtrace.XTraceContext;
+import edu.brown.cs.systems.xtrace.XTrace;
 
 /** A Reduce task. */
 @InterfaceAudience.Private
@@ -71,6 +71,7 @@ public class ReduceTask extends Task {
        });
   }
   
+  private static final XTrace.Logger xtrace = XTrace.getLogger(ReduceTask.class);
   private static final Log LOG = LogFactory.getLog(ReduceTask.class.getName());
   private int numMaps;
 
@@ -314,7 +315,7 @@ public class ReduceTask extends Task {
   public void run(JobConf job, final TaskUmbilicalProtocol umbilical)
     throws IOException, InterruptedException, ClassNotFoundException {
 
-    XTraceContext.logEvent(ReduceTask.class, "ReduceTask", "ReduceTask running");
+    xtrace.log("ReduceTask running");
     
     job.setBoolean(JobContext.SKIP_RECORDS, isSkipping());
 
@@ -646,12 +647,12 @@ public class ReduceTask extends Task {
                                                committer,
                                                reporter, comparator, keyClass,
                                                valueClass);
-    XTraceContext.logEvent(ReduceTask.class, "NewReducer", "Running reduce start");
+    xtrace.log("Running reduce start");
     try {
       reducer.run(reducerContext);
     } finally {
       trackedRW.close(reducerContext);
-      XTraceContext.logEvent(ReduceTask.class, "NewReducer", "Running reduce end");
+      xtrace.log("Running reduce end");
     }
   }
   

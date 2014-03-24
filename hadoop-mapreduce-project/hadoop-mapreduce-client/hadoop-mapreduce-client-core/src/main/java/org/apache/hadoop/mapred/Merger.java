@@ -28,8 +28,8 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.ChecksumFileSystem;
+import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocalDirAllocator;
 import org.apache.hadoop.fs.Path;
@@ -43,7 +43,7 @@ import org.apache.hadoop.util.PriorityQueue;
 import org.apache.hadoop.util.Progress;
 import org.apache.hadoop.util.Progressable;
 
-import edu.berkeley.xtrace.XTraceContext;
+import edu.brown.cs.systems.xtrace.XTrace;
 
 /**
  * Merger is an utility class used by the Map and Reduce tasks for merging
@@ -52,6 +52,7 @@ import edu.berkeley.xtrace.XTraceContext;
 @InterfaceAudience.Private
 @InterfaceStability.Unstable
 public class Merger {  
+  private static final XTrace.Logger xtrace = XTrace.getLogger(Merger.class);
   private static final Log LOG = LogFactory.getLog(Merger.class);
 
   // Local directories
@@ -568,8 +569,7 @@ public class Merger {
                                      Progress mergePhase)
         throws IOException {
       LOG.info("Merging " + segments.size() + " sorted segments");
-      XTraceContext.logEvent(Merger.class, "Merger merge", "Merging sorted segments",
-          "Num Segments", + segments.size());
+      xtrace.log("Merging sorted segments", "Num Segments", + segments.size());
 
       /*
        * If there are inMemory segments, then they come first in the segments

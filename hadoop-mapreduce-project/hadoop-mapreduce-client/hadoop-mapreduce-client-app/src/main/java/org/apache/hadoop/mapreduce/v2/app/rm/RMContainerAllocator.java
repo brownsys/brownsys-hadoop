@@ -19,7 +19,6 @@
 package org.apache.hadoop.mapreduce.v2.app.rm;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -75,9 +74,9 @@ import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
 import org.apache.hadoop.yarn.util.RackResolver;
 
 import com.google.common.annotations.VisibleForTesting;
-import edu.berkeley.xtrace.XTraceContext;
-import edu.berkeley.xtrace.XTraceMetadata;
-import edu.berkeley.xtrace.XTraceMetadataCollection;
+
+import edu.brown.cs.systems.xtrace.Context;
+import edu.brown.cs.systems.xtrace.XTrace;
 
 /**
  * Allocates the container from the ResourceManager scheduler.
@@ -85,6 +84,7 @@ import edu.berkeley.xtrace.XTraceMetadataCollection;
 public class RMContainerAllocator extends RMContainerRequestor
     implements ContainerAllocator {
 
+  static final XTrace.Logger xtrace = XTrace.getLogger(RMContainerAllocator.class);
   static final Log LOG = LogFactory.getLog(RMContainerAllocator.class);
   
   public static final 
@@ -191,7 +191,7 @@ public class RMContainerAllocator extends RMContainerRequestor
         ContainerAllocatorEvent event;
 
         while (!stopped.get() && !Thread.currentThread().isInterrupted()) {
-          XTraceContext.clearThreadContext();
+          XTrace.stop();
           try {
             event = RMContainerAllocator.this.eventQueue.take();
           } catch (InterruptedException e) {
@@ -227,7 +227,7 @@ public class RMContainerAllocator extends RMContainerRequestor
       scheduledRequests.assign(allocatedContainers);
     }
 
-    Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
+    Context start_context = XTrace.get();
     
     int completedMaps = getJob().getAndJoinCompletedMaps();
     int completedTasks = completedMaps + getJob().getAndJoinCompletedReduces();
@@ -248,7 +248,7 @@ public class RMContainerAllocator extends RMContainerRequestor
       recalculateReduceSchedule = false;
     }
     
-    XTraceContext.setThreadContext(start_context);
+    XTrace.set(start_context);
 
     scheduleStats.updateAndLogIfChanged("After Scheduling: ");
   }
@@ -297,7 +297,7 @@ public class RMContainerAllocator extends RMContainerRequestor
     event.joinContext();
     recalculateReduceSchedule = true;
     if (event.getType() == ContainerAllocator.EventType.CONTAINER_REQ) {
-      XTraceContext.logEvent(RMContainerAllocator.class, "RMContainerAllocator", "Processing CONTAINER_REQ Event");
+      xtrace.log("Processing CONTAINER_REQ Event");
       ContainerRequestEvent reqEvent = (ContainerRequestEvent) event;
       JobId jobId = getJob().getID();
       int supportedMaxContainerCapability =
@@ -320,7 +320,7 @@ public class RMContainerAllocator extends RMContainerRequestor
           }
         }
         //set the rounded off memory
-        XTraceContext.logEvent(RMContainerAllocator.class, "ContainerAllocator", "Scheduling Map Container Request");
+        xtrace.log("Scheduling Map Container Request");
         reqEvent.rememberContext();
         reqEvent.getCapability().setMemory(mapResourceReqt);
         scheduledRequests.addMap(reqEvent);//maps are immediately scheduled
@@ -347,11 +347,11 @@ public class RMContainerAllocator extends RMContainerRequestor
         reqEvent.getCapability().setMemory(reduceResourceReqt);
         if (reqEvent.getEarlierAttemptFailed()) {
           //add to the front of queue for fail fast
-          XTraceContext.logEvent(RMContainerAllocator.class, "ContainerAllocator", "Scheduling Fail-Fast Reduce Container Request");
+          xtrace.log("Scheduling Fail-Fast Reduce Container Request");
           reqEvent.rememberContext();
           pendingReduces.addFirst(new ContainerRequest(reqEvent, PRIORITY_REDUCE));
         } else {
-          XTraceContext.logEvent(RMContainerAllocator.class, "ContainerAllocator", "Scheduling Reduce Container Request");
+          xtrace.log("Scheduling Reduce Container Request");
           reqEvent.rememberContext();
           pendingReduces.add(new ContainerRequest(reqEvent, PRIORITY_REDUCE));
           //reduces are added to pending and are slowly ramped up
@@ -360,7 +360,7 @@ public class RMContainerAllocator extends RMContainerRequestor
       
     } else if (
         event.getType() == ContainerAllocator.EventType.CONTAINER_DEALLOCATE) {
-      XTraceContext.logEvent(RMContainerAllocator.class, "RMContainerAllocator", "Processing CONTAINER_DEALLOCATE Event");
+      xtrace.log("Processing CONTAINER_DEALLOCATE Event");
   
       LOG.info("Processing the event " + event.toString());
 
@@ -382,7 +382,7 @@ public class RMContainerAllocator extends RMContainerRequestor
       }
     } else if (
         event.getType() == ContainerAllocator.EventType.CONTAINER_FAILED) {
-      XTraceContext.logEvent(RMContainerAllocator.class, "RMContainerAllocator", "Processing CONTAINER_FAILED Event");
+      xtrace.log("Processing CONTAINER_FAILED Event");
       ContainerFailedEvent fEv = (ContainerFailedEvent) event;
       String host = getHost(fEv.getContMgrAddress());
       containerFailedOnHost(host);
@@ -535,31 +535,29 @@ public class RMContainerAllocator extends RMContainerRequestor
 
   @Private
   public void scheduleAllReduces() {
-    XTraceContext.logEvent(RMContainerAllocator.class, "RMContainerAllocator scheduleAllReduces", "Scheduling all reduces");
-    Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
+    xtrace.log("Scheduling all reduces");
+    Context start_context = XTrace.get();
     for (ContainerRequest req : pendingReduces) {
       req.joinContext();
-      XTraceContext.logEvent(RMContainerAllocator.class, "RMContainerAllocator scheduleAllReduces", "Scheduling reduce");
+      xtrace.log("Scheduling reduce");
       req.rememberContext();
       scheduledRequests.addReduce(req);
-      XTraceContext.setThreadContext(start_context);
+      XTrace.set(start_context);
     }
     pendingReduces.clear();
   }
   
   @Private
   public void rampUpReduces(int rampUp) {
-    XTraceContext.logEvent(RMContainerAllocator.class, "RMContainerAllocator rampUpReduces", "Ramping up reduces",
-        "Ramp Up", rampUp);
-    //more reduce to be scheduled
-    Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
+    xtrace.log("Ramping up reduces", "Ramp Up", rampUp);
+    Context start_context = XTrace.get();
     for (int i = 0; i < rampUp; i++) {
       ContainerRequest request = pendingReduces.removeFirst();
       request.joinContext();
-      XTraceContext.logEvent(RMContainerAllocator.class, "RMContainerAllocator rampUpReduces", "Request ramping up");
+      xtrace.log("Request ramping up");
       request.rememberContext();
       scheduledRequests.addReduce(request);
-      XTraceContext.setThreadContext(start_context);
+      XTrace.set(start_context);
     }
   }
   
@@ -910,7 +908,7 @@ public class RMContainerAllocator extends RMContainerRequestor
           continue;
         }
         
-        XTraceContext.clearThreadContext();
+        XTrace.stop();
       }
 
       assignContainers(allocatedContainers);
@@ -923,17 +921,16 @@ public class RMContainerAllocator extends RMContainerRequestor
         LOG.info("Releasing unassigned and invalid container " 
             + allocated + ". RM may have assignment issues");
         containerNotAssigned(allocated);
-        XTraceContext.clearThreadContext();
+        XTrace.stop();
       }
       
-      XTraceContext.clearThreadContext();
+      XTrace.stop();
     }
     
     @SuppressWarnings("unchecked")
     private void containerAssigned(Container allocated, 
                                     ContainerRequest assigned) {
-      XTraceContext.logEvent(RMContainerAllocator.class, "RMContainerAllocator", 
-          "Container Assigned", "Container ID", allocated.getId().toString(), "Assigned ID", assigned.attemptID);
+      xtrace.log("Container Assigned", "Container ID", allocated.getId(), "Assigned ID", assigned.attemptID);
       
       // Update resource requests
       decContainerReq(assigned);
@@ -964,16 +961,14 @@ public class RMContainerAllocator extends RMContainerRequestor
         LOG.info("Assigning container " + allocated + " to fast fail map");
         assigned = assignToFailedMap(allocated);
         allocated.getId().joinContext();
-        XTraceContext.logEvent(RMContainerAllocator.class, "RMContainerAllocator", "Assigned container for fast fail map", 
-            "Container ID", allocated.getId(), "Assigned ID", assigned.attemptID);
+        xtrace.log("Assigned container for fast fail map", "Container ID", allocated.getId(), "Assigned ID", assigned.attemptID);
       } else if (PRIORITY_REDUCE.equals(priority)) {
         if (LOG.isDebugEnabled()) {
           LOG.debug("Assigning container " + allocated + " to reduce");
         }
         assigned = assignToReduce(allocated);
         allocated.getId().joinContext();
-        XTraceContext.logEvent(RMContainerAllocator.class, "RMContainerAllocator", "Assigned container to reduce",
-            "Container ID", allocated.getId(), "Assigned ID", assigned.attemptID);
+        xtrace.log("Assigned container to reduce", "Container ID", allocated.getId(), "Assigned ID", assigned.attemptID);
       }
         
       return assigned;
@@ -982,7 +977,7 @@ public class RMContainerAllocator extends RMContainerRequestor
     private void assignContainers(List<Container> allocatedContainers) {
       Iterator<Container> it = allocatedContainers.iterator();
       while (it.hasNext()) {
-        XTraceContext.clearThreadContext();
+        XTrace.stop();
         Container allocated = it.next();
         ContainerRequest assigned = assignWithoutLocality(allocated);
         if (assigned != null) {
@@ -990,10 +985,10 @@ public class RMContainerAllocator extends RMContainerRequestor
           it.remove();
         }
       }
-      XTraceContext.clearThreadContext();
+      XTrace.stop();
 
       assignMapsWithLocality(allocatedContainers);
-      XTraceContext.clearThreadContext();
+      XTrace.stop();
     }
     
     private ContainerRequest getContainerReqToReplace(Container allocated) {
@@ -1072,7 +1067,7 @@ public class RMContainerAllocator extends RMContainerRequestor
       Iterator<Container> it = allocatedContainers.iterator();
       while(it.hasNext() && maps.size() > 0){
         Container allocated = it.next();
-        XTraceContext.clearThreadContext();   
+        XTrace.stop();
         allocated.getId().joinContext();
         Priority priority = allocated.getPriority();
         assert PRIORITY_MAP.equals(priority);
@@ -1089,8 +1084,7 @@ public class RMContainerAllocator extends RMContainerRequestor
           if (maps.containsKey(tId)) {
             ContainerRequest assigned = maps.remove(tId);
             assigned.joinContext();
-            XTraceContext.logEvent(RMContainerAllocator.class, "ContainerAllocator", 
-                "Assigned container based on host match", "Host", host);
+            xtrace.log("Assigned container based on host match", "Host", host);
             containerAssigned(allocated, assigned);
             it.remove();
             JobCounterUpdateEvent jce =
@@ -1105,12 +1099,12 @@ public class RMContainerAllocator extends RMContainerRequestor
           }
         }
       }
-      XTraceContext.clearThreadContext();
+      XTrace.stop();
       
       // try to match all rack local
       it = allocatedContainers.iterator();
       while(it.hasNext() && maps.size() > 0){
-        XTraceContext.clearThreadContext();
+        XTrace.stop();
         Container allocated = it.next();
         allocated.getId().joinContext();
         Priority priority = allocated.getPriority();
@@ -1125,8 +1119,7 @@ public class RMContainerAllocator extends RMContainerRequestor
           if (maps.containsKey(tId)) {
             ContainerRequest assigned = maps.remove(tId);
             assigned.joinContext();
-            XTraceContext.logEvent(RMContainerAllocator.class, "ContainerAllocator", 
-                "Assigned container based on rack match", "Rack", rack);
+            xtrace.log("Assigned container based on rack match", "Rack", rack);
             containerAssigned(allocated, assigned);
             it.remove();
             JobCounterUpdateEvent jce =
@@ -1139,15 +1132,15 @@ public class RMContainerAllocator extends RMContainerRequestor
             }
             break;
           }
-          XTraceContext.clearThreadContext();
+          XTrace.stop();
         }
       }
-      XTraceContext.clearThreadContext();
+      XTrace.stop();
       
       // assign remaining
       it = allocatedContainers.iterator();
       while(it.hasNext() && maps.size() > 0){
-        XTraceContext.clearThreadContext();
+        XTrace.stop();
         Container allocated = it.next();
         allocated.getId().joinContext();
         Priority priority = allocated.getPriority();
@@ -1155,7 +1148,7 @@ public class RMContainerAllocator extends RMContainerRequestor
         TaskAttemptId tId = maps.keySet().iterator().next();
         ContainerRequest assigned = maps.remove(tId);
         assigned.joinContext();
-        XTraceContext.logEvent(RMContainerAllocator.class, "ContainerAllocator", "Assigned container based on * match");
+        xtrace.log("Assigned container based on * match");
         containerAssigned(allocated, assigned);
         it.remove();
         JobCounterUpdateEvent jce =
@@ -1165,9 +1158,9 @@ public class RMContainerAllocator extends RMContainerRequestor
         if (LOG.isDebugEnabled()) {
           LOG.debug("Assigned based on * match");
         }
-        XTraceContext.clearThreadContext();
+        XTrace.stop();
       }
-      XTraceContext.clearThreadContext();
+      XTrace.stop();
     }
   }
 

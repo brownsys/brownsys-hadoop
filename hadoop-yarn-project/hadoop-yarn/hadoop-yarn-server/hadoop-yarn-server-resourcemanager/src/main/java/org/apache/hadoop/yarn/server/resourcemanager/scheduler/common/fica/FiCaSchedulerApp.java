@@ -60,14 +60,14 @@ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.AppSchedulingInfo
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.NodeType;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.Queue;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerApplication;
-import org.apache.hadoop.yarn.util.resource.Resources;
 import org.apache.hadoop.yarn.util.resource.ResourceCalculator;
+import org.apache.hadoop.yarn.util.resource.Resources;
 
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
 
-import edu.berkeley.xtrace.XTraceContext;
-import edu.berkeley.xtrace.XTraceMetadata;
+import edu.brown.cs.systems.xtrace.Context;
+import edu.brown.cs.systems.xtrace.XTrace;
 
 /**
  * Represents an Application from the viewpoint of the scheduler.
@@ -311,13 +311,13 @@ public class FiCaSchedulerApp extends SchedulerApplication {
   synchronized public List<Container> pullNewlyAllocatedContainers() {
     List<Container> returnContainerList = new ArrayList<Container>(
         newlyAllocatedContainers.size());
-    Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
+    Context start_context = XTrace.get();
     for (RMContainer rmContainer : newlyAllocatedContainers) {
       rmContainer.handle(new RMContainerEvent(rmContainer.getContainerId(),
           RMContainerEventType.ACQUIRED));
       returnContainerList.add(rmContainer.getContainer());
       rmContainer.getContainerId().rememberContext();
-      XTraceContext.setThreadContext(start_context);
+      XTrace.set(start_context);
     }
     newlyAllocatedContainers.clear();
     return returnContainerList;

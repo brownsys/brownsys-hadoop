@@ -4,8 +4,8 @@ import org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.BlockOpResponseP
 import org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.ClientReadStatusProto;
 
 import com.google.protobuf.ByteString;
-import edu.berkeley.xtrace.XTraceContext;
-import edu.berkeley.xtrace.XTraceMetadata;
+
+import edu.brown.cs.systems.xtrace.XTrace;
 
 /**
  * Contains some utility functions for XTrace instrumentation.  Saves having to repeat
@@ -30,8 +30,8 @@ public class XTraceProtoUtils {
    * @param builder
    */
   public static void setXtrace(BlockOpResponseProto.Builder builder) {
-    if (XTraceContext.isValid())
-      builder.setXtrace(ByteString.copyFrom(XTraceContext.logMerge().pack()));
+    if (XTrace.active())
+      builder.setXtrace(ByteString.copyFrom(XTrace.bytes()));
   }
   
   /**
@@ -39,13 +39,8 @@ public class XTraceProtoUtils {
    * @param p
    */
   public static void join(BlockOpResponseProto p) {
-    if (!p.hasXtrace())
-      return;
-    
-    ByteString xbs = p.getXtrace();
-    XTraceMetadata xmd = XTraceMetadata.createFromBytes(xbs.toByteArray(), 0, xbs.size());
-    if (xmd.isValid())
-      XTraceContext.joinContext(xmd);
+    if (p.hasXtrace())
+      XTrace.join(p.getXtrace().toByteArray());
   }
   
   /**
@@ -63,8 +58,8 @@ public class XTraceProtoUtils {
    * @param builder
    */
   public static void setXtrace(ClientReadStatusProto.Builder builder) {
-    if (XTraceContext.isValid())
-      builder.setXtrace(ByteString.copyFrom(XTraceContext.logMerge().pack()));
+    if (XTrace.active())
+      builder.setXtrace(ByteString.copyFrom(XTrace.bytes()));
   }
   
   /**
@@ -72,13 +67,8 @@ public class XTraceProtoUtils {
    * @param p
    */
   public static void join(ClientReadStatusProto p) {
-    if (!p.hasXtrace())
-      return;
-    
-    ByteString xbs = p.getXtrace();
-    XTraceMetadata xmd = XTraceMetadata.createFromBytes(xbs.toByteArray(), 0, xbs.size());
-    if (xmd.isValid())
-      XTraceContext.joinContext(xmd);
+    if (p.hasXtrace())
+      XTrace.join(p.getXtrace().toByteArray());
   }
   
   

@@ -20,7 +20,6 @@ package org.apache.hadoop.yarn.api.records.impl.pb;
 
 import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.classification.InterfaceStability.Unstable;
-import com.google.protobuf.ByteString;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
@@ -31,9 +30,10 @@ import org.apache.hadoop.yarn.proto.YarnProtos.LocalResourceTypeProto;
 import org.apache.hadoop.yarn.proto.YarnProtos.LocalResourceVisibilityProto;
 import org.apache.hadoop.yarn.proto.YarnProtos.URLProto;
 
+import com.google.protobuf.ByteString;
 import com.google.protobuf.TextFormat;
-import edu.berkeley.xtrace.XTraceContext;
-import edu.berkeley.xtrace.XTraceMetadata;
+
+import edu.brown.cs.systems.xtrace.XTrace;
 
 @Private
 @Unstable
@@ -198,22 +198,15 @@ public class LocalResourcePBImpl extends LocalResource {
   @Override
   public void rememberContext() {
     maybeInitBuilder();
-    XTraceMetadata ctx = XTraceContext.logMerge();
-    if (ctx!=null && ctx.isValid()) {
-      builder.setXtrace(ByteString.copyFrom(ctx.pack()));
-    }
+    if (XTrace.active())
+      builder.setXtrace(ByteString.copyFrom(XTrace.bytes()));
   }
 
   @Override
   public void joinContext() {
     LocalResourceProtoOrBuilder p = viaProto ? proto : builder;
-    if (p.hasXtrace()) {
-      ByteString xbs = p.getXtrace();
-      XTraceMetadata xmd = XTraceMetadata.createFromBytes(xbs.toByteArray(), 0, xbs.size());
-      if (xmd.isValid()) {
-        XTraceContext.joinContext(xmd);
-      }
-    }
+    if (p.hasXtrace())
+      XTrace.join(p.getXtrace().toByteArray());
   }
 
   private LocalResourceTypeProto convertToProtoFormat(LocalResourceType e) {

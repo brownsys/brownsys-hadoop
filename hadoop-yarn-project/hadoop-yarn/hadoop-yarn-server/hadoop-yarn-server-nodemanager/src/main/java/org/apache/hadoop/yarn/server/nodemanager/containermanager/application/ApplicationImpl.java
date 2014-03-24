@@ -21,6 +21,7 @@ package org.apache.hadoop.yarn.server.nodemanager.containermanager.application;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock.ReadLock;
@@ -53,9 +54,7 @@ import org.apache.hadoop.yarn.state.SingleArcTransition;
 import org.apache.hadoop.yarn.state.StateMachine;
 import org.apache.hadoop.yarn.state.StateMachineFactory;
 
-import edu.berkeley.xtrace.XTraceContext;
-import edu.berkeley.xtrace.XTraceMetadata;
-import edu.berkeley.xtrace.XTraceMetadataCollection;
+import edu.brown.cs.systems.xtrace.XTrace;
 
 /**
  * The state machine for the representation of an Application
@@ -304,15 +303,16 @@ public class ApplicationImpl implements Application {
     @Override
     public void transition(ApplicationImpl app, ApplicationEvent event) {
       // Start all the containers waiting for ApplicationInit
-      Collection<XTraceMetadata> start_context = XTraceContext.getThreadContext();
-      Collection<XTraceMetadata> end_context = new XTraceMetadataCollection();
+      edu.brown.cs.systems.xtrace.Context start_context = XTrace.get();
+      Collection<edu.brown.cs.systems.xtrace.Context> end_contexts = new HashSet<edu.brown.cs.systems.xtrace.Context>();
       for (Container container : app.containers.values()) {
-        XTraceContext.setThreadContext(start_context);
+        XTrace.set(start_context);
         app.dispatcher.getEventHandler().handle(new ContainerInitEvent(
               container.getContainerId()));
-        end_context = XTraceContext.getThreadContext(end_context);
+        end_contexts.add(XTrace.get());
       }
-      XTraceContext.joinContext(end_context);      
+      for (edu.brown.cs.systems.xtrace.Context ctx : end_contexts)
+        XTrace.join(ctx);
     }
   }
 
