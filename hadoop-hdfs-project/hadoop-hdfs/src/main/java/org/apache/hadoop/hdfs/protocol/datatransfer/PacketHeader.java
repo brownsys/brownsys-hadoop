@@ -135,8 +135,8 @@ public class PacketHeader {
   }
   
   public void joinXTraceContext() {
-    ByteString xbs = proto.getXtrace();
-    XTrace.join(xbs.toByteArray());
+    if (proto.hasXtrace())
+      XTrace.join(proto.getXtrace().toByteArray());
   }
 
   @Override
