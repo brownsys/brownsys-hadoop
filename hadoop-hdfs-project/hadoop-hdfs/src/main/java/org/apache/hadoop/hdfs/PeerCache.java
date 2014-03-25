@@ -131,6 +131,7 @@ class PeerCache {
     daemon = new Daemon(new Runnable() {
       @Override
       public void run() {
+        XTrace.stop(); // Long-lived, don't attribute to a task
         try {
           PeerCache.this.run();
         } catch(InterruptedException e) {
