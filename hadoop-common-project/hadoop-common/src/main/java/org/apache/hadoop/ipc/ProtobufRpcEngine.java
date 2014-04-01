@@ -112,6 +112,7 @@ public class ProtobufRpcEngine implements RpcEngine {
   private static class Invoker implements RpcInvocationHandler {
     private final Map<String, Message> returnTypes = 
         new ConcurrentHashMap<String, Message>();
+    private boolean isClientCached = true;
     private boolean isClosed = false;
     private final Client.ConnectionId remoteId;
     private final Client client;
@@ -132,7 +133,11 @@ public class ProtobufRpcEngine implements RpcEngine {
     private Invoker(Class<?> protocol, Client.ConnectionId connId,
         Configuration conf, SocketFactory factory) {
       this.remoteId = connId;
-      this.client = CLIENTS.getClient(conf, factory, RpcResponseWrapper.class);
+      this.isClientCached = conf.getBoolean("xtrace.client.cached", true);
+      if (this.isClientCached)
+        this.client = CLIENTS.getClient(conf, factory, RpcResponseWrapper.class);
+      else
+        this.client = new Client(RpcResponseWrapper.class, conf, factory);
       this.protocolName = RPC.getProtocolName(protocol);
       this.clientProtocolVersion = RPC
           .getProtocolVersion(protocol);
@@ -267,7 +272,10 @@ public class ProtobufRpcEngine implements RpcEngine {
     public void close() throws IOException {
       if (!isClosed) {
         isClosed = true;
-        CLIENTS.stopClient(client);
+        if (isClientCached)
+          CLIENTS.stopClient(client);
+        else
+          client.stop();
       }
     }
 
