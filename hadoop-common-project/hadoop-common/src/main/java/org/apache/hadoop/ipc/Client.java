@@ -95,6 +95,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.CodedOutputStream;
 
+import edu.brown.cs.systems.resourcetracing.resources.Network;
 import edu.brown.cs.systems.xtrace.Context;
 import edu.brown.cs.systems.xtrace.XTrace;
 
@@ -242,6 +243,9 @@ public class Client {
               + StringUtils.byteToHexString(header.getClientId().toByteArray()));
         }
       }
+    }
+    if (header.hasXtrace()) {
+      XTrace.set(header.getXtrace().toByteArray());
     }
   }
 
@@ -1007,14 +1011,24 @@ public class Client {
       }
       touch();
       
+      XTrace.stop();
       try {
-        int totalLen = in.readInt();
-        RpcResponseHeaderProto header = 
-            RpcResponseHeaderProto.parseDelimitedFrom(in);
+        Network.ignore(true);
+        int totalLen;
+        RpcResponseHeaderProto header;
+        try {
+          totalLen = in.readInt();
+          header = RpcResponseHeaderProto.parseDelimitedFrom(in);
+        } finally {
+          Network.ignore(false);
+        }
         checkResponse(header);
 
         int headerLen = header.getSerializedSize();
         headerLen += CodedOutputStream.computeRawVarint32Size(headerLen);
+        
+        Network.Read.alreadyStarted(in);
+        Network.Read.alreadyFinished(in, headerLen);
 
         int callId = header.getCallId();
         if (LOG.isDebugEnabled())
@@ -1022,14 +1036,11 @@ public class Client {
 
         Call call = calls.get(callId);        
         RpcStatusProto status = header.getStatus();
-        if (header.hasXtrace()) {
-    	    ByteString xbs = header.getXtrace();
-    	    call.xtrace = Context.parse(xbs.toByteArray());
-        }
         
         if (status == RpcStatusProto.SUCCESS) {
           Writable value = ReflectionUtils.newInstance(valueClass, conf);
           value.readFields(in);                 // read value
+          call.xtrace = XTrace.get();
           call.setRpcResponse(value);
           calls.remove(callId);
           
@@ -1074,6 +1085,8 @@ public class Client {
         }
       } catch (IOException e) {
         markClosed(e);
+      } finally {
+        XTrace.stop();
       }
     }
     

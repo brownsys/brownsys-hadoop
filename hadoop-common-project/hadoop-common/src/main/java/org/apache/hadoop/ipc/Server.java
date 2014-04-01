@@ -875,6 +875,7 @@ public abstract class Server {
     @Override
     public void run() {
       LOG.info(getName() + ": starting");
+      XTrace.stop();
       SERVER.set(Server.this);
       try {
         doRunLoop();
@@ -1003,6 +1004,10 @@ public abstract class Server {
       boolean done = false;       // there is more data for this channel.
       int numElements = 0;
       Call call = null;
+      
+      if (!inHandler)
+        XTrace.stop();
+      
       try {
         synchronized (responseQueue) {
           //
@@ -1030,6 +1035,7 @@ public abstract class Server {
             return true;
           }
           if (!call.rpcResponse.hasRemaining()) {
+            xtrace.log("Finished writing RPC response");
             //Clear out the response buffer so it can be collected
             call.rpcResponse = null;
             call.connection.decRpcCount();
@@ -1043,6 +1049,7 @@ public abstract class Server {
                   + " Wrote " + numBytes + " bytes.");
             }
           } else {
+            xtrace.log("Wrote partial RPC response, enqueueing for later finish");
             //
             // If we were unable to write the entire response out, then 
             // insert in Selector queue. 
@@ -1079,6 +1086,8 @@ public abstract class Server {
           done = true;               // error. no more data for this channel.
           closeConnection(call.connection);
         }
+        if (!inHandler)
+          XTrace.stop();
       }
       return done;
     }
