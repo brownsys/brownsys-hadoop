@@ -1968,14 +1968,14 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
             DFSClient.LOG.info(msg);
             throw new IOException(msg);
         }
-        // Jon: comment this out for now because it's random, arbitrary interference
-//        try {
-//          Thread.sleep(400);
-//          if (Time.now() - localstart > 5000) {
-//            DFSClient.LOG.info("Could not complete " + src + " retrying...");
-//          }
-//        } catch (InterruptedException ie) {
-//        }
+        // Jon: reduce this from 400 to 5 just so as not to taint our exps
+        try {
+          Thread.sleep(5);
+          if (Time.now() - localstart > 5000) {
+            DFSClient.LOG.info("Could not complete " + src + " retrying...");
+          }
+        } catch (InterruptedException ie) {
+        }
       }
     }
   }
