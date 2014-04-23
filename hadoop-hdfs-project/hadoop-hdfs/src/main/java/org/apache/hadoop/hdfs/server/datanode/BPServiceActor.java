@@ -59,7 +59,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Maps;
 
 import edu.brown.cs.systems.resourcetracing.backgroundtasks.HDFSBackgroundTask;
-import edu.brown.cs.systems.resourcetracing.backgroundtasks.HeartbeatBackgroundTask;
 import edu.brown.cs.systems.xtrace.XTrace;
 
 /**
