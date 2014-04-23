@@ -41,6 +41,9 @@ import org.apache.hadoop.hdfs.server.common.HdfsServerConstants.StartupOption;
 import org.apache.hadoop.hdfs.server.protocol.NamespaceInfo;
 import org.apache.hadoop.util.Daemon;
 
+import edu.brown.cs.systems.resourcetracing.backgroundtasks.HDFSBackgroundTask;
+import edu.brown.cs.systems.xtrace.XTrace;
+
 /**
  * Manages storage for the set of BlockPoolSlices which share a particular 
  * block pool id, on this DataNode.
@@ -421,6 +424,9 @@ public class BlockPoolSliceStorage extends Storage {
    * that holds the snapshot.
    */
   void doFinalize(File dnCurDir) throws IOException {
+    HDFSBackgroundTask.FINALIZE.start();
+    final long begin = System.nanoTime();
+    
     File bpRoot = getBpRoot(blockpoolID, dnCurDir);
     StorageDirectory bpSd = new StorageDirectory(bpRoot);
     // block pool level previous directory
@@ -446,6 +452,8 @@ public class BlockPoolSliceStorage extends Storage {
           deleteDir(tmpDir);
         } catch (IOException ex) {
           LOG.error("Finalize upgrade for " + dataDirPath + " failed.", ex);
+        } finally {
+          HDFSBackgroundTask.FINALIZE.end(System.nanoTime() - begin);
         }
         LOG.info("Finalize upgrade for " + dataDirPath + " is complete.");
       }
@@ -455,6 +463,8 @@ public class BlockPoolSliceStorage extends Storage {
         return "Finalize " + dataDirPath;
       }
     }).start();
+    
+    XTrace.stop();
   }
 
   /**

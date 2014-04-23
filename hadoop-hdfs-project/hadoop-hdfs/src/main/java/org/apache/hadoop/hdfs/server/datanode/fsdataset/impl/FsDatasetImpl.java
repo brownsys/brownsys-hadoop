@@ -84,6 +84,9 @@ import org.apache.hadoop.util.DiskChecker.DiskOutOfSpaceException;
 import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.hadoop.util.Time;
 
+import edu.brown.cs.systems.resourcetracing.backgroundtasks.HDFSBackgroundTask;
+import edu.brown.cs.systems.xtrace.XTrace;
+
 /**************************************************
  * FSDataset manages a set of data blocks.  Each block
  * has a unique name and an extent on disk.
@@ -1096,6 +1099,8 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
   public void invalidate(String bpid, Block invalidBlks[]) throws IOException {
     boolean error = false;
     for (int i = 0; i < invalidBlks.length; i++) {
+      HDFSBackgroundTask.INVALIDATE.start();
+      long start = System.nanoTime();
       final File f;
       final FsVolumeImpl v;
       synchronized (this) {
@@ -1146,7 +1151,8 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
       // Delete the block asynchronously to make sure we can do it fast enough
       asyncDiskService.deleteAsync(v, f,
           FsDatasetUtil.getMetaFile(f, invalidBlks[i].getGenerationStamp()),
-          new ExtendedBlock(bpid, invalidBlks[i]));
+          new ExtendedBlock(bpid, invalidBlks[i]), start);
+      XTrace.stop();
     }
     if (error) {
       throw new IOException("Error in deleting blocks.");

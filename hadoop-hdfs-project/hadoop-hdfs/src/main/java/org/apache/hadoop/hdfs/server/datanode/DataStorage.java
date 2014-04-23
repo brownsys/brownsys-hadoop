@@ -55,6 +55,9 @@ import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.util.Daemon;
 import org.apache.hadoop.util.DiskChecker;
 
+import edu.brown.cs.systems.resourcetracing.backgroundtasks.HDFSBackgroundTask;
+import edu.brown.cs.systems.xtrace.XTrace;
+
 /** 
  * Data storage information file.
  * <p>
@@ -570,6 +573,9 @@ public class DataStorage extends Storage {
    * Do nothing, if previous directory does not exist
    */
   void doFinalize(StorageDirectory sd) throws IOException {
+    HDFSBackgroundTask.FINALIZE.start();
+    final long begin = System.nanoTime();
+    
     File prevDir = sd.getPreviousDir();
     if (!prevDir.exists())
       return; // already discarded
@@ -598,12 +604,15 @@ public class DataStorage extends Storage {
             }
           } catch(IOException ex) {
             LOG.error("Finalize upgrade for " + dataDirPath + " failed", ex);
+          } finally {
+            HDFSBackgroundTask.FINALIZE.end(System.nanoTime() - begin);
           }
           LOG.info("Finalize upgrade for " + dataDirPath + " is complete");
         }
         @Override
         public String toString() { return "Finalize " + dataDirPath; }
       }).start();
+    XTrace.stop();
   }
   
   
