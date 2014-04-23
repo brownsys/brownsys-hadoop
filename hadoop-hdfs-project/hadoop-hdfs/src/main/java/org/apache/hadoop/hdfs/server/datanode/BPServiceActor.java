@@ -58,6 +58,8 @@ import org.apache.hadoop.util.VersionUtil;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Maps;
 
+import edu.brown.cs.systems.resourcetracing.backgroundtasks.HDFSBackgroundTask;
+import edu.brown.cs.systems.resourcetracing.backgroundtasks.HeartbeatBackgroundTask;
 import edu.brown.cs.systems.xtrace.XTrace;
 
 /**
@@ -526,7 +528,11 @@ class BPServiceActor implements Runnable {
           //
           lastHeartbeat = startTime;
           if (!dn.areHeartbeatsDisabledForTests()) {
+            HDFSBackgroundTask.HEARTBEAT.start();
+            long begin = System.nanoTime();
             HeartbeatResponse resp = sendHeartBeat();
+            HDFSBackgroundTask.HEARTBEAT.end(System.nanoTime() - begin);
+            
             assert resp != null;
             dn.getMetrics().addHeartbeat(now() - startTime);
 
@@ -539,6 +545,8 @@ class BPServiceActor implements Runnable {
             bpos.updateActorStatesFromHeartbeat(
                 this, resp.getNameNodeHaState());
 
+            HDFSBackgroundTask.DN_HEARTBEAT_PROCESS.start();
+            begin = System.nanoTime();
             long startProcessCommands = now();
             if (!processCommand(resp.getCommands()))
               continue;
@@ -548,6 +556,7 @@ class BPServiceActor implements Runnable {
                   + "ms to process " + resp.getCommands().length
                   + " commands from NN");
             }
+            HDFSBackgroundTask.DN_HEARTBEAT_PROCESS.end(System.nanoTime() - begin);
           }
         }
         if (pendingReceivedRequests > 0
