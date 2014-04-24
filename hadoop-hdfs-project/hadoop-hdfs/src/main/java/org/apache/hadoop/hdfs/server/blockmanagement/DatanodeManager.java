@@ -1147,11 +1147,12 @@ public class DatanodeManager {
     node.setLastUpdate(0);
   }
 
-  /** Handle heartbeat from datanodes. */
+  /** Handle heartbeat from datanodes. 
+   * @param maxBytes */
   public DatanodeCommand[] handleHeartbeat(DatanodeRegistration nodeReg,
       final String blockPoolId,
       long capacity, long dfsUsed, long remaining, long blockPoolUsed,
-      int xceiverCount, int maxTransfers, int failedVolumes
+      int xceiverCount, int maxTransfers, long maxBytes, int failedVolumes
       ) throws IOException {
     synchronized (heartbeatManager) {
       synchronized (datanodeMap) {
@@ -1223,7 +1224,7 @@ public class DatanodeManager {
         final List<DatanodeCommand> cmds = new ArrayList<DatanodeCommand>();
         //check pending replication
         List<BlockTargetPair> pendingList = nodeinfo.getReplicationCommand(
-              maxTransfers);
+              maxTransfers, maxBytes);
         if (pendingList != null) {
           cmds.add(new BlockCommand(DatanodeProtocol.DNA_TRANSFER, blockPoolId,
               pendingList));

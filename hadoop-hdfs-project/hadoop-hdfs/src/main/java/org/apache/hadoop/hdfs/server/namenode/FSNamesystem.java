@@ -162,7 +162,13 @@ import org.apache.hadoop.hdfs.security.token.block.BlockTokenSecretManager;
 import org.apache.hadoop.hdfs.security.token.block.BlockTokenSecretManager.AccessMode;
 import org.apache.hadoop.hdfs.security.token.delegation.DelegationTokenIdentifier;
 import org.apache.hadoop.hdfs.security.token.delegation.DelegationTokenSecretManager;
-import org.apache.hadoop.hdfs.server.blockmanagement.*;
+import org.apache.hadoop.hdfs.server.blockmanagement.BlockInfo;
+import org.apache.hadoop.hdfs.server.blockmanagement.BlockInfoUnderConstruction;
+import org.apache.hadoop.hdfs.server.blockmanagement.BlockManager;
+import org.apache.hadoop.hdfs.server.blockmanagement.DatanodeDescriptor;
+import org.apache.hadoop.hdfs.server.blockmanagement.DatanodeManager;
+import org.apache.hadoop.hdfs.server.blockmanagement.DatanodeStatistics;
+import org.apache.hadoop.hdfs.server.blockmanagement.OutOfV1GenerationStampsException;
 import org.apache.hadoop.hdfs.server.common.GenerationStamp;
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants.BlockUCState;
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants.NamenodeRole;
@@ -173,14 +179,7 @@ import org.apache.hadoop.hdfs.server.common.Storage.StorageDirectory;
 import org.apache.hadoop.hdfs.server.common.Util;
 import org.apache.hadoop.hdfs.server.namenode.INode.BlocksMapUpdateInfo;
 import org.apache.hadoop.hdfs.server.namenode.LeaseManager.Lease;
-import org.apache.hadoop.hdfs.server.namenode.NameNode;
 import org.apache.hadoop.hdfs.server.namenode.NameNode.OperationCategory;
-import org.apache.hadoop.hdfs.server.namenode.startupprogress.Phase;
-import org.apache.hadoop.hdfs.server.namenode.startupprogress.StartupProgress;
-import org.apache.hadoop.hdfs.server.namenode.startupprogress.StartupProgress.Counter;
-import org.apache.hadoop.hdfs.server.namenode.startupprogress.Status;
-import org.apache.hadoop.hdfs.server.namenode.startupprogress.Step;
-import org.apache.hadoop.hdfs.server.namenode.startupprogress.StepType;
 import org.apache.hadoop.hdfs.server.namenode.ha.EditLogTailer;
 import org.apache.hadoop.hdfs.server.namenode.ha.HAContext;
 import org.apache.hadoop.hdfs.server.namenode.ha.HAState;
@@ -192,6 +191,12 @@ import org.apache.hadoop.hdfs.server.namenode.snapshot.INodeDirectorySnapshottab
 import org.apache.hadoop.hdfs.server.namenode.snapshot.INodeFileWithSnapshot;
 import org.apache.hadoop.hdfs.server.namenode.snapshot.Snapshot;
 import org.apache.hadoop.hdfs.server.namenode.snapshot.SnapshotManager;
+import org.apache.hadoop.hdfs.server.namenode.startupprogress.Phase;
+import org.apache.hadoop.hdfs.server.namenode.startupprogress.StartupProgress;
+import org.apache.hadoop.hdfs.server.namenode.startupprogress.StartupProgress.Counter;
+import org.apache.hadoop.hdfs.server.namenode.startupprogress.Status;
+import org.apache.hadoop.hdfs.server.namenode.startupprogress.Step;
+import org.apache.hadoop.hdfs.server.namenode.startupprogress.StepType;
 import org.apache.hadoop.hdfs.server.namenode.web.resources.NamenodeWebHdfsMethods;
 import org.apache.hadoop.hdfs.server.protocol.DatanodeCommand;
 import org.apache.hadoop.hdfs.server.protocol.DatanodeRegistration;
@@ -230,6 +235,10 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+
+import edu.brown.cs.systems.pubsub.PubSub;
+import edu.brown.cs.systems.pubsub.PubSubProtos.StringMessage;
+import edu.brown.cs.systems.pubsub.Subscriber;
 
 
 
@@ -3916,6 +3925,61 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
   String getRegistrationID() {
     return Storage.getRegistrationID(dir.fsImage.getStorage());
   }
+  
+  
+  private static final String replication_topic = "replication";
+  
+  /**
+   * X-Trace: sends a pubsub message specifying the bytes per second allowed by replication
+   * @param bytes
+   */
+  public void setReplicationTotalBytesPerSecond(long bytes) {
+    String command = "set:"+bytes;
+    PubSub.publish(replication_topic, StringMessage.newBuilder().setMessage(command).build());
+  }
+  
+  public void clearReplication() {
+    String command = "clear";
+    PubSub.publish(replication_topic, StringMessage.newBuilder().setMessage(command).build());
+  }
+
+  private static final int replication_command_timeout = 30000; // 30s timeout for replication commands
+  private ReplicationSubscriber replication_subscriber = new ReplicationSubscriber();
+  private volatile long last_replication_command = 0;
+  private volatile long replication_bps = 0;
+  
+  private class ReplicationSubscriber extends Subscriber.Callback<StringMessage> {
+    
+    public ReplicationSubscriber() {
+      PubSub.subscribe(replication_topic, this);
+    }
+
+    @Override
+    protected void OnMessage(StringMessage msg) {
+      if (msg.hasMessage()) {
+        String command = msg.getMessage();
+        System.out.println("Replication command received: " + command);
+        try {
+          parseCommand(command);
+        } catch (Exception e) {
+          System.out.println(e.getClass().getName() + " parsing replication command " + msg.getMessage());
+        }
+      }
+    }
+    
+    private void parseCommand(String command) {
+      String[] splits = command.split(":");
+      String cmd = splits[0];
+      if (cmd.equals("set")) {
+        replication_bps = Long.parseLong(splits[1]);
+        last_replication_command = System.currentTimeMillis();
+      } else if (cmd.equals("clear")) {
+        last_replication_command = 0;
+        replication_bps = 0;
+      }
+    }
+    
+  }
 
   /**
    * The given node has reported in.  This method should:
@@ -3936,9 +4000,12 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     try {
       final int maxTransfer = blockManager.getMaxReplicationStreams()
           - xmitsInProgress;
+      long maxBytes = Long.MAX_VALUE;
+      if ((System.currentTimeMillis()-last_replication_command)<replication_command_timeout)
+          maxBytes = replication_bps / blockManager.getDatanodeManager().getNumLiveDataNodes();
       DatanodeCommand[] cmds = blockManager.getDatanodeManager().handleHeartbeat(
           nodeReg, blockPoolId, capacity, dfsUsed, remaining, blockPoolUsed,
-          xceiverCount, maxTransfer, failedVolumes);
+          xceiverCount, maxTransfer, maxBytes, failedVolumes);
       return new HeartbeatResponse(cmds, createHaStatusHeartbeat());
     } finally {
       readUnlock();
