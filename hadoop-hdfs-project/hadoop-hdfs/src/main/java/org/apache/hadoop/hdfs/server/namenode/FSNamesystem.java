@@ -3933,12 +3933,12 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
    * X-Trace: sends a pubsub message specifying the bytes per second allowed by replication
    * @param bytes
    */
-  public void setReplicationTotalBytesPerSecond(long bytes) {
+  public static void setReplicationTotalBytesPerSecond(long bytes) {
     String command = "set:"+bytes;
     PubSub.publish(replication_topic, StringMessage.newBuilder().setMessage(command).build());
   }
   
-  public void clearReplication() {
+  public static void clearReplication() {
     String command = "clear";
     PubSub.publish(replication_topic, StringMessage.newBuilder().setMessage(command).build());
   }
