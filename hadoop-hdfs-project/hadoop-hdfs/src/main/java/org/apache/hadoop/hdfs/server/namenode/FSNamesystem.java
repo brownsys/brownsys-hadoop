@@ -4002,8 +4002,13 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
           - xmitsInProgress;
       long maxBytes = Long.MAX_VALUE;
       long numLiveNodes = blockManager.getDatanodeManager().getNumLiveDataNodes();
+//      if ((System.currentTimeMillis()-last_replication_command)<replication_command_timeout && numLiveNodes > 0) {
+//          maxBytes = replication_bps / numLiveNodes;
+//      }
+      // use setBalancerBandwidth to do throttling for us
       if ((System.currentTimeMillis()-last_replication_command)<replication_command_timeout && numLiveNodes > 0) {
-          maxBytes = replication_bps / numLiveNodes;
+        long balancer_bandwidth = replication_bps / numLiveNodes;
+        blockManager.getDatanodeManager().setBalancerBandwidth(balancer_bandwidth);
       }
       DatanodeCommand[] cmds = blockManager.getDatanodeManager().handleHeartbeat(
           nodeReg, blockPoolId, capacity, dfsUsed, remaining, blockPoolUsed,
