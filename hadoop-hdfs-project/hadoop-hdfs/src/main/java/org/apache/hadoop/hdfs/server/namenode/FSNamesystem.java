@@ -4001,8 +4001,10 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
       final int maxTransfer = blockManager.getMaxReplicationStreams()
           - xmitsInProgress;
       long maxBytes = Long.MAX_VALUE;
-      if ((System.currentTimeMillis()-last_replication_command)<replication_command_timeout)
-          maxBytes = replication_bps / blockManager.getDatanodeManager().getNumLiveDataNodes();
+      long numLiveNodes = blockManager.getDatanodeManager().getNumLiveDataNodes();
+      if ((System.currentTimeMillis()-last_replication_command)<replication_command_timeout && numLiveNodes > 0) {
+          maxBytes = replication_bps / numLiveNodes;
+      }
       DatanodeCommand[] cmds = blockManager.getDatanodeManager().handleHeartbeat(
           nodeReg, blockPoolId, capacity, dfsUsed, remaining, blockPoolUsed,
           xceiverCount, maxTransfer, maxBytes, failedVolumes);
