@@ -201,6 +201,8 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
               <target>1.6</target>
               <complianceLevel>1.6</complianceLevel>
               <Xjoinpoints>synchronization</Xjoinpoints>
+              <showWeaveInfo>true</showWeaveInfo>
+              <verbose>true</verbose>
             </configuration>
           </execution>
         </executions>
