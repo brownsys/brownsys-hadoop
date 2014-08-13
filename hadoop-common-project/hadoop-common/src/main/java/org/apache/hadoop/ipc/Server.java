@@ -116,6 +116,7 @@ import com.google.protobuf.CodedOutputStream;
 import com.google.protobuf.Message;
 import com.google.protobuf.Message.Builder;
 
+import edu.brown.cs.systems.resourcethrottling.LocalThrottlingPoints;
 import edu.brown.cs.systems.resourcetracing.resources.Network;
 import edu.brown.cs.systems.resourcetracing.resources.QueueResource;
 import edu.brown.cs.systems.xtrace.Context;
@@ -2221,7 +2222,8 @@ public abstract class Server {
           CommonConfigurationKeys.IPC_SERVER_RPC_READ_THREADS_KEY,
           CommonConfigurationKeys.IPC_SERVER_RPC_READ_THREADS_DEFAULT);
     }
-    this.callQueue  = new LinkedBlockingQueue<Call>(maxQueueSize); 
+    this.callQueue = LocalThrottlingPoints.getThrottlingQueue("Server-"+System.identityHashCode(this)+"-callQueue");
+//    this.callQueue  = new LinkedBlockingQueue<Call>(maxQueueSize); 
     this.callQueueInstrumentation = new QueueResource("Server-"+System.identityHashCode(this)+"-callQueue", handlerCount);
     this.maxIdleTime = 2 * conf.getInt(
         CommonConfigurationKeysPublic.IPC_CLIENT_CONNECTION_MAXIDLETIME_KEY,

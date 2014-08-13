@@ -47,6 +47,8 @@ import org.apache.hadoop.util.DataChecksum;
 
 import com.google.common.base.Preconditions;
 
+import edu.brown.cs.systems.resourcethrottling.LocalThrottlingPoints;
+import edu.brown.cs.systems.resourcethrottling.ThrottlingPoint;
 import edu.brown.cs.systems.xtrace.XTrace;
 
 /**
@@ -91,6 +93,7 @@ import edu.brown.cs.systems.xtrace.XTrace;
  */
 class BlockSender implements java.io.Closeable {
   static final XTrace.Logger xtrace = XTrace.getLogger(BlockSender.class);
+  static final ThrottlingPoint throttlingpoint = LocalThrottlingPoints.getThrottlingPoint("BlockSender");
   static final Log LOG = DataNode.LOG;
   static final Log ClientTraceLog = DataNode.ClientTraceLog;
   private static final boolean is32Bit = 
@@ -554,6 +557,9 @@ class BlockSender implements java.io.Closeable {
     if (throttler != null) { // rebalancing so throttle
       throttler.throttle(packetLen);
     }
+    
+    // Retro throttle
+    throttlingpoint.throttle();
 
     return dataLen;
   }

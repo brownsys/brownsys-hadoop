@@ -53,6 +53,8 @@ import org.apache.hadoop.util.Daemon;
 import org.apache.hadoop.util.DataChecksum;
 import org.apache.hadoop.util.StringUtils;
 
+import edu.brown.cs.systems.resourcethrottling.LocalThrottlingPoints;
+import edu.brown.cs.systems.resourcethrottling.ThrottlingPoint;
 import edu.brown.cs.systems.xtrace.Context;
 import edu.brown.cs.systems.xtrace.XTrace;
 
@@ -62,6 +64,7 @@ import edu.brown.cs.systems.xtrace.XTrace;
  **/
 class BlockReceiver implements Closeable {
   public static final XTrace.Logger xtrace = XTrace.getLogger(BlockReceiver.class);
+  public static final ThrottlingPoint throttlingpoint = LocalThrottlingPoints.getThrottlingPoint("BlockReceiver");
   public static final Log LOG = DataNode.LOG;
   static final Log ClientTraceLog = DataNode.ClientTraceLog;
 
@@ -628,6 +631,9 @@ class BlockReceiver implements Closeable {
     if (throttler != null) { // throttle I/O
       throttler.throttle(len);
     }
+    
+    // Retro throttle
+    throttlingpoint.throttle();
     
     return lastPacketInBlock?-1:len;
   }
