@@ -120,6 +120,7 @@ import edu.brown.cs.systems.resourcethrottling.LocalThrottlingPoints;
 import edu.brown.cs.systems.resourcetracing.resources.Network;
 import edu.brown.cs.systems.resourcetracing.resources.QueueResource;
 import edu.brown.cs.systems.xtrace.Context;
+import edu.brown.cs.systems.xtrace.Reporter.Utils;
 import edu.brown.cs.systems.xtrace.XTrace;
 
 /** An abstract IPC service.  IPC calls take a single {@link Writable} as a
@@ -2222,7 +2223,7 @@ public abstract class Server {
           CommonConfigurationKeys.IPC_SERVER_RPC_READ_THREADS_KEY,
           CommonConfigurationKeys.IPC_SERVER_RPC_READ_THREADS_DEFAULT);
     }
-    this.callQueue = LocalThrottlingPoints.getThrottlingQueue("Server-"+System.identityHashCode(this)+"-callQueue");
+    this.callQueue = LocalThrottlingPoints.getThrottlingQueue(Utils.getProcessName()+"-RPCServer");
 //    this.callQueue  = new LinkedBlockingQueue<Call>(maxQueueSize); 
     this.callQueueInstrumentation = new QueueResource("Server-"+System.identityHashCode(this)+"-callQueue", handlerCount);
     this.maxIdleTime = 2 * conf.getInt(
