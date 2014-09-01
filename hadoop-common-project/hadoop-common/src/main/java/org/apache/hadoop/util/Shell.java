@@ -32,6 +32,8 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 
+import edu.brown.cs.systems.xtrace.XTrace;
+
 /** 
  * A base class for running a Unix command.
  * 
@@ -384,6 +386,7 @@ abstract public class Shell {
     if (environment != null) {
       builder.environment().putAll(this.environment);
     }
+    builder.environment().putAll(XTrace.environment());
     
 //    // TODO: implement this in new xtrace
 //    // put xtrace context if there is one, merging as appropriate

@@ -75,6 +75,8 @@ class YarnChild {
   static volatile TaskAttemptID taskid = null;
 
   public static void main(String[] args) throws Throwable {
+    // Load the XTrace context from the parent process
+    XTrace.set(System.getenv());
     xtrace.log("YarnChild starting");
     Thread.setDefaultUncaughtExceptionHandler(new YarnUncaughtExceptionHandler());
     LOG.debug("Child starting");

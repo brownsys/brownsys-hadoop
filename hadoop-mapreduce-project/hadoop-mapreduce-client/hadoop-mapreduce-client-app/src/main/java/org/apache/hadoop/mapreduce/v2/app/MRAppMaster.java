@@ -1293,6 +1293,8 @@ public class MRAppMaster extends CompositeService {
 
   public static void main(String[] args) {
     try {
+      // Load the XTrace context from the parent process
+      XTrace.set(System.getenv());
       xtrace.log("Application Master Launching");
       Thread.setDefaultUncaughtExceptionHandler(new YarnUncaughtExceptionHandler());
       String containerIdStr =
