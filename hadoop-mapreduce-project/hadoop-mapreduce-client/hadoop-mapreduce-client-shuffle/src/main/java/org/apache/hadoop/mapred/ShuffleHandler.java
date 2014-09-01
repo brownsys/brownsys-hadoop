@@ -609,7 +609,6 @@ public class ShuffleHandler extends AuxiliaryService {
       xtrace.log("Sending map output", "Reduce", reduce, "Map ID", mapId, "Job ID", jobID);
       final ShuffleHeader header =
         new ShuffleHeader(mapId, info.partLength, info.rawLength, reduce);
-      header.rememberContext();
       final DataOutputBuffer dob = new DataOutputBuffer();
       header.write(dob);
       ch.write(wrappedBuffer(dob.getData(), 0, dob.getLength()));

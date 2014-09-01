@@ -428,8 +428,6 @@ class Fetcher<K,V> extends Thread {
       try {
         ShuffleHeader header = new ShuffleHeader();
         header.readFields(input);
-        XTrace.stop();
-        header.joinContext();
         mapId = TaskAttemptID.forName(header.mapId);
         compressedLength = header.compressedLength;
         decompressedLength = header.uncompressedLength;

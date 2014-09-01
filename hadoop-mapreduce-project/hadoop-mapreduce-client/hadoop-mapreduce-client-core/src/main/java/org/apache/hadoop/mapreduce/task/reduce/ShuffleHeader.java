@@ -72,14 +72,7 @@ public class ShuffleHeader implements Writable {
     compressedLength = WritableUtils.readVLong(in);
     uncompressedLength = WritableUtils.readVLong(in);
     forReduce = WritableUtils.readVInt(in);
-    long taskid = WritableUtils.readVLong(in);
-    long opid = WritableUtils.readVLong(in);
-    if (taskid!=0L) {
-      XTraceMetadata.Builder builder = XTraceMetadata.newBuilder().setTaskID(taskid);
-      if (opid!=0L)
-        builder.addParentEventID(opid);
-      m = Context.parse(builder.build().toByteArray());
-    }
+    XTrace.join(WritableUtils.readCompressedByteArray(in));
   }
 
   public void write(DataOutput out) throws IOException {
@@ -87,39 +80,7 @@ public class ShuffleHeader implements Writable {
     WritableUtils.writeVLong(out, compressedLength);
     WritableUtils.writeVLong(out, uncompressedLength);
     WritableUtils.writeVInt(out, forReduce);
-    WritableUtils.writeVLong(out, getXTraceTaskID());
-    WritableUtils.writeVLong(out, getXTraceOpID());
+    WritableUtils.writeCompressedByteArray(out, XTrace.bytes());
   }
   
-  private long getXTraceTaskID() {
-    if (m!=null) {
-      try {
-        return XTraceMetadata.parseFrom(m.bytes()).getTaskID();
-      } catch (Exception e) {
-      }
-    }
-    return 0L;
-  }
-  
-  private long getXTraceOpID() {
-    if (m!=null) {
-      try {
-        XTraceMetadata xmd = XTraceMetadata.parseFrom(m.bytes());
-        if (xmd.getParentEventIDCount() > 0)
-          return xmd.getParentEventID(0);
-      } catch (Exception e) {
-      }
-    }
-    return 0L;    
-  }
-  
-  
-  public void rememberContext() {
-    m = XTrace.get();
-  }
-  
-  public void joinContext() {
-//    // TODO: what even is this
-//    XTraceContext.joinChildProcess(m);
-  }
 }
