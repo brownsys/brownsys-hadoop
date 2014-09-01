@@ -294,7 +294,7 @@ class Fetcher<K,V> extends Thread {
       // put url hash into http header
       connection.addRequestProperty(
           SecureShuffleUtils.HTTP_HEADER_URL_HASH, encHash);
-      String xtrace_string = XTrace.base64();
+      String xtrace_string = XTrace.base16();
       if (xtrace_string!=null)
         connection.addRequestProperty("X-Trace", xtrace_string);
       // set the read timeout
@@ -317,7 +317,7 @@ class Fetcher<K,V> extends Thread {
       if (rc != HttpURLConnection.HTTP_OK) {
         String xtrace_context = connection.getHeaderField("X-Trace");
         if (xtrace_context!=null) {
-          XTrace.join(Context.parse(xtrace_context));
+          XTrace.join(Context.parseBase16(xtrace_context));
         }
         xtrace.log("Got invalid response code " + rc + " from host", "URL", url, "Message", connection.getResponseMessage());
         throw new IOException(
