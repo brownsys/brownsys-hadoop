@@ -2223,8 +2223,10 @@ public abstract class Server {
           CommonConfigurationKeys.IPC_SERVER_RPC_READ_THREADS_KEY,
           CommonConfigurationKeys.IPC_SERVER_RPC_READ_THREADS_DEFAULT);
     }
-    this.callQueue = LocalThrottlingPoints.getThrottlingQueue(Utils.getProcessName()+"-"+serverName);
-//    this.callQueue  = new LinkedBlockingQueue<Call>(maxQueueSize); 
+    if ("NameNode".equals(Utils.getProcessName())) // Hack; put a throttling queue on NN only for now
+      this.callQueue = LocalThrottlingPoints.getThrottlingQueue(Utils.getProcessName()+"-"+serverName);
+    else
+      this.callQueue  = new LinkedBlockingQueue<Call>(maxQueueSize); 
     this.callQueueInstrumentation = new QueueResource("Server-"+System.identityHashCode(this)+"-callQueue", handlerCount);
     this.maxIdleTime = 2 * conf.getInt(
         CommonConfigurationKeysPublic.IPC_CLIENT_CONNECTION_MAXIDLETIME_KEY,
