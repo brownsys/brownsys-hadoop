@@ -379,7 +379,7 @@ public abstract class Server {
 
   volatile private boolean running = true;         // true while server runs
   
-  private QueueResource callQueueInstrumentation; // xresourcetracing instrumentation for the callqueue.  could be better but will do for now
+  private QueueResource callQueueInstrumentation = null; // xresourcetracing instrumentation for the callqueue.  could be better but will do for now
   private BlockingQueue<Call> callQueue; // queued calls
 
   private List<Connection> connectionList = 
@@ -1907,7 +1907,8 @@ public abstract class Server {
       Call call = new Call(header.getCallId(), header.getRetryCount(),
           rpcRequest, this, ProtoUtil.convert(header.getRpcKind()), header
               .getClientId().toByteArray());
-      callQueueInstrumentation.enqueue();
+      if (callQueueInstrumentation!=null)
+        callQueueInstrumentation.enqueue();
       call.enqueue = System.nanoTime();
       callQueue.put(call);              // queue the call; maybe blocked here
       incRpcCount();  // Increment the rpc count
@@ -2056,7 +2057,8 @@ public abstract class Server {
           final Call call = callQueue.take(); // pop the queue; maybe blocked here
           call.dequeue = System.nanoTime();
           XTrace.set(call.start_context);
-          callQueueInstrumentation.starting(call.enqueue, call.dequeue);
+          if (callQueueInstrumentation!=null)
+            callQueueInstrumentation.starting(call.enqueue, call.dequeue);
 
           try { // xtrace try
             
@@ -2144,7 +2146,8 @@ public abstract class Server {
           
           } finally { // xtrace finally
             call.complete = System.nanoTime();
-            callQueueInstrumentation.finished(call.enqueue, call.dequeue, call.complete);
+            if (callQueueInstrumentation!=null)
+              callQueueInstrumentation.finished(call.enqueue, call.dequeue, call.complete);
           }
         } catch (InterruptedException e) {
           if (running) {                          // unexpected -- log it
@@ -2223,11 +2226,13 @@ public abstract class Server {
           CommonConfigurationKeys.IPC_SERVER_RPC_READ_THREADS_KEY,
           CommonConfigurationKeys.IPC_SERVER_RPC_READ_THREADS_DEFAULT);
     }
-    if ("NameNode".equals(Utils.getProcessName())) // Hack; put a throttling queue on NN only for now
+    if ("NameNode".equals(Utils.getProcessName())) {
+      // Hack; put a throttling queue on NN only for now
       this.callQueue = LocalThrottlingPoints.getThrottlingQueue(Utils.getProcessName()+"-"+serverName);
-    else
-      this.callQueue  = new LinkedBlockingQueue<Call>(maxQueueSize); 
-    this.callQueueInstrumentation = new QueueResource("Server-"+System.identityHashCode(this)+"-callQueue", handlerCount);
+      this.callQueueInstrumentation = new QueueResource("Server-"+System.identityHashCode(this)+"-callQueue", handlerCount);
+    } else {
+      this.callQueue  = new LinkedBlockingQueue<Call>(maxQueueSize);
+    }
     this.maxIdleTime = 2 * conf.getInt(
         CommonConfigurationKeysPublic.IPC_CLIENT_CONNECTION_MAXIDLETIME_KEY,
         CommonConfigurationKeysPublic.IPC_CLIENT_CONNECTION_MAXIDLETIME_DEFAULT);
