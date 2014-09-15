@@ -452,7 +452,7 @@ public class ShuffleHandler extends AuxiliaryService {
       
       String xtrace_context = request.getHeader("X-Trace");
       if (xtrace_context!=null)
-        XTrace.set(xtrace_context);
+        XTrace.set(xtrace_context, XTrace.ENCODING.BASE16);
       
       final Map<String,List<String>> q =
         new QueryStringDecoder(request.getUri()).getParameters();
