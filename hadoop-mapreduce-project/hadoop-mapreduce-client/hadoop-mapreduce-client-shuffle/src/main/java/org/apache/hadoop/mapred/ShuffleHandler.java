@@ -113,6 +113,8 @@ import org.jboss.netty.util.CharsetUtil;
 import com.google.common.base.Charsets;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
+import edu.brown.cs.systems.resourcethrottling.LocalThrottlingPoints;
+import edu.brown.cs.systems.resourcethrottling.ThrottlingPoint;
 import edu.brown.cs.systems.xtrace.Context;
 import edu.brown.cs.systems.xtrace.XTrace;
 
@@ -120,6 +122,7 @@ public class ShuffleHandler extends AuxiliaryService {
 
   private static final XTrace.Logger xtrace = XTrace.getLogger(ShuffleHandler.class);
   private static final Log LOG = LogFactory.getLog(ShuffleHandler.class);
+  private static final ThrottlingPoint shuffle_throttler = LocalThrottlingPoints.getThrottlingPoint("ShuffleHandler");
   
   public static final String SHUFFLE_MANAGE_OS_CACHE = "mapreduce.shuffle.manage.os.cache";
   public static final boolean DEFAULT_SHUFFLE_MANAGE_OS_CACHE = true;
@@ -580,6 +583,7 @@ public class ShuffleHandler extends AuxiliaryService {
     protected ChannelFuture sendMapOutput(ChannelHandlerContext ctx, Channel ch,
         String user, String jobId, String mapId, int reduce)
         throws IOException {
+      shuffle_throttler.throttle();
       // TODO replace w/ rsrc alloc
       // $x/$user/appcache/$appId/output/$mapId
       // TODO: Once Shuffle is out of NM, this can use MR APIs to convert between App and Job
