@@ -115,6 +115,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import edu.brown.cs.systems.resourcethrottling.LocalThrottlingPoints;
 import edu.brown.cs.systems.resourcethrottling.ThrottlingPoint;
+import edu.brown.cs.systems.resourcetracing.resources.Network;
 import edu.brown.cs.systems.xtrace.Context;
 import edu.brown.cs.systems.xtrace.XTrace;
 
@@ -580,10 +581,12 @@ public class ShuffleHandler extends AuxiliaryService {
       }
     }
 
-    protected ChannelFuture sendMapOutput(ChannelHandlerContext ctx, Channel ch,
+    protected ChannelFuture sendMapOutput(ChannelHandlerContext ctx, final Channel ch,
         String user, String jobId, String mapId, int reduce)
         throws IOException {
       shuffle_throttler.throttle();
+      final Network netrsrc = Network.Write(((InetSocketAddress) ch.getRemoteAddress()).getAddress());
+      
       // TODO replace w/ rsrc alloc
       // $x/$user/appcache/$appId/output/$mapId
       // TODO: Once Shuffle is out of NM, this can use MR APIs to convert between App and Job
@@ -629,7 +632,9 @@ public class ShuffleHandler extends AuxiliaryService {
         final FadvisedFileRegion partition = new FadvisedFileRegion(spill,
             info.startOffset, info.partLength, manageOsCache, readaheadLength,
             readaheadPool, spillfile.getAbsolutePath());
+        netrsrc.starting(ch, null);
         writeFuture = ch.write(partition);
+        netrsrc.finished(ch, info.partLength, null);
         writeFuture.addListener(new ChannelFutureListener() {
             // TODO error handling; distinguish IO/connection failures,
             //      attribute to appropriate spill output
@@ -644,7 +649,9 @@ public class ShuffleHandler extends AuxiliaryService {
             info.startOffset, info.partLength, sslFileBufferSize,
             manageOsCache, readaheadLength, readaheadPool,
             spillfile.getAbsolutePath());
+        netrsrc.starting(ch, null);
         writeFuture = ch.write(chunk);
+        netrsrc.finished(ch, info.partLength, null);
       }
       metrics.shuffleConnections.incr();
       metrics.shuffleOutputBytes.incr(info.partLength); // optimistic
