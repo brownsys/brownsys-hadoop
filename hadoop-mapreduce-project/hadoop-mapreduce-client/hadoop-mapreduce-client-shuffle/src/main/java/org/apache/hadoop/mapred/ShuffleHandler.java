@@ -581,11 +581,10 @@ public class ShuffleHandler extends AuxiliaryService {
       }
     }
 
-    protected ChannelFuture sendMapOutput(ChannelHandlerContext ctx, final Channel ch,
+    protected ChannelFuture sendMapOutput(ChannelHandlerContext ctx, Channel ch,
         String user, String jobId, String mapId, int reduce)
         throws IOException {
       shuffle_throttler.throttle();
-      final Network netrsrc = Network.Write(((InetSocketAddress) ch.getRemoteAddress()).getAddress());
       
       // TODO replace w/ rsrc alloc
       // $x/$user/appcache/$appId/output/$mapId
@@ -632,9 +631,7 @@ public class ShuffleHandler extends AuxiliaryService {
         final FadvisedFileRegion partition = new FadvisedFileRegion(spill,
             info.startOffset, info.partLength, manageOsCache, readaheadLength,
             readaheadPool, spillfile.getAbsolutePath());
-        netrsrc.starting(ch, null);
         writeFuture = ch.write(partition);
-        netrsrc.finished(ch, info.partLength, null);
         writeFuture.addListener(new ChannelFutureListener() {
             // TODO error handling; distinguish IO/connection failures,
             //      attribute to appropriate spill output
@@ -649,9 +646,7 @@ public class ShuffleHandler extends AuxiliaryService {
             info.startOffset, info.partLength, sslFileBufferSize,
             manageOsCache, readaheadLength, readaheadPool,
             spillfile.getAbsolutePath());
-        netrsrc.starting(ch, null);
         writeFuture = ch.write(chunk);
-        netrsrc.finished(ch, info.partLength, null);
       }
       metrics.shuffleConnections.incr();
       metrics.shuffleOutputBytes.incr(info.partLength); // optimistic
