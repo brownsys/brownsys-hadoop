@@ -215,6 +215,7 @@ class YarnChild {
       }
     } finally {
       xtrace.log("YarnChild exiting");
+      Thread.sleep(1000);
       // TODO: xtrace join parent process
 //      XTraceContext.joinParentProcess();
       RPC.stopProxy(umbilical);

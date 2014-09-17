@@ -75,6 +75,8 @@ import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.hadoop.util.StringInterner;
 import org.apache.hadoop.util.StringUtils;
 
+import edu.brown.cs.systems.resourcethrottling.LocalThrottlingPoints;
+import edu.brown.cs.systems.resourcethrottling.ThrottlingPoint;
 import edu.brown.cs.systems.xtrace.XTrace;
 
 /** A Map task. */
@@ -91,6 +93,8 @@ public class MapTask extends Task {
 
   private static final XTrace.Logger xtrace = XTrace.getLogger(MapTask.class);
   private static final Log LOG = LogFactory.getLog(MapTask.class.getName());
+
+  private static ThrottlingPoint spill_throttler = LocalThrottlingPoints.getThrottlingPoint("MRSpill");
 
   private Progress mapPhase;
   private Progress sortPhase;
@@ -1618,6 +1622,7 @@ public class MapTask extends Task {
                                        InterruptedException {
       spillThread.joinSpillDoneContext(); // join up with the previous 'done' context if it hasn't already been joined up with. don't want it dangling
       xtrace.log("Beginning spill", "Spill Number", numSpills);
+      spill_throttler.throttle();
       
       //approximate the length of the output file to be the length of the
       //buffer + header lengths for the partitions

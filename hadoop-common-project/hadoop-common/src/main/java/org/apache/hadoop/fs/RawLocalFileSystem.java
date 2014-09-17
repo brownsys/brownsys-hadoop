@@ -52,8 +52,6 @@ import edu.brown.cs.systems.resourcethrottling.ThrottlingPoint;
 @InterfaceAudience.Public
 @InterfaceStability.Stable
 public class RawLocalFileSystem extends FileSystem {
-  private static ThrottlingPoint writer_throttlingpoint = LocalThrottlingPoints.getThrottlingPoint("LocalDiskOut");
-  private static ThrottlingPoint reader_throttlingpoint = LocalThrottlingPoints.getThrottlingPoint("LocalDiskIn");
   
   static final URI NAME = URI.create("file:///");
   private Path workingDir;
@@ -160,7 +158,6 @@ public class RawLocalFileSystem extends FileSystem {
     
     @Override
     public int read() throws IOException {
-      reader_throttlingpoint.throttle();
       try {
         int value = fis.read();
         if (value >= 0) {
@@ -174,7 +171,6 @@ public class RawLocalFileSystem extends FileSystem {
     
     @Override
     public int read(byte[] b, int off, int len) throws IOException {
-      reader_throttlingpoint.throttle();
       try {
         int value = fis.read(b, off, len);
         if (value > 0) {
@@ -189,7 +185,6 @@ public class RawLocalFileSystem extends FileSystem {
     @Override
     public int read(long position, byte[] b, int off, int len)
       throws IOException {
-      reader_throttlingpoint.throttle();
       ByteBuffer bb = ByteBuffer.wrap(b, off, len);
       try {
         return fis.getChannel().read(bb, position);
@@ -241,7 +236,6 @@ public class RawLocalFileSystem extends FileSystem {
     public void flush() throws IOException { fos.flush(); }
     @Override
     public void write(byte[] b, int off, int len) throws IOException {
-      writer_throttlingpoint.throttle();
       try {
         fos.write(b, off, len);
       } catch (IOException e) {                // unexpected exception
@@ -251,7 +245,6 @@ public class RawLocalFileSystem extends FileSystem {
     
     @Override
     public void write(int b) throws IOException {
-      writer_throttlingpoint.throttle();
       try {
         fos.write(b);
       } catch (IOException e) {              // unexpected exception
