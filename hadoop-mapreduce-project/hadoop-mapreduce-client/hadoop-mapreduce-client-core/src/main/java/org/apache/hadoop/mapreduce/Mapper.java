@@ -27,6 +27,8 @@ import org.apache.hadoop.io.RawComparator;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.mapreduce.task.MapContextImpl;
 
+import edu.brown.cs.systems.resourcetracing.CPUTracking;
+
 /** 
  * Maps input key/value pairs to a set of intermediate key/value pairs.  
  * 
@@ -142,6 +144,7 @@ public class Mapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT> {
     setup(context);
     try {
       while (context.nextKeyValue()) {
+        CPUTracking.continueTracking();
         map(context.getCurrentKey(), context.getCurrentValue(), context);
       }
     } finally {
