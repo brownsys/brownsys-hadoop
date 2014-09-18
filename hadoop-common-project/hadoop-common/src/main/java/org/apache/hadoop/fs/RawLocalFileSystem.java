@@ -42,9 +42,6 @@ import org.apache.hadoop.util.Progressable;
 import org.apache.hadoop.util.Shell;
 import org.apache.hadoop.util.StringUtils;
 
-import edu.brown.cs.systems.resourcethrottling.LocalThrottlingPoints;
-import edu.brown.cs.systems.resourcethrottling.ThrottlingPoint;
-
 /****************************************************************
  * Implement the FileSystem API for the raw local filesystem.
  *

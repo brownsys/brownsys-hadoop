@@ -75,8 +75,6 @@ import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.hadoop.util.StringInterner;
 import org.apache.hadoop.util.StringUtils;
 
-import edu.brown.cs.systems.resourcethrottling.LocalThrottlingPoints;
-import edu.brown.cs.systems.resourcethrottling.ThrottlingPoint;
 import edu.brown.cs.systems.xtrace.XTrace;
 
 /** A Map task. */
@@ -93,8 +91,6 @@ public class MapTask extends Task {
 
   private static final XTrace.Logger xtrace = XTrace.getLogger(MapTask.class);
   private static final Log LOG = LogFactory.getLog(MapTask.class.getName());
-
-  private static ThrottlingPoint spill_throttler = LocalThrottlingPoints.getThrottlingPoint("MRSpill");
 
   private Progress mapPhase;
   private Progress sortPhase;

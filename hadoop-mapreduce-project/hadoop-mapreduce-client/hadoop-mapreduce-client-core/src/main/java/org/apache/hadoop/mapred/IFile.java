@@ -24,6 +24,8 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
@@ -43,8 +45,8 @@ import org.apache.hadoop.io.compress.Decompressor;
 import org.apache.hadoop.io.serializer.SerializationFactory;
 import org.apache.hadoop.io.serializer.Serializer;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import edu.brown.cs.systems.resourcethrottling.LocalThrottlingPoints;
+import edu.brown.cs.systems.resourcethrottling.ThrottlingPoint;
 
 /**
  * <code>IFile</code> is the simple <key-len, value-len, key, value> format
@@ -58,6 +60,9 @@ import org.apache.commons.logging.LogFactory;
 public class IFile {
   private static final Log LOG = LogFactory.getLog(IFile.class);
   public static final int EOF_MARKER = -1; // End of File Marker
+
+  private static ThrottlingPoint writer_throttler = LocalThrottlingPoints.getThrottlingPoint("IFileWriter");
+  private static ThrottlingPoint reader_throttler = LocalThrottlingPoints.getThrottlingPoint("IFileReader");
   
   /**
    * <code>IFile.Writer</code> to write out intermediate map-outputs. 
@@ -228,6 +233,8 @@ public class IFile {
                                   WritableUtils.getVIntSize(keyLength) + 
                                   WritableUtils.getVIntSize(valueLength);
       ++numRecordsWritten;
+      
+      writer_throttler.throttle();
     }
     
     public void append(DataInputBuffer key, DataInputBuffer value)
@@ -254,6 +261,8 @@ public class IFile {
                       WritableUtils.getVIntSize(keyLength) + 
                       WritableUtils.getVIntSize(valueLength);
       ++numRecordsWritten;
+      
+      writer_throttler.throttle();
     }
     
     // Required for mark/reset
@@ -378,6 +387,8 @@ public class IFile {
      * @throws IOException
      */
     private int readData(byte[] buf, int off, int len) throws IOException {
+      reader_throttler.throttle();
+      
       int bytesRead = 0;
       while (bytesRead < len) {
         int n = IOUtils.wrappedReadForCompressedData(in, buf, off + bytesRead,
