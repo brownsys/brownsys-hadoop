@@ -1618,7 +1618,6 @@ public class MapTask extends Task {
                                        InterruptedException {
       spillThread.joinSpillDoneContext(); // join up with the previous 'done' context if it hasn't already been joined up with. don't want it dangling
       xtrace.log("Beginning spill", "Spill Number", numSpills);
-      spill_throttler.throttle();
       
       //approximate the length of the output file to be the length of the
       //buffer + header lengths for the partitions
