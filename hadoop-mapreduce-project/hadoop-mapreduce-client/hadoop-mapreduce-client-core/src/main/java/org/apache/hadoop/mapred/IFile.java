@@ -61,8 +61,7 @@ public class IFile {
   private static final Log LOG = LogFactory.getLog(IFile.class);
   public static final int EOF_MARKER = -1; // End of File Marker
 
-  private static ThrottlingPoint writer_throttler = LocalThrottlingPoints.getThrottlingPoint("IFileWriter");
-  private static ThrottlingPoint reader_throttler = LocalThrottlingPoints.getThrottlingPoint("IFileReader");
+  private static ThrottlingPoint throttler = LocalThrottlingPoints.getThrottlingPoint("IFile");
   
   /**
    * <code>IFile.Writer</code> to write out intermediate map-outputs. 
@@ -234,7 +233,7 @@ public class IFile {
                                   WritableUtils.getVIntSize(valueLength);
       ++numRecordsWritten;
       
-      writer_throttler.throttle();
+      throttler.throttle();
     }
     
     public void append(DataInputBuffer key, DataInputBuffer value)
@@ -262,7 +261,7 @@ public class IFile {
                       WritableUtils.getVIntSize(valueLength);
       ++numRecordsWritten;
       
-      writer_throttler.throttle();
+      throttler.throttle();
     }
     
     // Required for mark/reset
@@ -387,7 +386,7 @@ public class IFile {
      * @throws IOException
      */
     private int readData(byte[] buf, int off, int len) throws IOException {
-      reader_throttler.throttle();
+      throttler.throttle();
       
       int bytesRead = 0;
       while (bytesRead < len) {
