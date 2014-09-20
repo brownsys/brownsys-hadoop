@@ -62,6 +62,7 @@ import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.log4j.LogManager;
 
+import edu.brown.cs.systems.resourcethrottling.LocalThrottlingPoints;
 import edu.brown.cs.systems.xtrace.XTrace;
 
 /**
@@ -75,6 +76,9 @@ class YarnChild {
   static volatile TaskAttemptID taskid = null;
 
   public static void main(String[] args) throws Throwable {
+    // Initialize throttling points
+    LocalThrottlingPoints.init();
+    
     // Load the XTrace context from the parent process
     XTrace.set(System.getenv());
     xtrace.log("YarnChild starting");
