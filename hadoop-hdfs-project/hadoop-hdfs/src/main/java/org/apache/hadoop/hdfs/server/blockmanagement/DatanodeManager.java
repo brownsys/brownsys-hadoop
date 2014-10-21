@@ -1138,9 +1138,10 @@ public class DatanodeManager {
    * @return boolean true if name resolution successful or address is loopback
    */
   private static boolean isNameResolved(InetAddress address) {
-    String hostname = address.getHostName();
-    String ip = address.getHostAddress();
-    return !hostname.equals(ip) || address.isLoopbackAddress();
+//    String hostname = address.getHostName();
+//    String ip = address.getHostAddress();
+//    return !hostname.equals(ip) || address.isLoopbackAddress();
+    return true;
   }
   
   private void setDatanodeDead(DatanodeDescriptor node) {
