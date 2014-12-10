@@ -329,15 +329,25 @@ public class DatanodeManager {
     //sort the blocks
     // As it is possible for the separation of node manager and datanode, 
     // here we should get node but not datanode only .
+    StringBuilder sortOutput = new StringBuilder();
+    sortOutput.append("sortLocatedBlocks status:\n");
+    
     Node client = getDatanodeByHost(targethost);
     if (client == null) {
+      sortOutput.append("  - client==null, targethost="+targethost+"\n");
       List<String> hosts = new ArrayList<String> (1);
       hosts.add(targethost);
       String rName = dnsToSwitchMapping.resolve(hosts).get(0);
-      if (rName != null)
+      if (rName != null) {
+        sortOutput.append("  - rname = " + rName+"\n");
+        sortOutput.append("  - create NodeBase: " + rName + NodeBase.PATH_SEPARATOR_STR + targethost + "\n");
         client = new NodeBase(rName + NodeBase.PATH_SEPARATOR_STR + targethost);
+      } else {
+        sortOutput.append("  - rname == null " + rName+"\n");        
+      }
     }
-    
+
+    sortOutput.append("  - avoidStaleDataNodesForRead=="+avoidStaleDataNodesForRead+"\n");
     Comparator<DatanodeInfo> comparator = avoidStaleDataNodesForRead ?
         new DFSUtil.DecomStaleComparator(staleInterval) : 
         DFSUtil.DECOM_COMPARATOR;
@@ -346,7 +356,15 @@ public class DatanodeManager {
       networktopology.pseudoSortByDistance(client, b.getLocations());
       // Move decommissioned/stale datanodes to the bottom
       Arrays.sort(b.getLocations(), comparator);
+      
+      sortOutput.append("  - Sorted locations for block " + b.toString() + "\n");
+      int i = 0;
+      for (DatanodeInfo info : b.getLocations()) {
+        sortOutput.append("  #" + (i++) + " " + info + "\n");
+      }
     }
+    
+    System.out.println(sortOutput);
   }
   
   CyclicIteration<String, DatanodeDescriptor> getDatanodeCyclicIteration(
