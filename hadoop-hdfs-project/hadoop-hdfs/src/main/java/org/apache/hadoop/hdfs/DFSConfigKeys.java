@@ -93,6 +93,8 @@ public class DFSConfigKeys extends CommonConfigurationKeys {
   public static final boolean DFS_DATANODE_SYNC_BEHIND_WRITES_DEFAULT = false;
   public static final String  DFS_DATANODE_DROP_CACHE_BEHIND_READS_KEY = "dfs.datanode.drop.cache.behind.reads";
   public static final boolean DFS_DATANODE_DROP_CACHE_BEHIND_READS_DEFAULT = false;
+  public static final String  DFS_DATANODE_FADVISE_SEQUENTIAL = "dfs.datanode.fadvise.sequential.reads";
+  public static final boolean DFS_DATANODE_FADVISE_SEQUENTIAL_DEFAULT = true;
   public static final String  DFS_DATANODE_USE_DN_HOSTNAME = "dfs.datanode.use.datanode.hostname";
   public static final boolean DFS_DATANODE_USE_DN_HOSTNAME_DEFAULT = false;
 

@@ -57,6 +57,7 @@ public class DNConf {
   final boolean dropCacheBehindWrites;
   final boolean syncBehindWrites;
   final boolean dropCacheBehindReads;
+  final boolean fadviseSequential;
   final boolean syncOnClose;
   final boolean encryptDataTransfer;
   final boolean connectToDnViaHostname;
@@ -103,6 +104,9 @@ public class DNConf {
     dropCacheBehindReads = conf.getBoolean(
         DFSConfigKeys.DFS_DATANODE_DROP_CACHE_BEHIND_READS_KEY,
         DFSConfigKeys.DFS_DATANODE_DROP_CACHE_BEHIND_READS_DEFAULT);
+    fadviseSequential = conf.getBoolean(
+        DFSConfigKeys.DFS_DATANODE_FADVISE_SEQUENTIAL,
+        DFSConfigKeys.DFS_DATANODE_FADVISE_SEQUENTIAL_DEFAULT);
     connectToDnViaHostname = conf.getBoolean(
         DFSConfigKeys.DFS_DATANODE_USE_DN_HOSTNAME,
         DFSConfigKeys.DFS_DATANODE_USE_DN_HOSTNAME_DEFAULT);

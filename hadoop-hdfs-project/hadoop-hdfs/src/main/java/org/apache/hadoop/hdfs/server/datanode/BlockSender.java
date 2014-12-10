@@ -148,6 +148,7 @@ class BlockSender implements java.io.Closeable {
   // Cache-management related fields
   private final long readaheadLength;
   private boolean shouldDropCacheBehindRead;
+  private boolean shouldFadviseSequential;
   private ReadaheadRequest curReadahead;
   private long lastCacheDropOffset;
   private static final long CACHE_DROP_INTERVAL_BYTES = 1024 * 1024; // 1MB
@@ -183,6 +184,7 @@ class BlockSender implements java.io.Closeable {
       this.clientTraceFmt = clientTraceFmt;
       this.readaheadLength = datanode.getDnConf().readaheadLength;
       this.shouldDropCacheBehindRead = datanode.getDnConf().dropCacheBehindReads;
+      this.shouldFadviseSequential = datanode.getDnConf().fadviseSequential;
       this.datanode = datanode;
       
       if (verifyChecksum) {
@@ -655,7 +657,7 @@ class BlockSender implements java.io.Closeable {
     
     lastCacheDropOffset = initialOffset;
 
-    if (isLongRead() && blockInFd != null) {
+    if (isLongRead() && blockInFd != null && shouldFadviseSequential) {
       // Advise that this file descriptor will be accessed sequentially.
       NativeIO.POSIX.posixFadviseIfPossible(
           blockInFd, 0, 0, NativeIO.POSIX.POSIX_FADV_SEQUENTIAL);
