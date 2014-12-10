@@ -816,10 +816,6 @@ public class DFSInputStream extends FSInputStream implements ByteBufferReadable 
     throws IOException {
     while (true) {
       DatanodeInfo[] nodes = block.getLocations();
-      String s = "";
-      for (DatanodeInfo info : nodes) 
-        s = s + " " + info.toString();
-      System.out.printf("%d  chooseDataNode: %s\n", Thread.currentThread().getId(), s);
       try {
         DatanodeInfo chosenNode = bestNode(nodes, deadNodes);
         final String dnAddr =
