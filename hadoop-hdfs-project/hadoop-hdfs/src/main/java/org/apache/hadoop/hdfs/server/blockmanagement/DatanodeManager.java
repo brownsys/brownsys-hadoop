@@ -354,7 +354,7 @@ public class DatanodeManager {
   }
   
   private static final Random r = new Random();
-  // Implementing Fisher–Yates shuffle
+  // Implementing Fisher Yates shuffle
   private static <T> void shuffleArray(T[] ar)
   {
     for (int i = ar.length - 1; i > 0; i--)
