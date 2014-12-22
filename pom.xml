@@ -204,6 +204,10 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
               <groupId>edu.brown.cs.systems</groupId>
               <artifactId>xtrace-resource-tracing</artifactId>
             </aspectLibrary>
+            <aspectLibrary>
+              <groupId>edu.brown.cs.systems</groupId>
+              <artifactId>pivot-tracing</artifactId>
+            </aspectLibrary>
           </aspectLibraries>
         </configuration>
         <executions>
