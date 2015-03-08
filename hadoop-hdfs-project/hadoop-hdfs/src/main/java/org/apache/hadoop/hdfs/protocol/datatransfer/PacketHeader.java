@@ -64,7 +64,7 @@ public class PacketHeader {
         .setDataLen(0)
         .setSyncBlock(false)
         .setXtrace(ByteString.copyFrom(XTrace.XTRACE_BYTES_EXAMPLE))
-        .build().getSerializedSize();
+        .build().getSerializedSize() + 1024;
   }
   public static final int PKT_LENGTHS_LEN =
       Ints.BYTES + Shorts.BYTES;
