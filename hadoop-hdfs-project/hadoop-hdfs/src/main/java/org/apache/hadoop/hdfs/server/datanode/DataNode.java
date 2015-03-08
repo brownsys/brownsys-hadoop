@@ -184,6 +184,7 @@ import com.google.common.collect.Sets;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.BlockingService;
 
+import edu.brown.cs.systems.pivottracing.PivotTracingPubSub;
 import edu.brown.cs.systems.resourcetracing.backgroundtasks.HDFSBackgroundTask;
 import edu.brown.cs.systems.xtrace.XTrace;
 
@@ -1938,6 +1939,7 @@ public class DataNode extends Configured
   }
   
   public static void main(String args[]) {
+    PivotTracingPubSub.initialize();
     if (DFSUtil.parseHelpArgument(args, DataNode.USAGE, System.out, true)) {
       System.exit(0);
     }
