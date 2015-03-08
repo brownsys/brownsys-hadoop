@@ -80,6 +80,8 @@ import org.apache.hadoop.util.Progressable;
 
 import com.google.common.annotations.VisibleForTesting;
 
+import edu.brown.cs.systems.pivottracing.PivotTracingPubSub;
+
 
 /****************************************************************
  * Implementation of the abstract FileSystem for the DFS system.
@@ -98,6 +100,7 @@ public class DistributedFileSystem extends FileSystem {
   
   static{
     HdfsConfiguration.init();
+    PivotTracingPubSub.initialize();
   }
 
   public DistributedFileSystem() {
