@@ -29,10 +29,8 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NavigableMap;
-import java.util.Random;
 import java.util.TreeMap;
 
-import org.apache.commons.lang3.RandomUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.HadoopIllegalArgumentException;
@@ -345,28 +343,12 @@ public class DatanodeManager {
         DFSUtil.DECOM_COMPARATOR;
         
     for (LocatedBlock b : locatedblocks) {
-      // temporary hack by jon: randomly permute the locations
-      shuffleArray(b.getLocations());
       networktopology.pseudoSortByDistance(client, b.getLocations());
       // Move decommissioned/stale datanodes to the bottom
       Arrays.sort(b.getLocations(), comparator);
     }
   }
-  
-  private static final Random r = new Random();
-  // Implementing Fisher Yates shuffle
-  private static <T> void shuffleArray(T[] ar)
-  {
-    for (int i = ar.length - 1; i > 0; i--)
-    {
-      int index = r.nextInt(i + 1);
-      // Simple swap
-      T a = ar[index];
-      ar[index] = ar[i];
-      ar[i] = a;
-    }
-  }
-  
+    
   CyclicIteration<String, DatanodeDescriptor> getDatanodeCyclicIteration(
       final String firstkey) {
     return new CyclicIteration<String, DatanodeDescriptor>(
