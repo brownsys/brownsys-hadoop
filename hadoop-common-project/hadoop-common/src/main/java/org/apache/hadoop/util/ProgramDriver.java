@@ -139,7 +139,13 @@ public class ProgramDriver {
     }
     
     XTrace.startTask(true);
-    XTrace.setTenantClass(55);
+    XTrace.startTask(true);
+    int tenant = 55;
+    try {
+      ConfigFactory.load().getInt("mapreduce.tenant");
+    } catch (Exception e) {
+    }
+    XTrace.setTenantClass(tenant);
     XTrace.getLogger("ProgramDriver").log("Executing example program", "ProgramName", args[0]);
 	
     // Remove the leading argument and call main
