@@ -26,6 +26,8 @@ import java.util.TreeMap;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 
+import com.typesafe.config.ConfigFactory;
+
 import edu.brown.cs.systems.xtrace.XTrace;
 
 /** A driver that is used to run programs added to it
@@ -138,7 +140,6 @@ public class ProgramDriver {
       return -1;
     }
     
-    XTrace.startTask(true);
     XTrace.startTask(true);
     int tenant = 55;
     try {
