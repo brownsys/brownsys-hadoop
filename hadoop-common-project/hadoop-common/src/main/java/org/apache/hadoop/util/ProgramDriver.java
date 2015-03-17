@@ -143,7 +143,7 @@ public class ProgramDriver {
     XTrace.startTask(true);
     int tenant = 55;
     try {
-      ConfigFactory.load().getInt("mapreduce.tenant");
+      tenant = ConfigFactory.load().getInt("mapreduce.tenant");
     } catch (Exception e) {
     }
     XTrace.setTenantClass(tenant);
