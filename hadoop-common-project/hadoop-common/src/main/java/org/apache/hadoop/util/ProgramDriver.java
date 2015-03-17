@@ -26,6 +26,9 @@ import java.util.TreeMap;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 
+import com.sun.tools.classfile.StackMapTable_attribute.chop_frame;
+import com.typesafe.config.ConfigFactory;
+
 import edu.brown.cs.systems.xtrace.XTrace;
 
 /** A driver that is used to run programs added to it
@@ -139,7 +142,12 @@ public class ProgramDriver {
     }
     
     XTrace.startTask(true);
-    XTrace.setTenantClass(55);
+    int tenant = 55;
+    try {
+      ConfigFactory.load().getInt("mapreduce.tenant");
+    } catch (Exception e) {
+    }
+    XTrace.setTenantClass(tenant);
     XTrace.getLogger("ProgramDriver").log("Executing example program", "ProgramName", args[0]);
 	
     // Remove the leading argument and call main
