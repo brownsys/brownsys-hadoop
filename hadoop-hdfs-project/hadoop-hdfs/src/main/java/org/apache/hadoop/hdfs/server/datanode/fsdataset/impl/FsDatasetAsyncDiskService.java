@@ -31,7 +31,6 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
 import org.apache.hadoop.hdfs.server.datanode.DataNode;
 import org.apache.hadoop.hdfs.server.protocol.BlockCommand;
-
 import edu.brown.cs.systems.resourcetracing.backgroundtasks.HDFSBackgroundTask;
 
 /**

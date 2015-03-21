@@ -92,10 +92,8 @@ import org.apache.hadoop.util.Time;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.google.protobuf.ByteString;
 import com.google.protobuf.CodedOutputStream;
 
-import edu.brown.cs.systems.resourcetracing.resources.Network;
 import edu.brown.cs.systems.xtrace.Context;
 import edu.brown.cs.systems.xtrace.XTrace;
 
@@ -1007,22 +1005,15 @@ public class Client {
       
       XTrace.stop();
       try {
-        Network.ignore(true);
         int totalLen;
         RpcResponseHeaderProto header;
-        try {
           totalLen = in.readInt();
           header = RpcResponseHeaderProto.parseDelimitedFrom(in);
-        } finally {
-          Network.ignore(false);
-        }
         checkResponse(header);
 
         int headerLen = header.getSerializedSize();
         headerLen += CodedOutputStream.computeRawVarint32Size(headerLen);
         
-        Network.Read.alreadyStarted(in);
-        Network.Read.alreadyFinished(in, headerLen);
 
         int callId = header.getCallId();
         if (LOG.isDebugEnabled())

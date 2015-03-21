@@ -116,11 +116,7 @@ import com.google.protobuf.CodedOutputStream;
 import com.google.protobuf.Message;
 import com.google.protobuf.Message.Builder;
 
-import edu.brown.cs.systems.resourcethrottling.LocalThrottlingPoints;
-import edu.brown.cs.systems.resourcetracing.resources.Network;
-import edu.brown.cs.systems.resourcetracing.resources.QueueResource;
 import edu.brown.cs.systems.xtrace.Context;
-import edu.brown.cs.systems.xtrace.Reporter.Utils;
 import edu.brown.cs.systems.xtrace.XTrace;
 
 /** An abstract IPC service.  IPC calls take a single {@link Writable} as a
@@ -378,7 +374,6 @@ public abstract class Server {
 
   volatile private boolean running = true;         // true while server runs
   
-  private QueueResource callQueueInstrumentation = null; // xresourcetracing instrumentation for the callqueue.  could be better but will do for now
   private BlockingQueue<Call> callQueue; // queued calls
 
   private List<Connection> connectionList = 
@@ -1806,10 +1801,6 @@ public abstract class Server {
         }
         checkRpcHeaders(header);
         
-        // XTrace: one of the few places in hdfs source code where we have to explicitly call resource instrumentation code
-        Network.Read.alreadyStarted(this);
-        Network.Read.alreadyFinished(this, buf.length);
-        
         if (callId < 0) { // callIds typically used during connection setup
           processRpcOutOfBandRequest(header, dis);
         } else if (!connectionContextRead) {
@@ -1903,8 +1894,6 @@ public abstract class Server {
       Call call = new Call(header.getCallId(), header.getRetryCount(),
           rpcRequest, this, ProtoUtil.convert(header.getRpcKind()), header
               .getClientId().toByteArray());
-      if (callQueueInstrumentation!=null)
-        callQueueInstrumentation.enqueue();
       call.enqueue = System.nanoTime();
       callQueue.put(call);              // queue the call; maybe blocked here
       incRpcCount();  // Increment the rpc count
@@ -2053,8 +2042,6 @@ public abstract class Server {
           final Call call = callQueue.take(); // pop the queue; maybe blocked here
           call.dequeue = System.nanoTime();
           XTrace.set(call.start_context);
-          if (callQueueInstrumentation!=null)
-            callQueueInstrumentation.starting(call.enqueue, call.dequeue);
 
           try { // xtrace try
             
@@ -2142,8 +2129,6 @@ public abstract class Server {
           
           } finally { // xtrace finally
             call.complete = System.nanoTime();
-            if (callQueueInstrumentation!=null)
-              callQueueInstrumentation.finished(call.enqueue, call.dequeue, call.complete);
           }
         } catch (InterruptedException e) {
           if (running) {                          // unexpected -- log it
@@ -2222,13 +2207,7 @@ public abstract class Server {
           CommonConfigurationKeys.IPC_SERVER_RPC_READ_THREADS_KEY,
           CommonConfigurationKeys.IPC_SERVER_RPC_READ_THREADS_DEFAULT);
     }
-    if ("NameNode".equals(Utils.getProcessName())) {
-      // Hack; put a throttling queue on NN only for now
-      this.callQueue = LocalThrottlingPoints.getThrottlingQueue(Utils.getProcessName()+"-"+serverName);
-      this.callQueueInstrumentation = new QueueResource("Server-"+System.identityHashCode(this)+"-callQueue", handlerCount);
-    } else {
-      this.callQueue  = new LinkedBlockingQueue<Call>(maxQueueSize);
-    }
+    this.callQueue  = new LinkedBlockingQueue<Call>(maxQueueSize);
     this.maxIdleTime = 2 * conf.getInt(
         CommonConfigurationKeysPublic.IPC_CLIENT_CONNECTION_MAXIDLETIME_KEY,
         CommonConfigurationKeysPublic.IPC_CLIENT_CONNECTION_MAXIDLETIME_DEFAULT);
