@@ -47,10 +47,6 @@ import org.apache.hadoop.util.DataChecksum;
 
 import com.google.common.base.Preconditions;
 
-import edu.brown.cs.systems.resourcethrottling.LocalThrottlingPoints;
-import edu.brown.cs.systems.resourcethrottling.ThrottlingPoint;
-import edu.brown.cs.systems.xtrace.XTrace;
-
 /**
  * Reads a block from the disk and sends it to a recipient.
  * 
@@ -92,7 +88,6 @@ import edu.brown.cs.systems.xtrace.XTrace;
  *  no checksum error, it replies to DataNode with OP_STATUS_CHECKSUM_OK.
  */
 class BlockSender implements java.io.Closeable {
-  static final ThrottlingPoint throttlingpoint = LocalThrottlingPoints.getThrottlingPoint("BlockSender");
   static final Log LOG = DataNode.LOG;
   static final Log ClientTraceLog = DataNode.ClientTraceLog;
   private static final boolean is32Bit = 
@@ -553,9 +548,6 @@ class BlockSender implements java.io.Closeable {
       throttler.throttle(packetLen);
     }
     
-    // Retro throttle
-    throttlingpoint.throttle();
-
     return dataLen;
   }
   
