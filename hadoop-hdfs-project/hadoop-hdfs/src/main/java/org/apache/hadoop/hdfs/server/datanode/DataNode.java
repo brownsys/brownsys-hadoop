@@ -223,7 +223,6 @@ import edu.brown.cs.systems.xtrace.XTrace;
 public class DataNode extends Configured 
     implements InterDatanodeProtocol, ClientDatanodeProtocol,
     DataNodeMXBean {
-  public static final XTrace.Logger xtrace = XTrace.getLogger(DataNode.class);
   public static final Log LOG = LogFactory.getLog(DataNode.class);
   
   static{

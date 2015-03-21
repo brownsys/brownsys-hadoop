@@ -51,7 +51,6 @@ import edu.brown.cs.systems.xtrace.XTrace;
 /** An RpcEngine implementation for Writable data. */
 @InterfaceStability.Evolving
 public class WritableRpcEngine implements RpcEngine {
-  private static final XTrace.Logger xtrace = XTrace.getLogger(RPC.class);
   private static final Log LOG = LogFactory.getLog(RPC.class);
   
   //writableRpcVersion should be updated if there is a change
@@ -235,7 +234,6 @@ public class WritableRpcEngine implements RpcEngine {
         startTime = Time.now();
       }
 
-      xtrace.log("RPC Client invoking remote method "+method.getName(), "ConnectionID", this.remoteId);
       Context start_context = XTrace.get();
       try { // xtrace try
 
@@ -247,13 +245,11 @@ public class WritableRpcEngine implements RpcEngine {
       }
       
       XTrace.join(start_context);
-      xtrace.log("Client invocation of "+method.getName()+" successful");
 
       return value.get();
       
       } catch (Exception e) {// xtrace catch
         XTrace.join(start_context);
-        xtrace.log("Remote invocation of "+method.getName()+" failed due to exception: "+e.getClass().getName(), "Message", e.getMessage());
         throw e;
       }
     }
@@ -442,7 +438,6 @@ public class WritableRpcEngine implements RpcEngine {
         Invocation call = (Invocation)rpcRequest;
         if (server.verbose) log("Call: " + call);
         
-        xtrace.log("Invoking method", "Method", call.getMethodName());
         Context start_context = XTrace.get();
         try { // xtrace try
 
@@ -519,7 +514,6 @@ public class WritableRpcEngine implements RpcEngine {
           if (server.verbose) log("Return: "+value);
 
           XTrace.join(start_context);
-          xtrace.log("Invocation of method completed, responding to client", "Method", call.getMethodName());
           
           return new ObjectWritable(method.getReturnType(), value);
 
@@ -543,7 +537,6 @@ public class WritableRpcEngine implements RpcEngine {
 
         } catch (IOException e) { // xtrace catch
           XTrace.join(start_context);
-          xtrace.log("Failed to invoke method "+call.getMethodName()+": "+e.getClass().getName(), "Message", e.getMessage());
           throw e;
         }
      }

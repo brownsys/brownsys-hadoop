@@ -73,7 +73,6 @@ import edu.brown.cs.systems.xtrace.XTrace;
 @InterfaceAudience.Private
 class BPServiceActor implements Runnable {
   
-  static final XTrace.Logger xtrace = XTrace.getLogger(BPServiceActor.class);
   static final Log LOG = DataNode.LOG;
   final InetSocketAddress nnAddr;
 
@@ -317,7 +316,6 @@ class BPServiceActor implements Runnable {
       pendingIncrementalBR.put(
           bInfo.getBlock().getBlockId(), bInfo);
       pendingReceivedRequests++;
-      xtrace.log("Triggering block report to namenode");
       pendingIncrementalBR.notifyAll();
     }
   }

@@ -50,7 +50,6 @@ public class PacketReceiver implements Closeable {
    */
   private static final int MAX_PACKET_SIZE = 16 * 1024 * 1024;
 
-  static XTrace.Logger xtrace = XTrace.getLogger(PacketReceiver.class);
   static Log LOG = LogFactory.getLog(PacketReceiver.class);
   
   private static final DirectBufferPool bufferPool = new DirectBufferPool();
@@ -132,7 +131,6 @@ public class PacketReceiver implements Closeable {
     //            checksums were not requested
     // DATA       the actual block data
     
-    xtrace.log("Reading packet");
     try { // xtrace try
     
     Preconditions.checkState(curHeader == null || !curHeader.isLastPacketInBlock());
@@ -188,7 +186,6 @@ public class PacketReceiver implements Closeable {
     }
     curHeader.setFieldsFromData(payloadLen, headerBuf);
     curHeader.joinXTraceContext();
-    xtrace.log("Finished reading packet");
     
     // Compute the sub-slices of the packet
     int checksumLen = dataPlusChecksumLen - curHeader.getDataLen();
@@ -201,7 +198,6 @@ public class PacketReceiver implements Closeable {
     reslicePacket(headerLen, checksumLen, curHeader.getDataLen());
     
     } catch (IOException e) { // xtrace catch
-      xtrace.log("Exception reading packet", "Message", e.getMessage());
       throw e;
     }
   }
@@ -213,18 +209,11 @@ public class PacketReceiver implements Closeable {
     Preconditions.checkState(!useDirectBuffers,
         "Currently only supported for non-direct buffers");
     
-    xtrace.log("Mirroring packet");
-    try { // xtrace try
-    
     updateHeaderXTrace();
     mirrorOut.write(curPacketBuf.array(),
         curPacketBuf.arrayOffset(),
         curPacketBuf.remaining());
     
-    xtrace.log("Packet mirrored successfully");    
-    } catch (IOException e) { // xtrace catch
-      xtrace.log("Exception writing block to mirror", "Message", e.getMessage());
-    }
   }
   
   /**

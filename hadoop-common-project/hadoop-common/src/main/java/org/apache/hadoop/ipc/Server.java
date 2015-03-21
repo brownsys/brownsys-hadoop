@@ -245,7 +245,6 @@ public abstract class Server {
     return (val == null) ? null : val.rpcInvoker; 
   }
   
-  public static final XTrace.Logger xtrace = XTrace.getLogger(Server.class);
   public static final Log LOG = LogFactory.getLog(Server.class);
   public static final Log AUDITLOG = 
     LogFactory.getLog("SecurityLogger."+Server.class.getName());
@@ -510,7 +509,6 @@ public abstract class Server {
       this.rpcResponse = null;
       this.rpcKind = kind;
       this.clientId = clientId;
-      Server.xtrace.log("Received RPC call", "CallID", id);
       this.start_context = XTrace.get();
     }
     
@@ -1037,7 +1035,6 @@ public abstract class Server {
             return true;
           }
           if (!call.rpcResponse.hasRemaining()) {
-            xtrace.log("Finished writing RPC response");
             //Clear out the response buffer so it can be collected
             call.rpcResponse = null;
             call.connection.decRpcCount();
@@ -1051,7 +1048,6 @@ public abstract class Server {
                   + " Wrote " + numBytes + " bytes.");
             }
           } else {
-            xtrace.log("Wrote partial RPC response, enqueueing for later finish");
             //
             // If we were unable to write the entire response out, then 
             // insert in Selector queue. 

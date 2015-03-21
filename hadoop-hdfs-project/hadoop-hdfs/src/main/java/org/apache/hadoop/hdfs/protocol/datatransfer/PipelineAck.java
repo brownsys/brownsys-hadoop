@@ -41,7 +41,6 @@ import edu.brown.cs.systems.xtrace.XTrace;
 @InterfaceStability.Evolving
 public class PipelineAck {
   
-  private static final XTrace.Logger xtrace = XTrace.getLogger(PipelineAck.class);
   PipelineAckProto proto;
   public final static long UNKOWN_SEQNO = -2;
 
@@ -70,7 +69,6 @@ public class PipelineAck {
       .addAllStatus(Arrays.asList(replies))
       .setDownstreamAckTimeNanos(downstreamAckTimeNanos);
     if (XTrace.active()) {
-      xtrace.log("creating pipelined ack");
       builder.setXtrace(ByteString.copyFrom(XTrace.bytes()));
     }
     proto = builder.build();

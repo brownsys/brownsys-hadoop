@@ -70,7 +70,6 @@ import edu.brown.cs.systems.xtrace.XTrace;
 @InterfaceAudience.LimitedPrivate({"HDFS", "MapReduce"})
 @InterfaceStability.Unstable
 public class NetUtils {
-  private static final XTrace.Logger xtrace = XTrace.getLogger(NetUtils.class);
   private static final Log LOG = LogFactory.getLog(NetUtils.class);
   
   private static Map<String, String> hostToResolved = 
@@ -520,7 +519,6 @@ public class NetUtils {
       throw new IllegalArgumentException("Illegal argument for connect()");
     }
 
-    xtrace.log("Connecting to remote", "Socket", socket.toString(), "Timeout", timeout);
     Context start_context = XTrace.get();
     try { // xtrace try
     
@@ -562,10 +560,8 @@ public class NetUtils {
     }
     
     XTrace.join(start_context);
-    xtrace.log("Connected to remote host");    
     } catch (IOException e) { // xtrace catch
       XTrace.join(start_context);
-      xtrace.log("Failed to connect to remote host: "+e.getClass().getName(), "Message", e.getMessage());
       throw e;
     }
   }

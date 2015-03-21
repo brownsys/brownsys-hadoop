@@ -54,7 +54,6 @@ import edu.brown.cs.systems.xtrace.XTrace;
 @InterfaceAudience.Private
 @InterfaceStability.Evolving
 public class PacketHeader {
-  private static final XTrace.Logger xtrace = XTrace.getLogger(PacketHeader.class);
   private static final int MAX_PROTO_SIZE;
   static {
     MAX_PROTO_SIZE = PacketHeaderProto.newBuilder()
@@ -91,7 +90,6 @@ public class PacketHeader {
       .setDataLen(dataLen);
     
     if (XTrace.active()) {
-      xtrace.log("Constructing packet header");
       builder.setXtrace(ByteString.copyFrom(XTrace.bytesBounded()));
     }
       

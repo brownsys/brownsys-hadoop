@@ -92,7 +92,6 @@ import edu.brown.cs.systems.xtrace.XTrace;
  *  no checksum error, it replies to DataNode with OP_STATUS_CHECKSUM_OK.
  */
 class BlockSender implements java.io.Closeable {
-  static final XTrace.Logger xtrace = XTrace.getLogger(BlockSender.class);
   static final ThrottlingPoint throttlingpoint = LocalThrottlingPoints.getThrottlingPoint("BlockSender");
   static final Log LOG = DataNode.LOG;
   static final Log ClientTraceLog = DataNode.ClientTraceLog;
@@ -234,9 +233,7 @@ class BlockSender implements java.io.Closeable {
        */
       DataChecksum csum = null;
       if (verifyChecksum || sendChecksum) {
-        xtrace.log("Getting metadata input stream");
         final InputStream metaIn = datanode.data.getMetaDataInputStream(block);
-        xtrace.log("Got metadata input stream");
         if (!corruptChecksumOk || metaIn != null) {
           if (metaIn == null) {
             //need checksum but meta-data not found
@@ -464,7 +461,6 @@ class BlockSender implements java.io.Closeable {
     int packetLen = dataLen + checksumDataLen + 4;
     boolean lastDataPacket = offset + dataLen == endOffset && dataLen > 0;
 
-    xtrace.log("Sending packet", "dataLen", dataLen, "numChunks", numChunks, "packetLen", packetLen);
     
     // The packet buffer is organized as follows:
     // _______HHHHCCCCD?D?D?D?
@@ -527,7 +523,6 @@ class BlockSender implements java.io.Closeable {
         // normal transfer
         out.write(buf, headerOff, dataOff + dataLen - headerOff);
       }
-      xtrace.log("Packet send complete");
     } catch (IOException e) {
       if (e instanceof SocketTimeoutException) {
         /*
@@ -536,7 +531,6 @@ class BlockSender implements java.io.Closeable {
          * the socket open).
          */
           LOG.info("exception: ", e);
-          xtrace.log("SocketTimeoutException");
       } else {
         /* Exception while writing to the client. Connection closure from
          * the other end is mostly the case and we do not care much about
@@ -551,7 +545,6 @@ class BlockSender implements java.io.Closeable {
         if (!ioem.startsWith("Broken pipe") && !ioem.startsWith("Connection reset")) {
           LOG.error("BlockSender.sendChunks() exception: ", e);
         }
-        xtrace.log("Exception", "Message", ioem);
       }
       throw ioeToSocketException(e);
     }
@@ -648,9 +641,6 @@ class BlockSender implements java.io.Closeable {
       throw new IOException( "out stream is null" );
     }
 
-    xtrace.log("Sending Block", "BlockName", block.getBlockName());
-    try { // xtrace try
-    
     initialOffset = offset;
     long totalRead = 0;
     OutputStream streamForSendChunks = out;
@@ -710,9 +700,6 @@ class BlockSender implements java.io.Closeable {
         }
 
         sentEntireByteRange = true;
-        xtrace.log("Entire block sent", "totalRead", totalRead, "initialOffset", initialOffset);
-      } else {
-        xtrace.log("Block send interrupted", "totalRead", totalRead, "initialOffset", initialOffset);
       }
     } finally {
       if (clientTraceFmt != null) {
@@ -724,10 +711,6 @@ class BlockSender implements java.io.Closeable {
     }
     return totalRead;
     
-    } catch (IOException e) { // xtrace catch
-      xtrace.log("IOException sending block", "Message", e.getMessage());
-      throw e;
-    }
   }
 
   /**

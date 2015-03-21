@@ -67,7 +67,6 @@ import edu.brown.cs.systems.xtrace.XTrace;
  */
 @InterfaceStability.Evolving
 public class ProtobufRpcEngine implements RpcEngine {
-  public static final XTrace.Logger xtrace = XTrace.getLogger(ProtobufRpcEngine.class);
   public static final Log LOG = LogFactory.getLog(ProtobufRpcEngine.class);
   
   static { // Register the rpcRequest deserializer for WritableRpcEngine 
@@ -187,7 +186,6 @@ public class ProtobufRpcEngine implements RpcEngine {
     public Object invoke(Object proxy, Method method, Object[] args)
         throws ServiceException {
 
-      xtrace.log("Invoking remote method "+method.getName(), "Protocol", this.protocolName, "ConnectionID", this.remoteId);
       Context start_context = XTrace.get();
       try { // xtrace try
       
@@ -258,12 +256,10 @@ public class ProtobufRpcEngine implements RpcEngine {
       }
       
       XTrace.join(start_context);
-      xtrace.log("Client invocation of "+method.getName()+" successful");
       
       return returnMessage;
       } catch (ServiceException e) {// xtrace catch
         XTrace.join(start_context);
-        xtrace.log("Remote invocation of "+method.getName()+" failed due to exception: "+e.getClass().getName(), "Message", e.getMessage());
         throw e;
       }
     }
@@ -590,7 +586,6 @@ public class ProtobufRpcEngine implements RpcEngine {
         if (server.verbose)
           LOG.info("Call: protocol=" + protocol + ", method=" + methodName);
         
-        xtrace.log("Invoking method "+methodName, "Protocol", protocol, "Name", "RPC: "+methodName);
         Context start_context = XTrace.get();
         try { // xtrace try
         
@@ -631,11 +626,9 @@ public class ProtobufRpcEngine implements RpcEngine {
         }
 
         XTrace.join(start_context);
-        xtrace.log("Invocation of "+methodName+" completed, responding to client");
         return new RpcResponseWrapper(result);        
         } catch (Exception e) { // xtrace catch
           XTrace.join(start_context);
-          xtrace.log("Failed to invoke method "+methodName+": "+e.getClass().getName(), "Message", e.getMessage());
           throw e;
         }
       }

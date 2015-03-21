@@ -91,7 +91,6 @@ public class NativeIO {
        write.  */
     public static final int SYNC_FILE_RANGE_WAIT_AFTER = 4;
 
-    private static final XTrace.Logger xtrace = XTrace.getLogger(NativeIO.class);
     private static final Log LOG = LogFactory.getLog(NativeIO.class);
 
     private static boolean nativeLoaded = false;
@@ -186,7 +185,6 @@ public class NativeIO {
       if (nativeLoaded && fadvisePossible) {
         try {
           posix_fadvise(fd, offset, len, flags);
-          xtrace.log("posix_fadvise", "offset", offset, "len", len, "flags", flags);
         } catch (UnsupportedOperationException uoe) {
           fadvisePossible = false;
         } catch (UnsatisfiedLinkError ule) {
@@ -208,7 +206,6 @@ public class NativeIO {
       if (nativeLoaded && syncFileRangePossible) {
         try {
           sync_file_range(fd, offset, nbytes, flags);
-          xtrace.log("sync_file_range", "offset", offset, "nbytes", nbytes, "flags", flags);
         } catch (UnsupportedOperationException uoe) {
           syncFileRangePossible = false;
         } catch (UnsatisfiedLinkError ule) {

@@ -49,8 +49,6 @@ import org.apache.hadoop.util.DataChecksum;
 
 import com.google.common.annotations.VisibleForTesting;
 
-import edu.brown.cs.systems.xtrace.XTrace;
-
 /**
  * This is a wrapper around connection to datanode
  * and understands checksum, offset etc.
@@ -80,7 +78,6 @@ import edu.brown.cs.systems.xtrace.XTrace;
 @InterfaceAudience.Private
 public class RemoteBlockReader2  implements BlockReader {
 
-  static final XTrace.Logger xtrace = XTrace.getLogger(RemoteBlockReader2.class);
   static final Log LOG = LogFactory.getLog(RemoteBlockReader2.class);
   
   final private Peer peer;
@@ -215,7 +212,6 @@ public class RemoteBlockReader2  implements BlockReader {
     // If we've now satisfied the whole client read, read one last packet
     // header, which should be empty
     if (bytesNeededToFinish <= 0) {
-      xtrace.log("Block finished, reading trailing empty packet");
       readTrailingEmptyPacket();
       if (verifyChecksum) {
         sendReadResult(Status.CHECKSUM_OK);
@@ -379,9 +375,6 @@ public class RemoteBlockReader2  implements BlockReader {
                                      String clientName,
                                      Peer peer, DatanodeID datanodeID,
                                      PeerCache peerCache) throws IOException {
-    xtrace.log("Reading remote block", "file", file, "BlockName", block.getBlockName());
-    try { // xtrace try
-    
     // in and out will be closed when sock is closed (by the caller)
     final DataOutputStream out = new DataOutputStream(new BufferedOutputStream(
           peer.getOutputStream()));
@@ -417,10 +410,6 @@ public class RemoteBlockReader2  implements BlockReader {
         checksum, verifyChecksum, startOffset, firstChunkOffset, len, peer,
         datanodeID, peerCache);
     
-    } catch (IOException e) {
-      xtrace.log("IOException reading remote block", "Message", e.getMessage());
-      throw e;
-    }
   }
 
   static void checkSuccess(
