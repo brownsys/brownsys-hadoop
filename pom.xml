@@ -23,6 +23,41 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
   <name>Apache Hadoop Main</name>
   <packaging>pom</packaging>
 
+
+
+  <dependencies>
+    <dependency>
+      <groupId>org.aspectj</groupId>
+      <artifactId>aspectjrt</artifactId>
+      <version>1.7.3</version>
+    </dependency>
+    <dependency>
+      <groupId>edu.brown.cs.systems</groupId>
+      <artifactId>xtrace</artifactId>
+      <version>3.0</version>
+    </dependency>
+    <dependency>
+      <groupId>edu.brown.cs.systems</groupId>
+      <artifactId>xtrace-resource-tracing</artifactId>
+      <version>1.0</version>
+    </dependency>
+    <dependency>
+      <groupId>edu.brown.cs.systems</groupId>
+      <artifactId>resourcethrottling</artifactId>
+      <version>1.0</version>
+    </dependency>
+    <dependency>
+      <groupId>edu.brown.cs.systems</groupId>
+      <artifactId>pivot-tracing</artifactId>
+      <version>1.0</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <version>17.0</version>
+    </dependency>
+  </dependencies>
+
   <dependencyManagement>
     <dependencies>
       <dependency>
