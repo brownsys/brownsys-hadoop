@@ -485,7 +485,6 @@ public abstract class Server {
     private final byte[] clientId;
     
     private Context start_context;  // the X-Trace context this was received with
-    public long enqueue, dequeue, complete; // Timers for queue instrumentation; hacky but quick
 	private Context response_context; // the X-Trace context before sending the response
 
     public Call(int id, int retryCount, Writable param, 
@@ -1894,7 +1893,6 @@ public abstract class Server {
       Call call = new Call(header.getCallId(), header.getRetryCount(),
           rpcRequest, this, ProtoUtil.convert(header.getRpcKind()), header
               .getClientId().toByteArray());
-      call.enqueue = System.nanoTime();
       callQueue.put(call);              // queue the call; maybe blocked here
       incRpcCount();  // Increment the rpc count
     }
@@ -2040,11 +2038,8 @@ public abstract class Server {
         XTrace.stop();
         try {
           final Call call = callQueue.take(); // pop the queue; maybe blocked here
-          call.dequeue = System.nanoTime();
           XTrace.set(call.start_context);
 
-          try { // xtrace try
-            
           if (LOG.isDebugEnabled()) {
             LOG.debug(getName() + ": " + call + " for RpcKind " + call.rpcKind);
           }
@@ -2127,9 +2122,6 @@ public abstract class Server {
             responder.doRespond(call);
           }
           
-          } finally { // xtrace finally
-            call.complete = System.nanoTime();
-          }
         } catch (InterruptedException e) {
           if (running) {                          // unexpected -- log it
             LOG.info(getName() + " unexpectedly interrupted", e);

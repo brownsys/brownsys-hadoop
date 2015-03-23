@@ -586,9 +586,6 @@ public class ProtobufRpcEngine implements RpcEngine {
         if (server.verbose)
           LOG.info("Call: protocol=" + protocol + ", method=" + methodName);
         
-        Context start_context = XTrace.get();
-        try { // xtrace try
-        
         ProtoClassProtoImpl protocolImpl = getProtocolImpl(server, protoName,
             clientVersion);
         BlockingService service = (BlockingService) protocolImpl.protocolImpl;
@@ -625,12 +622,7 @@ public class ProtobufRpcEngine implements RpcEngine {
           throw e;
         }
 
-        XTrace.join(start_context);
         return new RpcResponseWrapper(result);        
-        } catch (Exception e) { // xtrace catch
-          XTrace.join(start_context);
-          throw e;
-        }
       }
     }
   }
